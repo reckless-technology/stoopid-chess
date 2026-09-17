@@ -91,7 +91,33 @@ public sealed partial class Board
     }
 
     /// <summary>
-    /// Unmake the most recently made move.
+    /// Pass the turn without moving, for null-move pruning in the search. Unmade like any other move
+    /// with <see cref="UnmakeMove"/>. Repetitions are not detected across a null move.
+    /// </summary>
+    public void MakeNullMove()
+    {
+        history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, SecondaryKey, PawnKey));
+        SetEnPassantSquare(Squares.None);
+        HalfMoveClock = Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
+        SwitchSideToMove(SideToMove.Opponent());
+    }
+
+    /// <summary>
+    /// True if the last move made was a null move.
+    /// </summary>
+    public bool LastMoveWasNull => history.Count != 0 && history[^1].Move.IsNone;
+
+    /// <summary>
+    /// Does the side have any piece other than pawns and the king? Null-move pruning is unsafe
+    /// without them, because of zugzwang.
+    /// </summary>
+    public bool HasNonPawnMaterial(Colour colour)
+    {
+        return Count(colour, PieceType.Knight) + Count(colour, PieceType.Bishop) + Count(colour, PieceType.Rook) + Count(colour, PieceType.Queen) != 0;
+    }
+
+    /// <summary>
+    /// Unmake the most recently made move (or null move).
     /// </summary>
     public void UnmakeMove()
     {
@@ -106,6 +132,11 @@ public sealed partial class Board
         Colour them = SideToMove;
         Colour us = them.Opponent();
         SideToMove = us;
+        if (move.IsNone)
+        {
+            RestoreState(undo);
+            return;
+        }
         if (us == Colour.Black)
         {
             FullMoveNumber--;
@@ -150,7 +181,14 @@ public sealed partial class Board
                 throw new InvalidOperationException("corrupt move history");
         }
 
-        // The keys were changed by the piece movements above; restore the saved values directly.
+        RestoreState(undo);
+    }
+
+    /// <summary>
+    /// The keys were changed by the piece movements of the unmake; restore the saved values directly.
+    /// </summary>
+    private void RestoreState(in UndoInfo undo)
+    {
         CastlingRights = undo.CastlingRights;
         EnPassantSquare = undo.EnPassantSquare;
         HalfMoveClock = undo.HalfMoveClock;

@@ -23,7 +23,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path $PSScriptRoot -Parent
-dotnet build (Join-Path $repo "src\StoopidChess.Uci\StoopidChess.Uci.csproj") -c Release | Out-Null
+$dotnet = (Get-Command dotnet -ErrorAction SilentlyContinue)?.Source ?? "C:\Program Files\dotnet\dotnet.exe"
+& $dotnet build (Join-Path $repo "src\StoopidChess.Uci\StoopidChess.Uci.csproj") -c Release | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "engine build failed" }
 $engine = Join-Path $repo "src\StoopidChess.Uci\bin\Release\net10.0\stoopid-chess.exe"
 $opponentName = [IO.Path]::GetFileNameWithoutExtension($Opponent)

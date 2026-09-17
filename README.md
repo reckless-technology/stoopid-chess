@@ -41,8 +41,8 @@ the above and launch configurations for debugging the GUI and the engine.
 - Two independent Zobrist keys per position (one to index hash tables, one to verify hits), plus a
   pawn-structure key. Generated from fixed seeds, so every run is reproducible.
 - Negamax alpha-beta with iterative deepening, a two-tier transposition table (depth-preferred and
-  always-replace), killer moves, MVV/LVA capture ordering, a quiescence search with stand-pat, a
-  check extension at the horizon, and mate distance pruning.
+  always-replace), null-move pruning, killer moves, MVV/LVA capture ordering, a quiescence search
+  with stand-pat, a check extension at the horizon, and mate distance pruning.
 - Evaluation: material and piece-square tables, pawn structure (passed, doubled, blocked, defended
   pawns, cached by pawn hash), bishop mobility, and separate king tables for the endgame.
 - UCI: `uci`, `isready`, `setoption name Hash`, `ucinewgame`, `position`, `go` (depth, nodes,
@@ -50,7 +50,7 @@ the above and launch configurations for debugging the GUI and the engine.
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 845,984 nodes, depth 6 = 3,056,834 nodes. A test asserts the depth-5
+Current values: depth 5 = 624,876 nodes, depth 6 = 1,784,839 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing

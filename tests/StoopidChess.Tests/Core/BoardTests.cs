@@ -170,6 +170,30 @@ public class BoardTests
     }
 
     [Fact]
+    public void NullMoveSwitchesSidesAndUnmakesExactly()
+    {
+        Board board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3p4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3");
+        board.MakeMove(FindMove(board, "c2c4")!.Value);     // The black pawn on d4 could capture en passant on c3
+        Assert.Equal(Squares.Parse("c3"), board.EnPassantSquare);
+        string fen = board.ToFen();
+        ulong key = board.Key;
+        board.MakeNullMove();
+        Assert.True(board.LastMoveWasNull);
+        Assert.Equal(Colour.White, board.SideToMove);
+        Assert.Equal(Squares.None, board.EnPassantSquare);
+        Assert.NotEqual(key, board.Key);
+        (ulong computed, _, _) = board.ComputeKeys();
+        Assert.Equal(computed, board.Key);
+        Assert.Equal(board.FullMoveNumber, Board.FromFen(fen).FullMoveNumber);
+        board.UnmakeMove();
+        Assert.False(board.LastMoveWasNull);
+        Assert.Equal(fen, board.ToFen());
+        Assert.Equal(key, board.Key);
+        Assert.True(board.HasNonPawnMaterial(Colour.White));
+        Assert.False(Board.FromFen("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1").HasNonPawnMaterial(Colour.White));
+    }
+
+    [Fact]
     public void IndexersRangeCheck()
     {
         Board board = Board.StartPosition();

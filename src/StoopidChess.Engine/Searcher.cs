@@ -18,6 +18,8 @@ public sealed class Searcher
     public const int DrawScore = 0;
     private const int Infinity = MateScore + 1;
     private const int NodesBetweenTimeChecks = 2048;
+    private const int NullMoveMinimumDepth = 3;
+    private const int NullMoveReduction = 2;
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
@@ -216,6 +218,27 @@ public sealed class Searcher
                     statistics.TranspositionCutoffs++;
                     return tableScore;
                 }
+            }
+        }
+
+        // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
+        // real move will almost certainly do so too, so the node is a fail-high. Skipped in check,
+        // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
+        if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !board.LastMoveWasNull
+            && board.HasNonPawnMaterial(board.SideToMove) && Evaluate() >= beta)
+        {
+            int reduction = NullMoveReduction + (depth / 6);
+            board.MakeNullMove();
+            int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
+            board.UnmakeMove();
+            if (stopped)
+            {
+                return alpha;
+            }
+            if (nullScore >= beta)
+            {
+                statistics.NullMoveCutoffs++;
+                return nullScore >= MateThreshold ? beta : nullScore;   // A mate found after a null move is not trusted
             }
         }
 
