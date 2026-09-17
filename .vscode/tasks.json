@@ -32,6 +32,30 @@
       "presentation": { "reveal": "always", "clear": true }
     },
     {
+      "label": "test (debug build, asserts on)",
+      "detail": "Run the xunit test suite against a Debug build so Debug.Assert checks fire",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "${workspaceFolder}/tests/StoopidChess.Tests/StoopidChess.Tests.csproj", "-c", "Debug"],
+      "group": "test",
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "match vs pawnstar",
+      "detail": "40 paired games at 10+0.1 against pawnstar with fastchess (tools/match.ps1)",
+      "type": "shell",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile", "-File", "${workspaceFolder}/tools/match.ps1",
+        "-Opponent", "C:/Users/jonny/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
+        "-OpponentOptions", "option.Threads=1", "option.OwnBook=false",
+        "-Rounds", "20", "-TimeControl", "10+0.1", "-PgnOut", "${workspaceFolder}/match.pgn"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
       "label": "run gui",
       "detail": "Build and run the Windows Forms GUI",
       "type": "process",
