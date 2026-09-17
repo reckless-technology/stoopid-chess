@@ -99,6 +99,13 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
    (the half-budget iteration rule, the node interval between clock checks) is in `Searcher`. Merge
    when adding soft and hard limits.
 
+## Tried and not kept
+
+- **Aspiration windows** (±40 cp around the previous score from depth 4, doubling on failure):
+  -35 ± 76 Elo in 60 self-play games against the build without them. With a plain alpha-beta
+  search (no principal variation search) and depths of 6-9, the re-searches cost more than the
+  narrower windows save. Worth revisiting together with PVS.
+
 ## Not recommended
 
 - **Bitboards now.** Rewriting `Board`, `MoveGenerator` and `Evaluator` (~1,000 lines) with perft
@@ -121,10 +128,10 @@ nightly fastchess job is worth it only once opponent binaries are checked in or 
 
 | # | Change | Kind | Size | Risk | When |
 |---|---|---|---|---|---|
-| 1 | Null move, LMR, history, aspiration, TT in quiescence | capability | ~280 lines | signature churn; judge by match | now |
-| 2 | Span piece lists, unchecked indexer, incremental PST score | capability | ~60 | low | now |
-| 3 | `PositionBuilder`; strip editing from `Board` and `Game` | simplification | neutral | low | now |
-| 4 | Merge result records, trim statistics, dialogs to `MessageBox`, Designer names | simplification | about -300 | low | now |
+| 1 | Null move, LMR, history, TT in quiescence (done); aspiration windows (tried, no gain) | capability | ~280 lines | signature churn; judge by match | done |
+| 2 | Span piece lists, unchecked indexer (done; incremental PST score not done, it would couple Core to the evaluator) | capability | ~60 | low | done |
+| 3 | `PositionBuilder`; strip editing from `Board` and `Game` | simplification | neutral | low | done |
+| 4 | Merge result records, trim statistics, dialogs to `MessageBox`, Designer names | simplification | about -300 | low | done |
 | 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | later |
 | 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | later |
 | 7 | `TimeManager` | simplification | ~50 | low | with soft/hard limits |
