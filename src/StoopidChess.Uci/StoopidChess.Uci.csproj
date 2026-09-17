@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>StoopidChess.Uci</RootNamespace>
+    <AssemblyName>stoopid-chess</AssemblyName>
+    <Description>The Stoopid Chess UCI engine.</Description>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StoopidChess.Engine\StoopidChess.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,8 @@
 bin/
 obj/
+publish/
+TestResults/
 .vs/
 *.user
 *.suo
 *.pfx
-publish/

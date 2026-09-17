@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>StoopidChess.Core</RootNamespace>
+    <Description>Chess rules: board representation, move generation, FEN and game state.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The standard perft positions (Ethereal's standard.epd), used by the tests and the perft command. -->
+    <EmbeddedResource Include="Data\perft.epd" LogicalName="perft.epd" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StoopidChess.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>StoopidChess.Gui</RootNamespace>
+    <AssemblyName>StoopidChess</AssemblyName>
+    <Description>Stoopid Chess: a Windows Forms chess GUI that plays against any UCI engine.</Description>
+    <ApplicationIcon>BlackQueen.ico</ApplicationIcon>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <ApplicationVisualStyles>true</ApplicationVisualStyles>
+    <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StoopidChess.Core\StoopidChess.Core.csproj" />
+    <ProjectReference Include="..\StoopidChess.Engine\StoopidChess.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="BlackQueen.ico" />
+  </ItemGroup>
+
+</Project>

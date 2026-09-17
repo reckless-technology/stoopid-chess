@@ -1,0 +1,89 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build",
+      "detail": "Debug build of the whole solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/StoopidChess.slnx", "-c", "Debug", "/consoleloggerparameters:NoSummary"],
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "silent", "clear": true }
+    },
+    {
+      "label": "build release",
+      "detail": "Release build of the whole solution",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/StoopidChess.slnx", "-c", "Release", "/consoleloggerparameters:NoSummary"],
+      "group": "build",
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "silent", "clear": true }
+    },
+    {
+      "label": "test",
+      "detail": "Run the xunit test suite (Release, same as CI)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test", "${workspaceFolder}/tests/StoopidChess.Tests/StoopidChess.Tests.csproj", "-c", "Release"],
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "run gui",
+      "detail": "Build and run the Windows Forms GUI",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Gui/StoopidChess.Gui.csproj", "-c", "Debug"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    },
+    {
+      "label": "run uci",
+      "detail": "Build and run the UCI engine in the terminal (type 'uci', 'position startpos', 'go depth 6', 'quit')",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "focus": true }
+    },
+    {
+      "label": "bench",
+      "detail": "Fixed-depth search signature and speed (Release)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release", "--", "bench"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "perft",
+      "detail": "Move generation check against all 128 standard positions (Release)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release", "--", "perft"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "publish",
+      "detail": "Self-contained single-file Release builds of the GUI and the engine into publish/",
+      "type": "shell",
+      "command": "dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui && dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "clean",
+      "detail": "Remove build output",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["clean", "${workspaceFolder}/StoopidChess.slnx"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    }
+  ]
+}

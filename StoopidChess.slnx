@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/StoopidChess.Core/StoopidChess.Core.csproj" />
+    <Project Path="src/StoopidChess.Engine/StoopidChess.Engine.csproj" />
+    <Project Path="src/StoopidChess.Uci/StoopidChess.Uci.csproj" />
+    <Project Path="src/StoopidChess.Gui/StoopidChess.Gui.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/StoopidChess.Tests/StoopidChess.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="README.md" />
+    <File Path="CLAUDE.md" />
+    <File Path=".editorconfig" />
+  </Folder>
+</Solution>

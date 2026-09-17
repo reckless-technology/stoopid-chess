@@ -1,0 +1,523 @@
+using System.Diagnostics;
+using StoopidChess.Core;
+
+namespace StoopidChess.Engine;
+
+/// <summary>
+/// Finds the best move by iterative deepening over a negamax alpha-beta search with a quiescence
+/// search at the leaves. Move ordering uses the transposition table move, then captures by most
+/// valuable victim / least valuable attacker, then killer moves. Searches are deterministic for a
+/// given position, table size and depth, so the bench node count acts as a signature of the search.
+/// A Searcher is not thread safe; use one per concurrent search.
+/// </summary>
+public sealed class Searcher
+{
+    public const int MaxPly = 128;
+    public const int MateScore = 32000;
+    public const int MateThreshold = MateScore - MaxPly;
+    public const int DrawScore = 0;
+    private const int Infinity = MateScore + 1;
+    private const int NodesBetweenTimeChecks = 2048;
+
+    private readonly TranspositionTable table;
+    private readonly Evaluator evaluator = new();
+    private readonly List<Move>[] moveLists = new List<Move>[MaxPly + 1];
+    private readonly Move[,] killers = new Move[MaxPly + 1, 2];
+    private readonly Stopwatch stopwatch = new();
+
+    private Board board = Board.StartPosition();
+    private SearchStatistics statistics = new();
+    private CancellationToken cancellation;
+    private TimeSpan? timeBudget;
+    private long? nodeLimit;
+    private bool stopped;
+
+    public Searcher(TranspositionTable table)
+    {
+        this.table = table ?? throw new ArgumentNullException(nameof(table));
+        for (int i = 0; i < moveLists.Length; i++)
+        {
+            moveLists[i] = new List<Move>(64);
+        }
+    }
+
+    public TranspositionTable Table => table;
+
+    /// <summary>
+    /// Statistics of the most recent search.
+    /// </summary>
+    public SearchStatistics Statistics => statistics;
+
+    public static bool IsMateScore(int score) => Math.Abs(score) >= MateThreshold;
+
+    /// <summary>
+    /// Full moves to mate for a mate score: positive when the side to move mates.
+    /// </summary>
+    public static int MateIn(int score)
+    {
+        int plies = MateScore - Math.Abs(score);
+        int moves = (plies + 1) / 2;
+        return score > 0 ? moves : -moves;
+    }
+
+    /// <summary>
+    /// Search the position. The caller's board is copied and left untouched.
+    /// </summary>
+    /// <param name="position">The position to search, including its move history for repetition detection.</param>
+    /// <param name="limits">When to stop.</param>
+    /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
+    /// <param name="onProgress">Called after each completed depth.</param>
+    public SearchResult Search(Board position, SearchLimits limits, Action<SearchProgress>? onProgress = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(position);
+        ArgumentNullException.ThrowIfNull(limits);
+
+        board = position.Clone();
+        statistics = new SearchStatistics();
+        cancellation = cancellationToken;
+        timeBudget = limits.TimeBudget(board.SideToMove);
+        nodeLimit = limits.Infinite ? null : limits.Nodes;
+        stopped = false;
+        Array.Clear(killers);
+        stopwatch.Restart();
+
+        List<Move> rootMoves = MoveGenerator.GenerateLegalMoves(board);
+        if (rootMoves.Count == 0)
+        {
+            return new SearchResult(Move.None, MoveGenerator.IsInCheck(board) ? -MateScore : DrawScore, 0, 0, stopwatch.Elapsed, []);
+        }
+
+        int maxDepth = limits.Infinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
+        Move bestMove = rootMoves[0];
+        int bestScore = 0;
+        int completedDepth = 0;
+        List<Move> principalVariation = [bestMove];
+
+        for (int depth = 1; depth <= maxDepth; depth++)
+        {
+            int score = SearchRoot(rootMoves, depth, out Move move);
+            if (stopped)
+            {
+                // The iteration was cut short so its result cannot be trusted, except that a move
+                // found at the root before stopping is at least as good as the previous best.
+                break;
+            }
+            bestMove = move;
+            bestScore = score;
+            completedDepth = depth;
+            principalVariation = ExtractPrincipalVariation(bestMove, depth);
+            onProgress?.Invoke(new SearchProgress(depth, score, statistics.Nodes, stopwatch.Elapsed, principalVariation));
+
+            if (IsMateScore(score) && !limits.Infinite && limits.Depth is null)
+            {
+                break;  // A forced mate has been found; deeper search cannot improve on it
+            }
+            if (timeBudget is not null && stopwatch.Elapsed > timeBudget.Value / 2)
+            {
+                break;  // The next iteration would take longer than the time left
+            }
+        }
+
+        stopwatch.Stop();
+        statistics.PawnHashHits = evaluator.PawnHashHits;
+        return new SearchResult(bestMove, bestScore, completedDepth, statistics.Nodes, stopwatch.Elapsed, principalVariation);
+    }
+
+    /// <summary>
+    /// The root is searched separately so that the best move is always known even if the iteration
+    /// is stopped part way through, and so that the previous best move is searched first.
+    /// </summary>
+    private int SearchRoot(List<Move> rootMoves, int depth, out Move bestMove)
+    {
+        OrderMoves(rootMoves, 0, GetTableMove());
+        bestMove = rootMoves[0];
+        int alpha = -Infinity;
+        const int beta = Infinity;
+        foreach (Move move in rootMoves)
+        {
+            board.MakeMove(move);
+            int score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
+            board.UnmakeMove();
+            if (stopped)
+            {
+                return alpha;
+            }
+            if (score > alpha)
+            {
+                alpha = score;
+                bestMove = move;
+            }
+        }
+        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(alpha, 0), depth, NodeType.Exact);
+        return alpha;
+    }
+
+    private int AlphaBeta(int alpha, int beta, int depth, int ply)
+    {
+        Debug.Assert(alpha < beta, "alpha must be below beta");
+        statistics.Nodes++;
+        CheckLimits();
+        if (stopped)
+        {
+            return alpha;
+        }
+
+        if (IsDraw())
+        {
+            return DrawScore;
+        }
+        if (ply >= MaxPly)
+        {
+            return Evaluate();
+        }
+
+        // Mate distance pruning: a mate found here can be no shorter than ply
+        alpha = Math.Max(alpha, -MateScore + ply);
+        beta = Math.Min(beta, MateScore - ply - 1);
+        if (alpha >= beta)
+        {
+            return alpha;
+        }
+
+        bool inCheck = MoveGenerator.IsInCheck(board);
+        if (depth <= 0 && !inCheck)
+        {
+            return Quiescence(alpha, beta, ply);
+        }
+        if (depth <= 0)
+        {
+            depth = 1;      // Check extension: never evaluate a position statically while in check
+        }
+
+        Move tableMove = Move.None;
+        if (table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry))
+        {
+            statistics.TranspositionHits++;
+            tableMove = entry.BestMove;
+            if (entry.Depth >= depth)
+            {
+                int tableScore = ScoreFromTable(entry.Score, ply);
+                if (entry.Type == NodeType.Exact
+                    || (entry.Type == NodeType.LowerBound && tableScore >= beta)
+                    || (entry.Type == NodeType.UpperBound && tableScore <= alpha))
+                {
+                    statistics.TranspositionCutoffs++;
+                    return tableScore;
+                }
+            }
+        }
+
+        List<Move> moves = moveLists[ply];
+        moves.Clear();
+        MoveGenerator.GeneratePseudoLegalMoves(board, moves);
+        OrderMoves(moves, ply, tableMove);
+
+        int originalAlpha = alpha;
+        int bestScore = -Infinity;
+        Move bestMove = Move.None;
+        int legalMoves = 0;
+        Colour us = board.SideToMove;
+
+        foreach (Move move in moves)
+        {
+            board.MakeMove(move);
+            if (MoveGenerator.IsAttacked(board, board.KingSquare(us), board.SideToMove))
+            {
+                board.UnmakeMove();
+                continue;
+            }
+            legalMoves++;
+            int score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+            board.UnmakeMove();
+            if (stopped)
+            {
+                return alpha;   // Do not store results from an incomplete search
+            }
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMove = move;
+            }
+            if (score >= beta)
+            {
+                statistics.BetaCutoffs++;
+                if (!move.IsCapture)
+                {
+                    RecordKiller(ply, move);
+                }
+                table.Store(board.Key, board.SecondaryKey, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
+                return score;
+            }
+            if (score > alpha)
+            {
+                alpha = score;
+            }
+        }
+
+        if (legalMoves == 0)
+        {
+            return inCheck ? -MateScore + ply : DrawScore;
+        }
+
+        NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
+        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(bestScore, ply), depth, type);
+        return bestScore;
+    }
+
+    /// <summary>
+    /// Search captures and promotions until the position is quiet, to avoid evaluating in the middle
+    /// of an exchange. When in check every move is considered so that mates are seen.
+    /// </summary>
+    private int Quiescence(int alpha, int beta, int ply)
+    {
+        statistics.Nodes++;
+        statistics.QuiescenceNodes++;
+        CheckLimits();
+        if (stopped)
+        {
+            return alpha;
+        }
+        if (ply >= MaxPly)
+        {
+            return Evaluate();
+        }
+
+        bool inCheck = MoveGenerator.IsInCheck(board);
+        int bestScore = -Infinity;
+        if (!inCheck)
+        {
+            // Stand pat: the side to move need not capture at all
+            bestScore = Evaluate();
+            if (bestScore >= beta)
+            {
+                return bestScore;
+            }
+            alpha = Math.Max(alpha, bestScore);
+        }
+
+        List<Move> moves = moveLists[ply];
+        moves.Clear();
+        if (inCheck)
+        {
+            MoveGenerator.GeneratePseudoLegalMoves(board, moves);
+        }
+        else
+        {
+            MoveGenerator.GenerateCaptures(board, moves);
+        }
+        OrderMoves(moves, ply, Move.None);
+
+        int legalMoves = 0;
+        Colour us = board.SideToMove;
+        foreach (Move move in moves)
+        {
+            board.MakeMove(move);
+            if (MoveGenerator.IsAttacked(board, board.KingSquare(us), board.SideToMove))
+            {
+                board.UnmakeMove();
+                continue;
+            }
+            legalMoves++;
+            int score = -Quiescence(-beta, -alpha, ply + 1);
+            board.UnmakeMove();
+            if (stopped)
+            {
+                return alpha;
+            }
+            bestScore = Math.Max(bestScore, score);
+            if (score >= beta)
+            {
+                statistics.BetaCutoffs++;
+                return score;
+            }
+            alpha = Math.Max(alpha, score);
+        }
+
+        if (inCheck && legalMoves == 0)
+        {
+            return -MateScore + ply;
+        }
+        return bestScore;
+    }
+
+    private int Evaluate()
+    {
+        statistics.Evaluations++;
+        return evaluator.Evaluate(board);
+    }
+
+    /// <summary>
+    /// A repetition anywhere in the game or search path is treated as a draw, as is the fifty-move
+    /// rule or insufficient material.
+    /// </summary>
+    private bool IsDraw()
+    {
+        return board.HalfMoveClock >= 100 || board.IsInsufficientMaterial() || board.RepetitionCount() >= 1;
+    }
+
+    private void CheckLimits()
+    {
+        if (stopped)
+        {
+            return;
+        }
+        if (nodeLimit is not null && statistics.Nodes >= nodeLimit.Value)
+        {
+            stopped = true;
+            return;
+        }
+        if (statistics.Nodes % NodesBetweenTimeChecks == 0)
+        {
+            if (cancellation.IsCancellationRequested || (timeBudget is not null && stopwatch.Elapsed >= timeBudget.Value))
+            {
+                stopped = true;
+            }
+        }
+    }
+
+    private Move GetTableMove()
+    {
+        return table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry) ? entry.BestMove : Move.None;
+    }
+
+    /// <summary>
+    /// Order moves best-first to maximise cutoffs: the table move, then captures by most valuable
+    /// victim / least valuable attacker (promotions count as capturing the promoted piece), then the
+    /// killer moves for this ply, then the rest in generation order. The sort is stable so that the
+    /// search is deterministic.
+    /// </summary>
+    private void OrderMoves(List<Move> moves, int ply, Move tableMove)
+    {
+        int count = moves.Count;
+        if (count < 2)
+        {
+            return;
+        }
+        Span<int> scores = count <= 256 ? stackalloc int[count] : new int[count];
+        for (int i = 0; i < count; i++)
+        {
+            scores[i] = ScoreMove(moves[i], ply, tableMove);
+        }
+        // Insertion sort, descending by score; stable and fast for the short lists chess produces
+        for (int i = 1; i < count; i++)
+        {
+            Move move = moves[i];
+            int score = scores[i];
+            int j = i - 1;
+            while (j >= 0 && scores[j] < score)
+            {
+                moves[j + 1] = moves[j];
+                scores[j + 1] = scores[j];
+                j--;
+            }
+            moves[j + 1] = move;
+            scores[j + 1] = score;
+        }
+    }
+
+    private int ScoreMove(Move move, int ply, Move tableMove)
+    {
+        if (move == tableMove)
+        {
+            return 1_000_000;
+        }
+        int score = 0;
+        if (move.IsCapture)
+        {
+            score += 100_000 + (PieceValue(move.Captured) * 10) - PieceValue(move.Piece);
+        }
+        if (move.IsPromotion)
+        {
+            score += 100_000 + PieceValue(move.Promotion);
+        }
+        if (score == 0)
+        {
+            if (move == killers[ply, 0])
+            {
+                statistics.KillerMoveHits++;
+                return 90_000;
+            }
+            if (move == killers[ply, 1])
+            {
+                statistics.KillerMoveHits++;
+                return 80_000;
+            }
+        }
+        return score;
+    }
+
+    private void RecordKiller(int ply, Move move)
+    {
+        if (killers[ply, 0] != move)
+        {
+            killers[ply, 1] = killers[ply, 0];
+            killers[ply, 0] = move;
+        }
+    }
+
+    private static int PieceValue(PieceType type) => type switch
+    {
+        PieceType.Pawn => 1,
+        PieceType.Knight => 3,
+        PieceType.Bishop => 3,
+        PieceType.Rook => 5,
+        PieceType.Queen => 9,
+        PieceType.King => 20,
+        _ => 0,
+    };
+
+    /// <summary>
+    /// Mate scores are stored relative to the node rather than the root, so that an entry found from
+    /// a different root still gives the right distance to mate.
+    /// </summary>
+    private static int ScoreToTable(int score, int ply)
+    {
+        if (score >= MateThreshold)
+        {
+            return score + ply;
+        }
+        if (score <= -MateThreshold)
+        {
+            return score - ply;
+        }
+        return score;
+    }
+
+    private static int ScoreFromTable(int score, int ply)
+    {
+        if (score >= MateThreshold)
+        {
+            return score - ply;
+        }
+        if (score <= -MateThreshold)
+        {
+            return score + ply;
+        }
+        return score;
+    }
+
+    /// <summary>
+    /// Follow the table's best moves from the root to reconstruct the expected line of play.
+    /// </summary>
+    private List<Move> ExtractPrincipalVariation(Move bestMove, int maxLength)
+    {
+        var line = new List<Move> { bestMove };
+        board.MakeMove(bestMove);
+        while (line.Count < maxLength && board.RepetitionCount() == 0
+            && table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry) && !entry.BestMove.IsNone)
+        {
+            Move move = entry.BestMove;
+            if (!MoveGenerator.GenerateLegalMoves(board).Contains(move))
+            {
+                break;
+            }
+            line.Add(move);
+            board.MakeMove(move);
+        }
+        for (int i = 0; i < line.Count; i++)
+        {
+            board.UnmakeMove();
+        }
+        return line;
+    }
+}

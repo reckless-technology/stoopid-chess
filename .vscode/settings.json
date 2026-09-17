@@ -1,0 +1,12 @@
+{
+  "dotnet.defaultSolution": "StoopidChess.slnx",
+  "dotnet.unitTests.runSettingsPath": "",
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  },
+  "[csharp]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "ms-dotnettools.csharp"
+  }
+}

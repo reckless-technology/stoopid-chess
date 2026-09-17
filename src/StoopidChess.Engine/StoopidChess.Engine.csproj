@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>StoopidChess.Engine</RootNamespace>
+    <Description>The Stoopid Chess engine: evaluation, search and the UCI protocol.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StoopidChess.Core\StoopidChess.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StoopidChess.Tests" />
+  </ItemGroup>
+
+</Project>

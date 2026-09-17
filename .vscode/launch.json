@@ -1,0 +1,52 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug GUI",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/StoopidChess.Gui/bin/Debug/net10.0-windows/StoopidChess.dll",
+      "cwd": "${workspaceFolder}/src/StoopidChess.Gui",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Debug UCI engine (interactive)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/StoopidChess.Uci/bin/Debug/net10.0/stoopid-chess.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Debug UCI bench",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/StoopidChess.Uci/bin/Debug/net10.0/stoopid-chess.dll",
+      "args": ["bench", "4"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Debug UCI perft",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/StoopidChess.Uci/bin/Debug/net10.0/stoopid-chess.dll",
+      "args": ["perft", "1"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Attach to process",
+      "type": "coreclr",
+      "request": "attach"
+    }
+  ]
+}

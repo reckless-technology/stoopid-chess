@@ -1,0 +1,97 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using StoopidChess.Core;
+
+namespace StoopidChess.Gui;
+
+/// <summary>
+/// The contents of a Stoopid Chess saved game file: JSON holding the starting position as FEN, the
+/// moves played in UCI notation, and the settings of the game in progress.
+/// </summary>
+public sealed class SavedGame
+{
+    public const string FileSignature = "Stoopid Chess saved game";
+    public const int CurrentVersion = 2;
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    public string Signature { get; set; } = FileSignature;
+
+    public int Version { get; set; } = CurrentVersion;
+
+    public string StartFen { get; set; } = Board.StartFen;
+
+    public IList<string> Moves { get; init; } = [];
+
+    public Colour HumanColour { get; set; } = Colour.White;
+
+    public bool IsBoardFlipped { get; set; }
+
+    public Level Level { get; set; } = Level.Easy;
+
+    public static SavedGame FromGame(Game game, Colour humanColour, bool isBoardFlipped, Level level)
+    {
+        ArgumentNullException.ThrowIfNull(game);
+        return new SavedGame
+        {
+            StartFen = game.StartFen,
+            Moves = game.UciMoves.ToList(),
+            HumanColour = humanColour,
+            IsBoardFlipped = isBoardFlipped,
+            Level = level,
+        };
+    }
+
+    public void Save(Stream stream)
+    {
+        JsonSerializer.Serialize(stream, this, JsonOptions);
+    }
+
+    /// <summary>
+    /// Read a saved game, returning null if the stream does not hold a valid one.
+    /// </summary>
+    public static SavedGame? Load(Stream stream)
+    {
+        try
+        {
+            SavedGame? saved = JsonSerializer.Deserialize<SavedGame>(stream, JsonOptions);
+            if (saved is null || saved.Signature != FileSignature || saved.Version != CurrentVersion)
+            {
+                return null;
+            }
+            if (saved.HumanColour is not (Colour.White or Colour.Black or Colour.None) || !Enum.IsDefined(saved.Level))
+            {
+                return null;
+            }
+            return saved;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Rebuild the game by replaying the moves, returning null if the position or any move is invalid.
+    /// </summary>
+    public Game? ToGame()
+    {
+        if (!Fen.TryParse(StartFen, out Board board) || !MoveGenerator.IsPositionLegal(board))
+        {
+            return null;
+        }
+        var game = new Game(board);
+        foreach (string move in Moves)
+        {
+            if (!game.TryMakeMove(move))
+            {
+                return null;
+            }
+        }
+        return game;
+    }
+}
