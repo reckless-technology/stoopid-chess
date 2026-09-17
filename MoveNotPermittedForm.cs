@@ -22,7 +22,7 @@ namespace StoopidChess
             this.ControlBox = false;
         }
 
-        private void okButton_Click(object sender, EventArgs e)
+        private void okButton_Click(object? sender, EventArgs e)
         {
             this.Close();
         }

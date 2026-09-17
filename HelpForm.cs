@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -18,11 +18,11 @@ namespace StoopidChess
             this.StartPosition = FormStartPosition.CenterParent;
             okButton.Focus();
             textBox.Select(0, 0);
-            Version version = Assembly.GetExecutingAssembly().GetName().Version;
-            this.Text = "Stoopid Chess " + version.ToString();
+            Version? version = Assembly.GetExecutingAssembly().GetName().Version;
+            this.Text = "Stoopid Chess " + version;
         }
 
-        private void okButton_Click(object sender, EventArgs e)
+        private void okButton_Click(object? sender, EventArgs e)
         {
             this.Close();
         }

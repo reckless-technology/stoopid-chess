@@ -6,8 +6,9 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using Timer = System.Windows.Forms.Timer;
 
 
 namespace StoopidChess
@@ -39,7 +40,7 @@ namespace StoopidChess
         internal PieceType promotedPiece;       // User's pawn promotion choice
         internal Bitmap[,] pieceBitmaps;        // Bitmaps for each piece in black and white [colour, pieceType]
         private Game game;                      // Game engine
-        private Bitmap movingPieceBitmap;       // Piece currently being dragged by the user
+        private Bitmap? movingPieceBitmap;      // Piece currently being dragged by the user
         private Square[,] board;                // Holds copy of board as real board changes during search
         private int mouseX, mouseY;             // Holds mouse movements for animating piece being dragged
         private Colour colourToMove;            // Who's turn is it to move
@@ -59,6 +60,7 @@ namespace StoopidChess
             InitializeGame();
         }
 
+        [MemberNotNull(nameof(pieceBitmaps))]
         private void LoadPieceBitmaps()
         {
             pieceBitmaps = new Bitmap[3, 7];
@@ -79,6 +81,7 @@ namespace StoopidChess
         /// <summary>
         /// Set up state for the start of the game
         /// </summary>
+        [MemberNotNull(nameof(game), nameof(board), nameof(captureBins), nameof(pieceBitmaps), nameof(timer))]
         private void InitializeGame()
         {
             lastMove.xfrom = -1;    // No highlighted move
@@ -113,7 +116,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the timer tick event (100 millisecond intervals)
         /// </summary>
-        void TimerTick(object sender, EventArgs e)
+        void TimerTick(object? sender, EventArgs e)
         {
             if (colourToMove == Colour.WHITE)
             {
@@ -197,7 +200,7 @@ namespace StoopidChess
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ChessBoardPictureBoxPaintHandler(object sender, PaintEventArgs e)
+        private void ChessBoardPictureBoxPaintHandler(object? sender, PaintEventArgs e)
         {
             Graphics graphics = e.Graphics;
             DrawChessBoard(graphics);
@@ -207,7 +210,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the capture bin picture box paint event
         /// </summary>
-        private void CaptureBinPictureBoxPaintHandler(object sender, PaintEventArgs e)
+        private void CaptureBinPictureBoxPaintHandler(object? sender, PaintEventArgs e)
         {
             int squareSize = Math.Min(captureBinPictureBox.Width >> 4, captureBinPictureBox.Height >> 1);
             Graphics graphics = e.Graphics;
@@ -225,7 +228,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the board picture box mouse down event
         /// </summary>
-        private void ChessBoardPictureBoxMouseDownHandler(object sender, MouseEventArgs e)
+        private void ChessBoardPictureBoxMouseDownHandler(object? sender, MouseEventArgs e)
         {
             if (colourToMove != humanColour || e.Button != MouseButtons.Left || isGameOver)
             {
@@ -251,7 +254,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the board picture box mouse move event
         /// </summary>
-        private void ChessBoardPictureBoxMouseMoveHandler(object sender, MouseEventArgs e)
+        private void ChessBoardPictureBoxMouseMoveHandler(object? sender, MouseEventArgs e)
         {
             if (movingPieceBitmap != null)
             {
@@ -263,7 +266,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the board picture box mouse up event
         /// </summary>
-        private void ChessBoardPictureBoxMouseUpHandler(object sender, MouseEventArgs e)
+        private void ChessBoardPictureBoxMouseUpHandler(object? sender, MouseEventArgs e)
         {
             if (colourToMove != humanColour || movingPieceBitmap == null || e.Button != MouseButtons.Left)
             {
@@ -411,7 +414,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the view->flip board menu item
         /// </summary>
-        private void ViewFlipBoardHandler(object sender, EventArgs e)
+        private void ViewFlipBoardHandler(object? sender, EventArgs e)
         {
             isBoardFlipped = !isBoardFlipped;
             chessBoardPictureBox.Invalidate();
@@ -419,7 +422,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->undo move menu item
         /// </summary>
-        private void UndoLastMoveHandler(object sender, EventArgs e)
+        private void UndoLastMoveHandler(object? sender, EventArgs e)
         {
             // Don't permit move undo during computer's thinking time as 
             // worker thread will get out of synch with board state
@@ -453,7 +456,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->set level->beginner menu item
         /// </summary>
-        private void SetLevelBeginnerHandler(object sender, EventArgs e)
+        private void SetLevelBeginnerHandler(object? sender, EventArgs e)
         {
             game.SetMaxThinkingTime(1000);
             game.SetMaxDepth(0);
@@ -462,7 +465,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->set level->easy menu item
         /// </summary>
-        private void SetLevelEasyHandler(object sender, EventArgs e)
+        private void SetLevelEasyHandler(object? sender, EventArgs e)
         {
             game.SetMaxThinkingTime(3000);
             game.SetMaxDepth(2);
@@ -471,7 +474,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->set level->medium menu item
         /// </summary>
-        private void SetLevelMediumHandler(object sender, EventArgs e)
+        private void SetLevelMediumHandler(object? sender, EventArgs e)
         {
             game.SetMaxThinkingTime(10000);
             game.SetMaxDepth(5);
@@ -480,13 +483,13 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->set level->hard menu item
         /// </summary>
-        private void SetLevelHardHandler(object sender, EventArgs e)
+        private void SetLevelHardHandler(object? sender, EventArgs e)
         {
             game.SetMaxThinkingTime(20000);
             game.SetMaxDepth(7);
             difficultyLabel.Text = "Hard";
         }
-        private void SetLevelBestHandler(object sender, EventArgs e)
+        private void SetLevelBestHandler(object? sender, EventArgs e)
         {
             game.SetMaxThinkingTime(40000);
             game.SetMaxDepth(12);
@@ -495,26 +498,28 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the file->exit menu item
         /// </summary>
-        private void FileExitHandler(object sender, EventArgs e)
+        private void FileExitHandler(object? sender, EventArgs e)
         {
             Application.Exit();
         }
         /// <summary>
         /// Handler for the file->save game menu item
         /// </summary>
-        private void FileSaveGameHandler(object sender, EventArgs e)
+        private void FileSaveGameHandler(object? sender, EventArgs e)
         {
             try
             {
                 if (saveFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    Stream stream = saveFileDialog.OpenFile();
-                    game.Serialize(stream);
-                    BinaryFormatter formatter = new BinaryFormatter();
-                    formatter.Serialize(stream, humanColour);
-                    formatter.Serialize(stream, colourToMove);
-                    formatter.Serialize(stream, isBoardFlipped);
-                    stream.Close();
+                    SavedGame savedGame = new SavedGame
+                    {
+                        Position = game.GetSavedPosition(),
+                        HumanColour = humanColour,
+                        ColourToMove = colourToMove,
+                        IsBoardFlipped = isBoardFlipped,
+                    };
+                    using Stream stream = saveFileDialog.OpenFile();
+                    savedGame.Save(stream);
                 }
             }
             catch (Exception)
@@ -529,35 +534,34 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the file->load game menu item
         /// </summary>
-        private void FileLoadGameHandler(object sender, EventArgs e)
+        private void FileLoadGameHandler(object? sender, EventArgs e)
         {
             try
             {
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
-                    Stream stream = openFileDialog.OpenFile();
-                    Game newGame = game.Deserialize(stream) as Game;
-                    if (newGame == null)
+                    SavedGame? savedGame;
+                    using (Stream stream = openFileDialog.OpenFile())
+                    {
+                        savedGame = SavedGame.Load(stream);
+                    }
+                    if (savedGame == null || !game.LoadSavedPosition(savedGame.Position))
                     {
                         MessageBox.Show("This file does not seem to contain a game in Stoopid Chess format", "Error");
                     }
                     else
                     {
-                        game = newGame;
-                        game.ComputerThinkingCompletedEvent += new ComputerThinkingCompletedHandler(HandleComputerThinkingCompleted);
                         captureBins = game.GetCaptureBins();
                         board = game.GetBoard();
                         moveListTextBox.Text = game.GetMoveHistory();
-                        chessBoardPictureBox.Invalidate();
-                        BinaryFormatter formatter = new BinaryFormatter();
-                        humanColour = (Colour)formatter.Deserialize(stream);
-                        colourToMove = (Colour)formatter.Deserialize(stream);
-                        isBoardFlipped = (bool)formatter.Deserialize(stream);
+                        humanColour = savedGame.HumanColour;
+                        colourToMove = savedGame.ColourToMove;
+                        isBoardFlipped = savedGame.IsBoardFlipped;
                         colourToMoveLabel.Text = colourToMove.ToString();
                         humanColourLabel.Text = humanColour.ToString();
                         lastMove.xfrom = -1;
+                        chessBoardPictureBox.Invalidate();
                     }
-                    stream.Close();
                 }
             }
             catch (Exception)
@@ -569,10 +573,11 @@ namespace StoopidChess
                 openFileDialog.Dispose();
             }
         }
-        /// <summary>
+        
+/// <summary>
         /// Handler for the game->new game->white menu item
         /// </summary>
-        private void NewGameWhiteHandler(object sender, EventArgs e)
+        private void NewGameWhiteHandler(object? sender, EventArgs e)
         {
             isTestGame = false;
             game.NewGame();
@@ -598,7 +603,7 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the game->new game->black menu item
         /// </summary>
-        private void NewGameBlackHandler(object sender, EventArgs e)
+        private void NewGameBlackHandler(object? sender, EventArgs e)
         {
             isTestGame = false;
             game.NewGame();
@@ -626,12 +631,12 @@ namespace StoopidChess
         /// <summary>
         /// Handler for the board picture box size changed event
         /// </summary>
-        private void ChessBoardSizeChangedHandler(object sender, EventArgs e)
+        private void ChessBoardSizeChangedHandler(object? sender, EventArgs e)
         {
             chessBoardPictureBox.Invalidate();
         }
 
-        private void ChessBoardMouseClickHandler(object sender, MouseEventArgs e)
+        private void ChessBoardMouseClickHandler(object? sender, MouseEventArgs e)
         {
             if (colourToMove == (humanColour ^ Colour.XOR))
             {
@@ -660,64 +665,64 @@ namespace StoopidChess
         /// <summary>
         /// Handlers for the various position editing context menu items
         /// </summary>
-        private void HandlerSetSquareWhitePawn(object sender, EventArgs e)
+        private void HandlerSetSquareWhitePawn(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.PAWN));
         }
-        private void HandlerSetSquareWhiteKnight(object sender, EventArgs e)
+        private void HandlerSetSquareWhiteKnight(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.KNIGHT));
         }
-        private void HandlerSetSquareWhiteBishop(object sender, EventArgs e)
+        private void HandlerSetSquareWhiteBishop(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.BISHOP));
         }
-        private void HandlerSetSquareWhiteRook(object sender, EventArgs e)
+        private void HandlerSetSquareWhiteRook(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.ROOK));
         }
-        private void HandlerSetSquareWhiteQueen(object sender, EventArgs e)
+        private void HandlerSetSquareWhiteQueen(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.QUEEN));
         }
-        private void HandlerSetSquareWhiteKing(object sender, EventArgs e)
+        private void HandlerSetSquareWhiteKing(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.WHITE, PieceType.KING));
         }
-        private void HandlerSetSquareBlackPawn(object sender, EventArgs e)
+        private void HandlerSetSquareBlackPawn(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.PAWN));
         }
-        private void HandlerSetSquareBlackKnight(object sender, EventArgs e)
+        private void HandlerSetSquareBlackKnight(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.KNIGHT));
         }
-        private void HandlerSetSquareBlackBishop(object sender, EventArgs e)
+        private void HandlerSetSquareBlackBishop(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.BISHOP));
         }
-        private void HandlerSetSquareBlackRook(object sender, EventArgs e)
+        private void HandlerSetSquareBlackRook(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.ROOK));
         }
-        private void HandlerSetSquareBlackQueen(object sender, EventArgs e)
+        private void HandlerSetSquareBlackQueen(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.QUEEN));
         }
-        private void HandlerSetSquareBlackKing(object sender, EventArgs e)
+        private void HandlerSetSquareBlackKing(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.BLACK, PieceType.KING));
         }
-        private void ClearSquareHandler(object sender, EventArgs e)
+        private void ClearSquareHandler(object? sender, EventArgs e)
         {
             EditSquare(new Square(Colour.NONE, PieceType.NONE));
         }
-        private void MenuHelpHandler(object sender, EventArgs e)
+        private void MenuHelpHandler(object? sender, EventArgs e)
         {
             new HelpForm().ShowDialog();
         }
 
-        private void ClearBoardHandler(object sender, EventArgs e)
+        private void ClearBoardHandler(object? sender, EventArgs e)
         {
             for (int x = 0; x != 8; x++)
             {
@@ -733,7 +738,7 @@ namespace StoopidChess
             chessBoardPictureBox.Invalidate();
         }
 
-        private void TestGameHandler(object sender, EventArgs e)
+        private void TestGameHandler(object? sender, EventArgs e)
         {
             NewGameBlackHandler(this, new EventArgs());
             isTestGame = true;
@@ -743,12 +748,12 @@ namespace StoopidChess
             chessBoardPictureBox.Invalidate();
         }
 
-        private void StopThinkingButtonHandler(object sender, EventArgs e)
+        private void StopThinkingButtonHandler(object? sender, EventArgs e)
         {
             game.doCancelSearch = true;
         }
 
-        private void SwitchSidesHandler(object sender, EventArgs e)
+        private void SwitchSidesHandler(object? sender, EventArgs e)
         {
             humanColour = humanColour ^ Colour.XOR;
             humanColourLabel.Text = humanColour.ToString();

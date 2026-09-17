@@ -26,25 +26,25 @@ namespace StoopidChess
             this.StartPosition = FormStartPosition.CenterParent;
         }
 
-        private void knightPictureBox_Paint(object sender, PaintEventArgs e)
+        private void knightPictureBox_Paint(object? sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.DrawImage(parent.pieceBitmaps[(int)colour, (int)PieceType.KNIGHT], 0, 0, 64, 64);
         }
 
-        private void queenPictureBox_Paint(object sender, PaintEventArgs e)
+        private void queenPictureBox_Paint(object? sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
             g.DrawImage(parent.pieceBitmaps[(int)colour, (int)PieceType.QUEEN], 0, 0, 64, 64);
         }
 
-        private void knightPictureBox_Click(object sender, EventArgs e)
+        private void knightPictureBox_Click(object? sender, EventArgs e)
         {
             parent.promotedPiece = PieceType.KNIGHT;
             this.Close();
         }
 
-        private void queenPictureBox_Click(object sender, EventArgs e)
+        private void queenPictureBox_Click(object? sender, EventArgs e)
         {
             parent.promotedPiece = PieceType.QUEEN;
             this.Close();

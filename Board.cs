@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
-using System.Windows.Forms;
 namespace StoopidChess
 {
     /// <summary>
@@ -36,7 +35,6 @@ namespace StoopidChess
     ///    based on piece / square tables
     /// 7) Maintains a separate pawn hash, which is used for pawn evaluation caching
     /// </summary>
-    [Serializable]
     partial class Board
     {
         /// <summary>

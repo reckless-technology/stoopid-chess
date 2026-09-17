@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Timers;
@@ -18,10 +18,10 @@ namespace StoopidChess
         /// b) Earlier, shallower searches will seed the transposition hash table and (hopefully!) improve
         ///    move ordering during later and deeper searches
         /// </summary>
-        private void GetComputerMove(object obj)
+        private void GetComputerMove(object? obj)
         {
             Debug.Assert(obj is Colour);
-            Colour colour = (Colour)obj;
+            Colour colour = (Colour)obj!;
             doCancelSearch = false;
             debug = new GameDebugVariables();
             Move computerMove = Move.NONE;           
@@ -64,7 +64,7 @@ namespace StoopidChess
             // elapsed event from occurring in a future search
             timer.Stop();
             Debug.Assert(computerMove.moveType != MoveType.NONE);
-            ComputerThinkingCompletedEvent(computerMove);
+            ComputerThinkingCompletedEvent?.Invoke(computerMove);
         }
         /// <summary>
         /// Negamax recursive search algorithm with alpha beta pruning
@@ -83,16 +83,14 @@ namespace StoopidChess
             {
                 return alpha;
             }
-            bool isTransposition = false;
             ulong hash1 = board.GetHash1(colour);
             ulong hash2 = board.GetHash2(colour);
             int tableIndex = (int)(hash1 >> SHIFT_HASH);
             // Check to see if there is an entry in the hash tables for this position
-            Transposition transposition = replaceByDepthHashTable[tableIndex];
+            Transposition? transposition = replaceByDepthHashTable[tableIndex];
             if (transposition != null && transposition.hash1 == hash1 && transposition.hash2 == hash2)
             {
                 debug.replaceDeeperTranspositionHits++;
-                isTransposition = true;
             }
             else
             {
@@ -100,10 +98,13 @@ namespace StoopidChess
                 if (transposition != null && transposition.hash1 == hash1 && transposition.hash2 == hash2)
                 {
                     debug.alwaysReplaceTranspositionHits++;
-                    isTransposition = true;
+                }
+                else
+                {
+                    transposition = null;
                 }
             }
-            if (isTransposition)
+            if (transposition != null)
             {
                 // Is this entry's depth sufficient for us to avoid searching altogether?
                 if (transposition.depth >= depth)
@@ -149,11 +150,11 @@ namespace StoopidChess
             int currentScore = ALPHA;
             int bestScore = ALPHA;
             Move currentMove = Move.NONE;
-            SortedDictionary<int, Move> moves = null;
+            SortedDictionary<int, Move>? moves = null;
             SortedDictionary<int, Move>.Enumerator moveEnumerator = new SortedDictionary<int, Move>.Enumerator();
             // If there is a best move in the transposition table entry, try it before we generate any moves as it
             // might cause beta cutoff and save us the time and effort of move generation altogether
-            if (isTransposition)
+            if (transposition != null)
             {
                 debug.transpositionMoves++;
                 currentMove = transposition.bestMove;

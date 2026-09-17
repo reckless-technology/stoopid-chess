@@ -7,7 +7,6 @@ namespace StoopidChess
     /// This is required so the Board class can maintain its occupied squares 
     /// lists, positional hashes, castling rights, en passant status and piece-square score.
     /// </summary>
-    [Serializable]
     class Square : IEquatable<Square>
     {
         /// <summary>
@@ -45,35 +44,34 @@ namespace StoopidChess
         /// <summary>
         /// Equality by value
         /// </summary>
-        public static bool operator ==(Square left, Square right)
+        public static bool operator ==(Square? left, Square? right)
         {
-            return left.Equals(right);
+            return left is null ? right is null : left.Equals(right);
         }
         /// <summary>
         /// Inequality by value
         /// </summary>
-        public static bool operator !=(Square left, Square right)
+        public static bool operator !=(Square? left, Square? right)
         {
-            return !left.Equals(right);
+            return !(left == right);
         }
         /// <summary>
         /// Required when implementing == and != operators
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            Square that = obj as Square;
-            if (that == null)
-            {
-                return false;
-            }
-            return Equals(that);
+            return Equals(obj as Square);
         }
         /// <summary>
         /// Used when determining if a collection of squares contains this square
         /// Equality by value
         /// </summary>
-        public bool Equals(Square that)
+        public bool Equals(Square? that)
         {
+            if (that is null)
+            {
+                return false;
+            }
             return (this.piece == that.piece && this.colour == that.colour);
         }
         /// <summary>

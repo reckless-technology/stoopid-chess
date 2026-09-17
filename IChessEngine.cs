@@ -50,12 +50,13 @@ namespace StoopidChess
         void SetMaxThinkingTime(int milliseconds);
         // Set limit on the computer move search depth
         void SetMaxDepth(int depth);
-        // Serialize the current game state (save game)
-        void Serialize(Stream stream);
-        // Deserialize the current game state (load game)
-        IChessEngine Deserialize(Stream stream);
+        // Capture the game state in a form which can be saved to disk
+        SavedPosition GetSavedPosition();
+        // Restore the game state from a saved position - returns false if the position is invalid
+        bool LoadSavedPosition(SavedPosition position);
+
         // Event which is fired when the computer move worker thread has completed
-        event ComputerThinkingCompletedHandler ComputerThinkingCompletedEvent;
+        event ComputerThinkingCompletedHandler? ComputerThinkingCompletedEvent;
         // Get a string containing the moves so far in the game in standard algebraic notation
         string GetMoveHistory();
         // Place a piece (or an empty square) at a specified location

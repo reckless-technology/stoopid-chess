@@ -8,7 +8,6 @@ namespace StoopidChess
     /// <summary>
     /// Class to represent a move
     /// </summary>
-    [Serializable]
     class Move : IEquatable<Move>, IComparable<Move>
     {
         /// <summary>
@@ -43,29 +42,32 @@ namespace StoopidChess
         /// <summary>
         /// CompareTo() is used when sorting collections of moves.
         /// </summary>
-        public int CompareTo(Move that)
+        public int CompareTo(Move? that)
         {
+            if (that is null)
+            {
+                return 1;
+            }
             return this.GetHashCode() - that.GetHashCode();
         }
         /// <summary>
         /// Move equality by value
         /// </summary>
-        public bool Equals(Move that)
+        public bool Equals(Move? that)
         {
+            if (that is null)
+            {
+                return false;
+            }
             return (this.to == that.to && this.from == that.from && this.moveType == that.moveType
                  && this.movingPiece == that.movingPiece && this.capturedPiece == that.capturedPiece);
         }
         /// <summary>
         /// Required in order to overload the == and != operators with value semantics
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            Move that = obj as Move;
-            if (that == null)
-            {
-                return false;
-            }
-            return Equals(that);
+            return Equals(obj as Move);
         }
         /// <summary>
         /// Required when overloading the == and != operators
@@ -82,16 +84,16 @@ namespace StoopidChess
         /// <summary>
         /// Equality by value
         /// </summary>
-        public static bool operator ==(Move left, Move right)
+        public static bool operator ==(Move? left, Move? right)
         {
-            return left.Equals(right);
+            return left is null ? right is null : left.Equals(right);
         }
         /// <summary>
         /// Inequality by value
         /// </summary>
-        public static bool operator !=(Move left, Move right)
+        public static bool operator !=(Move? left, Move? right)
         {
-            return !left.Equals(right);
+            return !(left == right);
         }
         /// <summary>
         /// Generates the alphanumeric description of the move

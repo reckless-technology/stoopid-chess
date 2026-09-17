@@ -7,7 +7,6 @@ namespace StoopidChess
     /// <summary>
     /// Class to represent an entry in the transposition hash table
     /// </summary>
-    [Serializable]
     class Transposition
     {
         /// <summary>

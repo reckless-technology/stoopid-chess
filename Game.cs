@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Timers;
 using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
 using System.Text;
 
@@ -56,11 +55,11 @@ namespace StoopidChess
         private Transposition[] alwaysReplaceHashTable;     // Hash table - always replace strategy
         private Transposition[] replaceByDepthHashTable;    // Hash table - maximum depth strategy      
         private int maxSearchDepth;                         // Maximum search depth for alpha-beta phase of search
-        private Thread worker;                              // Run alpha beta search on worker thread
+        private Thread? worker;                             // Run alpha beta search on worker thread
         private Move[] killerMoves;                         // Indexed by [depthFromRoot]
-        public event ComputerThinkingCompletedHandler ComputerThinkingCompletedEvent; 
+        public event ComputerThinkingCompletedHandler? ComputerThinkingCompletedEvent; 
         public static GameDebugVariables debug;             // Debug variables
-        public string reasonForDraw;
+        public string reasonForDraw = "";
         /// <summary>
         /// Public constructor
         /// </summary>
@@ -173,40 +172,28 @@ namespace StoopidChess
             return result;
         }
         /// <summary>
-        /// Save the game to a generic stream
+        /// Capture the game state in a form which can be saved to disk
         /// </summary>
-        public void Serialize(Stream stream)
+        public SavedPosition GetSavedPosition()
         {
-            BinaryFormatter formatter = new BinaryFormatter();
-            // Use isBlackToMoveHash1 as magic number (signature value) to identify Stoopid Chess game
-            formatter.Serialize(stream, ZobristHash.isBlackToMoveHash1);
-            formatter.Serialize(stream, board);
+            return board.GetSavedPosition();
         }
         /// <summary>
-        /// Load the game from a generic stream
+        /// Restore the game state from a saved position.
+        /// The current game is left untouched if the saved position is invalid.
         /// </summary>
-        public IChessEngine Deserialize(Stream stream)
+        /// <returns>false if the saved position was not valid</returns>
+        public bool LoadSavedPosition(SavedPosition position)
         {
-            try
+            Board newBoard = new Board();
+            if (!newBoard.LoadSavedPosition(position))
             {
-                Game game = new Game();
-                BinaryFormatter formatter = new BinaryFormatter();
-                ulong signature = (ulong)formatter.Deserialize(stream);
-                if (signature != ZobristHash.isBlackToMoveHash1)
-                {
-                    // Incorrect file type - signature mismatch
-                    return null;
-                }
-                game.board = formatter.Deserialize(stream) as Board;
-                return game;
+                return false;
             }
-            catch (Exception)
-            {
-                // Something went wrong: we were unable to 
-                // deserialize the game so simply return null
-                return null;
-            }
+            board = newBoard;
+            return true;
         }
+
         /// <summary>
         /// Used for positional editing by the UI
         /// </summary>
@@ -325,7 +312,7 @@ namespace StoopidChess
         /// <summary>
         /// Delegate to cancel search when the time up timer ticks
         /// </summary>
-        private void ComputerMoveTimeElapsed(object source, ElapsedEventArgs e)
+        private void ComputerMoveTimeElapsed(object? source, ElapsedEventArgs e)
         {
 #if DEBUG
             Debug.Assert(doCancelSearch == false);

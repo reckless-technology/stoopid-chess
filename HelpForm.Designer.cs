@@ -1,4 +1,4 @@
-﻿namespace StoopidChess
+namespace StoopidChess
 {
     partial class HelpForm
     {
