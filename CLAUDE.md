@@ -8,7 +8,8 @@ Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engi
 UCI through the `StoopidChess.Uci` console) and a Windows Forms GUI (`StoopidChess.Gui`) that plays
 against any UCI engine. .NET 10, `Directory.Build.props` applies nullable, warnings-as-errors and the
 recommended analyzers to every project. Read [README.md](README.md) for the architecture and
-[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is.
+[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is, and
+[docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements.
 
 ## Build / test / run
 

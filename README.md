@@ -88,4 +88,4 @@ settings. Files from before September 2026 used .NET binary serialisation and ca
 
 This project lived in the `StoopidChess` directory of the `reckless-technology/software` repository
 until September 2026, when it was split out with its history. `docs/CODE_REVIEW.md` records the
-review that preceded the restructuring.
+review that preceded the restructuring and `docs/ARCHITECTURE_REVIEW.md` the proposals that followed it.
