@@ -20,6 +20,8 @@ public sealed class Searcher
     private const int NodesBetweenTimeChecks = 2048;
     private const int NullMoveMinimumDepth = 3;
     private const int NullMoveReduction = 2;
+    private const int LmrMinimumDepth = 3;
+    private const int LmrFullDepthMoves = 3;
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
@@ -269,7 +271,22 @@ public sealed class Searcher
                 board.UnmakeMove();
                 return DrawScore;   // In check but not mated: the fifty-move rule stands
             }
-            int score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+            int score;
+            if (depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board))
+            {
+                // Late move reductions: a quiet move ordered this far down rarely raises alpha, so search
+                // it shallower with a null window first and only pay for the full search if it does
+                int reduction = legalMoves > LmrFullDepthMoves * 3 ? 2 : 1;
+                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1 - reduction, ply + 1);
+                if (score > alpha && !stopped)
+                {
+                    score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+                }
+            }
+            else
+            {
+                score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+            }
             board.UnmakeMove();
             if (stopped)
             {
@@ -489,6 +506,14 @@ public sealed class Searcher
     }
 
     private const int HistoryCap = 79_999;
+
+    /// <summary>
+    /// Quiet, non-killer moves may be searched with a reduced depth when ordered late.
+    /// </summary>
+    private bool IsReducible(Move move, int ply)
+    {
+        return !move.IsCapture && !move.IsPromotion && move != killers[ply, 0] && move != killers[ply, 1];
+    }
 
     /// <summary>
     /// Quiet moves that cut off deep in the tree are likely to be good elsewhere too; order them by
