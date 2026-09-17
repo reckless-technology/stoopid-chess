@@ -99,7 +99,8 @@ public class GameTests
         game.TryMakeMove("d7d5");
         game.TryMakeMove("e4d5");
         Assert.True(game.UndoMove());
-        Assert.Equal("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 2", game.Board.ToFen());
+        // No white pawn can capture on d6, so no en passant square is recorded
+        Assert.Equal("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", game.Board.ToFen());
         Assert.Equal(2, game.Moves.Count);
     }
 
@@ -122,6 +123,27 @@ public class GameTests
         Assert.True(game.TryMakeMove("a8a1"));
         Assert.Equal([Piece.WhiteRook], game.CapturedPieces(Colour.White));
         Assert.Equal("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", game.StartFen);
+    }
+
+    [Fact]
+    public void EditingTheBoardBehindTheGamesBackInvalidatesTheLegalMoves()
+    {
+        var game = new Game();
+        IReadOnlyList<Move> before = game.LegalMoves;
+        Move pawnPush = before.Single(m => m.ToUci() == "e2e4");
+        game.Board.SetPiece(Squares.Parse("e2"), Piece.None);
+        Assert.DoesNotContain(pawnPush, game.LegalMoves);
+        Assert.Throws<ArgumentException>(() => game.MakeMove(pawnPush));
+        (ulong key, _, _) = game.Board.ComputeKeys();
+        Assert.Equal(key, game.Board.Key);
+    }
+
+    [Fact]
+    public void RejectsBoardsThatAlreadyHaveMoves()
+    {
+        Board board = Board.StartPosition();
+        board.MakeMove(MoveGenerator.GenerateLegalMoves(board)[0]);
+        Assert.Throws<ArgumentException>(() => new Game(board));
     }
 
     [Fact]

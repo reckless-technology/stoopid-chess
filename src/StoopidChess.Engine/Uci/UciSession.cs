@@ -70,7 +70,7 @@ public sealed class UciSession : IDisposable
     public bool HandleCommand(string line)
     {
         ArgumentNullException.ThrowIfNull(line);
-        string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0)
         {
             return true;
@@ -118,11 +118,11 @@ public sealed class UciSession : IDisposable
                 break;
             case "perft":
                 StopSearch();
-                RunPerft(tokens.Length > 1 ? ParseInt(tokens[1]) ?? 1 : 1);
+                RunPerft(Math.Max(1, tokens.Length > 1 ? ParseInt(tokens[1]) ?? 1 : 1));
                 break;
             case "bench":
                 StopSearch();
-                Bench.Run(tokens.Length > 1 ? ParseInt(tokens[1]) ?? Bench.DefaultDepth : Bench.DefaultDepth, output);
+                Bench.Run(Math.Max(1, tokens.Length > 1 ? ParseInt(tokens[1]) ?? Bench.DefaultDepth : Bench.DefaultDepth), output);
                 break;
             default:
                 // UCI says unknown commands and tokens are ignored
@@ -163,6 +163,11 @@ public sealed class UciSession : IDisposable
             if (!Fen.TryParse(fen, out newBoard))
             {
                 WriteLine($"info string invalid fen '{fen}'");
+                return;
+            }
+            if (!MoveGenerator.IsPositionLegal(newBoard))
+            {
+                WriteLine($"info string illegal position '{fen}'");
                 return;
             }
         }

@@ -82,7 +82,7 @@ followed; each item notes what was done about it.
 21. The pawn promotion dialog wrote its answer into a field of the main form. *Now:* the dialog
     exposes `Choice`.
 22. `saveFileDialog.Dispose()` was called in `finally` and the dialog reused afterwards.
-23. No tests, no CI, no FEN, no UCI, no way to play the engine against another. *Now:* 260-odd
+23. No tests, no CI, no FEN, no UCI, no way to play the engine against another. *Now:* 290-odd
     xunit tests (perft on the standard positions, make/unmake key invariants, game rules, search,
     UCI session and client, a bench signature), GitHub Actions on Linux and Windows.
 
@@ -113,6 +113,42 @@ the commit that followed:
     insufficient-material test that was trivially true). Replaced, and tests added for the items
     above, for node-relative mate scores in the transposition table, and for command sequencing
     during a search.
+
+## Third pass: adversarial review
+
+Two independent adversarial reviewers then fuzzed FEN and UCI input, ran differential
+move-generation tests over millions of random plies, and traced race and state sequences in the
+client and GUI. Everything they reproduced was fixed (commit after `2f9c593`):
+
+32. **A FEN half-move clock near `int.MaxValue` overflowed on the next move** and crashed
+    repetition detection. *Fixed:* clocks are clamped to `Board.MaxHalfMoveClock` (999) on parse
+    and saturate on make; `RepetitionCount` clamps its lookback.
+33. **`Game` cached its legal moves while exposing a mutable `Board`**, so an edit made through the
+    board let a stale move corrupt the position. *Fixed:* the cache is keyed on key, ply and a new
+    `Board.EditCount`; `Game` also refuses boards that already have moves made on them.
+34. **Unmaking a move did not restore piece-list order**, so move generation order, and therefore
+    node counts under a time limit, depended on how a position was reached. *Fixed:* the searcher
+    normalises piece order on its private copy; a test reaches the same position by two move orders
+    and requires identical node counts.
+35. **The en passant square was recorded after every double push**, so FIDE-identical positions had
+    different keys and repetitions were missed. *Fixed:* recorded (and kept from FEN) only when an
+    enemy pawn can actually capture. This changed the bench signature.
+36. **The UCI session accepted FEN-valid but illegal positions** (side not to move in check), and
+    the next move generation on the command thread killed the process. *Fixed:* `position` requires
+    `IsPositionLegal`.
+37. **`go wtime 0 btime 0 movestogo 0` produced `bestmove 0000`** via a NaN time budget. *Fixed.*
+38. **A stopped first iteration reported a principal variation inconsistent with the best move.**
+39. **Console arguments such as `bench abc` crashed with a stack trace** instead of the usage text.
+40. **A save file with `"Moves": null` or `"StartFen": null` crashed the GUI.**
+41. **An external engine that failed to initialise was never disposed**, leaking the process; a
+    second engine choice during initialisation orphaned the first client.
+42. **An `InfoReceived` handler that threw killed the client's reader thread.**
+43. **Clocks stayed stopped after editing a finished game back into play**; the dragged-piece
+    image could reference an empty square after an undo or load.
+44. **Tabs between UCI tokens were not accepted**; `perft 0`/`bench 0` printed nonsense.
+45. `Board.SetPiece` accepted invalid pieces; `board[...]` indexers did not range-check;
+    `Perft.ParseEpd` threw `OverflowException`; move generation on an unplayable board threw
+    `IndexOutOfRangeException` rather than a clear `InvalidOperationException`.
 
 ## Things that were good and were kept
 

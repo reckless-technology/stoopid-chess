@@ -221,6 +221,53 @@ public class BoardTests
     }
 
     [Fact]
+    public void RejectsInvalidPiecesAndSquares()
+    {
+        Board board = Board.StartPosition();
+        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece((Colour)5, PieceType.Pawn)));
+        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.White, (PieceType)9)));
+        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.None, PieceType.Pawn)));
+        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.White, PieceType.None)));
+        Assert.Throws<ArgumentOutOfRangeException>(() => board.SetPiece(0x08, Piece.WhitePawn));
+        Assert.Throws<ArgumentOutOfRangeException>(() => board[Squares.None]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => board[0x78]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => board[8, 0]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => board[0, -1]);
+        Assert.Equal(Board.StartFen, board.ToFen());
+    }
+
+    [Fact]
+    public void MoveGenerationRefusesUnplayablePositions()
+    {
+        Board board = Board.StartPosition();
+        board.SetPiece(Squares.A8, Piece.WhitePawn);
+        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateLegalMoves(board));
+        Board noKing = Board.StartPosition();
+        noKing.SetPiece(Squares.E1, Piece.None);
+        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateLegalMoves(noKing));
+        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateCaptures(noKing, []));
+    }
+
+    [Fact]
+    public void NormalisePieceOrderMakesGenerationIndependentOfHistory()
+    {
+        Board viaOneOrder = Board.StartPosition();
+        foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
+        {
+            viaOneOrder.MakeMove(FindMove(viaOneOrder, uci)!.Value);
+        }
+        Board viaOtherOrder = Board.StartPosition();
+        foreach (string uci in new[] { "d2d4", "e7e6", "b1c3", "d7d5", "e2e4", "f8b4", "e4e5", "c7c5" })
+        {
+            viaOtherOrder.MakeMove(FindMove(viaOtherOrder, uci)!.Value);
+        }
+        Assert.Equal(viaOneOrder.ToFen(), viaOtherOrder.ToFen());
+        viaOneOrder.NormalisePieceOrder();
+        viaOtherOrder.NormalisePieceOrder();
+        Assert.Equal(MoveGenerator.GenerateLegalMoves(viaOneOrder), MoveGenerator.GenerateLegalMoves(viaOtherOrder));
+    }
+
+    [Fact]
     public void CloneIsIndependent()
     {
         Board board = Board.StartPosition();

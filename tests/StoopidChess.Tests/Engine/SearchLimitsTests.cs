@@ -49,6 +49,24 @@ public class SearchLimitsTests
         Assert.Equal(SearchLimits.MinimumThinkingTime, tiny.TimeBudget(Colour.White));
     }
 
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(0, 0, -1)]
+    [InlineData(-1000, -1000, 5)]
+    [InlineData(1000, 0, 0)]
+    public void DegenerateClocksGiveTheMinimumBudget(int clockMs, int incrementMs, int movesToGo)
+    {
+        var limits = new SearchLimits
+        {
+            WhiteTime = TimeSpan.FromMilliseconds(clockMs),
+            WhiteIncrement = TimeSpan.FromMilliseconds(incrementMs),
+            MovesToGo = movesToGo,
+        };
+        TimeSpan budget = limits.TimeBudget(Colour.White)!.Value;
+        Assert.True(budget >= SearchLimits.MinimumThinkingTime);
+        Assert.True(budget <= TimeSpan.FromMilliseconds(Math.Max(clockMs, 0) + SearchLimits.MinimumThinkingTime.TotalMilliseconds));
+    }
+
     [Fact]
     public void GoCommandRoundTripsThroughFormatAndParse()
     {

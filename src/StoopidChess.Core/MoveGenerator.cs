@@ -74,6 +74,7 @@ public static class MoveGenerator
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(moves);
+        RequirePlayablePosition(board);
         Colour us = board.SideToMove;
         foreach (int from in board.SquaresOf(us, PieceType.Pawn))
         {
@@ -106,6 +107,7 @@ public static class MoveGenerator
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(moves);
+        RequirePlayablePosition(board);
         Colour us = board.SideToMove;
         foreach (int from in board.SquaresOf(us, PieceType.Pawn))
         {
@@ -152,6 +154,18 @@ public static class MoveGenerator
         }
         Colour justMoved = board.SideToMove.Opponent();
         return !IsAttacked(board, board.KingSquare(justMoved), board.SideToMove);
+    }
+
+    /// <summary>
+    /// Move generation needs both kings and no pawns on the back ranks; a position being edited may
+    /// have neither, so refuse clearly rather than fail somewhere inside.
+    /// </summary>
+    private static void RequirePlayablePosition(Board board)
+    {
+        if (!board.HasValidKings || HasPawnsOnBackRanks(board))
+        {
+            throw new InvalidOperationException("moves cannot be generated for a position without exactly one king per side and no pawns on the back ranks");
+        }
     }
 
     /// <summary>

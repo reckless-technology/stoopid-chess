@@ -63,6 +63,11 @@ public sealed class SavedGame
             {
                 return null;
             }
+            // The serializer does not enforce the non-nullable annotations
+            if (saved.StartFen is null || saved.Moves is null || saved.Moves.Any(move => move is null))
+            {
+                return null;
+            }
             if (saved.HumanColour is not (Colour.White or Colour.Black or Colour.None) || !Enum.IsDefined(saved.Level))
             {
                 return null;

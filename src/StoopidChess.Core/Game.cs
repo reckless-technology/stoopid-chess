@@ -19,6 +19,7 @@ public sealed class Game
     private readonly List<Move> moves = [];
     private readonly Colour startSideToMove;
     private List<Move>? legalMoves;
+    private (ulong Key, int Ply, int EditCount) legalMovesFor;
 
     /// <summary>
     /// A game from the standard starting position.
@@ -30,8 +31,9 @@ public sealed class Game
 
     /// <summary>
     /// A game starting from the given position, which must be legal (see
-    /// <see cref="MoveGenerator.IsPositionLegal"/>). The board's own move history is not treated as
-    /// part of the game; use <see cref="MakeMove"/> to replay moves.
+    /// <see cref="MoveGenerator.IsPositionLegal"/>) and must not have any moves made on it yet;
+    /// use <see cref="MakeMove"/> to replay moves. The game owns the board from here on: mutate it
+    /// only through the game, or the move history will not match.
     /// </summary>
     public Game(Board board)
     {
@@ -39,6 +41,10 @@ public sealed class Game
         if (!MoveGenerator.IsPositionLegal(board))
         {
             throw new ArgumentException("the position is not legal: each side needs one king and the side not to move may not be in check", nameof(board));
+        }
+        if (board.Ply != 0)
+        {
+            throw new ArgumentException("the board already has moves made on it; a game starts from a fresh position", nameof(board));
         }
         Board = board;
         StartFen = board.ToFen();
@@ -56,7 +62,23 @@ public sealed class Game
 
     public IReadOnlyList<Move> Moves => moves;
 
-    public IReadOnlyList<Move> LegalMoves => legalMoves ??= MoveGenerator.GenerateLegalMoves(Board);
+    /// <summary>
+    /// The legal moves in the current position. Cached, and recomputed if the board turns out to
+    /// have been changed behind the game's back.
+    /// </summary>
+    public IReadOnlyList<Move> LegalMoves
+    {
+        get
+        {
+            (ulong, int, int) current = (Board.Key, Board.Ply, Board.EditCount);
+            if (legalMoves is null || legalMovesFor != current)
+            {
+                legalMoves = MoveGenerator.GenerateLegalMoves(Board);
+                legalMovesFor = current;
+            }
+            return legalMoves;
+        }
+    }
 
     public Colour SideToMove => Board.SideToMove;
 

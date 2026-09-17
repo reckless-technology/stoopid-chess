@@ -93,6 +93,18 @@ public class UciEngineClientTests
     }
 
     [Fact]
+    public async Task AFaultyInfoHandlerDoesNotBreakTheClient()
+    {
+        using var client = UciEngineClient.StartInProcess();
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        client.InfoReceived += (_, _) => throw new FormatException("handler bug");
+        client.SetPosition(Board.StartFen, []);
+        string best = await client.GoAsync(SearchLimits.ForDepth(2)).WaitAsync(Timeout);
+        Assert.NotEqual("0000", best);
+        Assert.False(client.HasExited);
+    }
+
+    [Fact]
     public void SetPositionUsesStartposForTheStandardStart()
     {
         // Format check through the session parser: startpos and fen forms both reproduce the position

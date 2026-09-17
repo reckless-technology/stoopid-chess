@@ -23,7 +23,7 @@ public sealed partial class Board
         Colour them = us.Opponent();
 
         SetEnPassantSquare(Squares.None);
-        HalfMoveClock = move.Piece == PieceType.Pawn || move.IsCapture ? 0 : HalfMoveClock + 1;
+        HalfMoveClock = move.Piece == PieceType.Pawn || move.IsCapture ? 0 : Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
 
         switch (move.Kind)
         {
@@ -37,7 +37,14 @@ public sealed partial class Board
 
             case MoveKind.DoublePawnPush:
                 MovePiece(move.From, move.To);
-                SetEnPassantSquare((move.From + move.To) >> 1);
+                // Record the en passant square only if an enemy pawn stands beside the pushed pawn
+                int passed = (move.From + move.To) >> 1;
+                Piece enemyPawn = new(them, PieceType.Pawn);
+                if ((Squares.IsOnBoard(move.To - 1) && squares[move.To - 1] == enemyPawn)
+                    || (Squares.IsOnBoard(move.To + 1) && squares[move.To + 1] == enemyPawn))
+                {
+                    SetEnPassantSquare(passed);
+                }
                 break;
 
             case MoveKind.EnPassant:

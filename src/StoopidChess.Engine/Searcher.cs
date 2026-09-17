@@ -73,6 +73,7 @@ public sealed class Searcher
         ArgumentNullException.ThrowIfNull(limits);
 
         board = position.Clone();
+        board.NormalisePieceOrder();    // So that the search depends only on the position, not on how it was reached
         statistics = new SearchStatistics();
         cancellation = cancellationToken;
         timeBudget = limits.TimeBudget(board.SideToMove);
@@ -104,6 +105,7 @@ public sealed class Searcher
                 if (completedDepth == 0)
                 {
                     bestMove = move;
+                    principalVariation = [move];
                 }
                 break;
             }

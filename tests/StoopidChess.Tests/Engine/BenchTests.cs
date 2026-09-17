@@ -9,7 +9,7 @@ public class BenchTests
     /// change to either changes this number; when that is intended, run "stoopid-chess bench 5" and
     /// update the constant here and in CLAUDE.md.
     /// </summary>
-    public const long Depth5Signature = 854_290;
+    public const long Depth5Signature = 845_984;
 
     [Fact]
     public void SignatureIsUnchanged()

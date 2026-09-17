@@ -70,17 +70,24 @@ public static class Perft
                 continue;
             }
             string[] fields = line.Split(';');
+            string fen = fields[0].Trim();
+            if (fen.Length == 0 || fields.Length < 2)
+            {
+                throw new FormatException($"invalid perft line '{line}'");
+            }
             var depths = new List<(int, long)>();
             foreach (string field in fields.Skip(1))
             {
                 string[] parts = field.Trim().Split(' ');
-                if (parts.Length != 2 || parts[0].Length < 2 || parts[0][0] != 'D')
+                if (parts.Length != 2 || parts[0].Length < 2 || parts[0][0] != 'D'
+                    || !int.TryParse(parts[0].AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out int depth)
+                    || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out long nodes))
                 {
                     throw new FormatException($"invalid perft depth field '{field}'");
                 }
-                depths.Add((int.Parse(parts[0].AsSpan(1), CultureInfo.InvariantCulture), long.Parse(parts[1], CultureInfo.InvariantCulture)));
+                depths.Add((depth, nodes));
             }
-            yield return new PerftPosition(fields[0].Trim(), depths);
+            yield return new PerftPosition(fen, depths);
         }
     }
 

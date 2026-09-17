@@ -87,9 +87,35 @@ public sealed partial class Board
 
     public Move? LastMove => history.Count == 0 ? null : history[^1].Move;
 
-    public Piece this[int square] => squares[square];
+    public Piece this[int square]
+    {
+        get
+        {
+            if (!Squares.IsOnBoard(square))
+            {
+                throw new ArgumentOutOfRangeException(nameof(square));
+            }
+            return squares[square];
+        }
+    }
 
-    public Piece this[int file, int rank] => squares[Squares.Index(file, rank)];
+    public Piece this[int file, int rank]
+    {
+        get
+        {
+            if (file is < 0 or > 7 || rank is < 0 or > 7)
+            {
+                throw new ArgumentOutOfRangeException(file is < 0 or > 7 ? nameof(file) : nameof(rank));
+            }
+            return squares[Squares.Index(file, rank)];
+        }
+    }
+
+    /// <summary>
+    /// The largest half-move clock value kept. Real games end at 100 (or 150 under the seventy-five
+    /// move rule); the cap only stops arithmetic overflow on absurd FEN input.
+    /// </summary>
+    public const int MaxHalfMoveClock = 999;
 
     /// <summary>
     /// The squares occupied by pieces of the given colour and type.
@@ -124,6 +150,7 @@ public sealed partial class Board
             copy.pieceSquares[i].AddRange(pieceSquares[i]);
         }
         copy.history.AddRange(history);
+        copy.EditCount = EditCount;
         copy.SideToMove = SideToMove;
         copy.CastlingRights = CastlingRights;
         copy.EnPassantSquare = EnPassantSquare;
@@ -146,7 +173,7 @@ public sealed partial class Board
         // A pawn move or capture makes every earlier position unrepeatable, so only look back as
         // far as the half-move clock allows. Identical positions have the same side to move, so
         // they can only be an even number of plies apart.
-        int oldest = history.Count - Math.Min(HalfMoveClock, history.Count);
+        int oldest = history.Count - Math.Clamp(HalfMoveClock, 0, history.Count);
         for (int i = history.Count - 2; i >= oldest; i -= 2)
         {
             if (history[i].Key == Key)
@@ -196,7 +223,15 @@ public sealed partial class Board
         {
             throw new ArgumentOutOfRangeException(nameof(square));
         }
+        bool validPiece = piece.IsNone
+            ? piece.Colour == Colour.None
+            : piece.Colour is Colour.White or Colour.Black && piece.Type is >= PieceType.Pawn and <= PieceType.King;
+        if (!validPiece)
+        {
+            throw new ArgumentException($"'{piece.Colour} {piece.Type}' is not a valid piece", nameof(piece));
+        }
         history.Clear();
+        EditCount++;
         if (!squares[square].IsNone)
         {
             RemovePiece(square);
@@ -304,8 +339,28 @@ public sealed partial class Board
             throw new ArgumentOutOfRangeException(nameof(colour));
         }
         history.Clear();
+        EditCount++;
         SetEnPassantSquare(Squares.None);
         SwitchSideToMove(colour);
+    }
+
+    /// <summary>
+    /// Incremented by every edit (<see cref="SetPiece"/>, <see cref="SetSideToMove"/>), so that
+    /// anything caching derived data can notice a change that is not a move.
+    /// </summary>
+    public int EditCount { get; private set; }
+
+    /// <summary>
+    /// Sort the piece square lists. Making and unmaking moves leaves the pieces in the lists in an
+    /// order that depends on the moves played, and move generation follows list order, so the search
+    /// normalises the order first to be a pure function of the position.
+    /// </summary>
+    public void NormalisePieceOrder()
+    {
+        foreach (List<int> list in pieceSquares)
+        {
+            list.Sort();
+        }
     }
 
     /// <summary>
@@ -337,8 +392,21 @@ public sealed partial class Board
 
     internal void SetClocks(int halfMoveClock, int fullMoveNumber)
     {
-        HalfMoveClock = halfMoveClock;
-        FullMoveNumber = fullMoveNumber;
+        HalfMoveClock = Math.Clamp(halfMoveClock, 0, MaxHalfMoveClock);
+        FullMoveNumber = Math.Max(1, fullMoveNumber);
+    }
+
+    /// <summary>
+    /// Can a pawn of the side to move capture on the given en passant square? Only then is the
+    /// square recorded, so that positions that are identical under the rules have identical keys.
+    /// </summary>
+    internal bool CanCaptureEnPassant(int square)
+    {
+        int direction = SideToMove == Colour.White ? 0x10 : -0x10;
+        Piece pawn = new(SideToMove, PieceType.Pawn);
+        int left = square - direction - 1;
+        int right = square - direction + 1;
+        return (Squares.IsOnBoard(left) && squares[left] == pawn) || (Squares.IsOnBoard(right) && squares[right] == pawn);
     }
 
     /// <summary>

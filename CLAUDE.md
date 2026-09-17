@@ -15,7 +15,7 @@ recommended analyzers to every project. Read [README.md](README.md) for the arch
 ```bash
 dotnet build StoopidChess.slnx -c Release                         # everything (Windows; the GUI targets net10.0-windows)
 dotnet build src/StoopidChess.Uci -c Release                      # engine only, works on Linux/macOS
-dotnet test tests/StoopidChess.Tests -c Release                   # ~260 xunit tests, a few seconds
+dotnet test tests/StoopidChess.Tests -c Release                   # ~290 xunit tests, a few seconds
 dotnet run --project src/StoopidChess.Uci -c Release -- bench     # fixed-depth node signature + nps (depth 6 default)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Gui                         # the GUI
@@ -32,7 +32,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
    perft count changes, the move generator is wrong, not the reference.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (854,290 nodes; depth 6 is 3,157,739). Any change to search
+   `BenchTests.Depth5Signature` (845,984 nodes; depth 6 is 3,056,834). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based

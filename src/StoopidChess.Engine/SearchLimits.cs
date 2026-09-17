@@ -61,9 +61,14 @@ public sealed record SearchLimits
             return null;
         }
         TimeSpan increment = (sideToMove == Colour.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero;
-        double budget = (clock.Value.TotalMilliseconds / (MovesToGo ?? 30)) + (increment.TotalMilliseconds * 0.8);
-        budget = Math.Min(budget, clock.Value.TotalMilliseconds * 0.8) - MoveOverhead.TotalMilliseconds;
-        return TimeSpan.FromMilliseconds(Math.Max(budget, MinimumThinkingTime.TotalMilliseconds));
+        int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 30;
+        double budget = (Math.Max(0, clock.Value.TotalMilliseconds) / movesToGo) + (Math.Max(0, increment.TotalMilliseconds) * 0.8);
+        budget = Math.Min(budget, Math.Max(0, clock.Value.TotalMilliseconds) * 0.8) - MoveOverhead.TotalMilliseconds;
+        if (double.IsNaN(budget) || budget < MinimumThinkingTime.TotalMilliseconds)
+        {
+            budget = MinimumThinkingTime.TotalMilliseconds;
+        }
+        return TimeSpan.FromMilliseconds(budget);
     }
 
     public static readonly TimeSpan MoveOverhead = TimeSpan.FromMilliseconds(30);

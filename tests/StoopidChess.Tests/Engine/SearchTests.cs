@@ -133,6 +133,36 @@ public class SearchTests
     }
 
     [Fact]
+    public void SearchDependsOnlyOnThePositionNotOnHowItWasReached()
+    {
+        Board viaOneOrder = Board.StartPosition();
+        foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
+        {
+            viaOneOrder.MakeMove(BoardTestHelpers.Move(viaOneOrder, uci));
+        }
+        Board viaOtherOrder = Board.StartPosition();
+        foreach (string uci in new[] { "d2d4", "e7e6", "b1c3", "d7d5", "e2e4", "f8b4", "e4e5", "c7c5" })
+        {
+            viaOtherOrder.MakeMove(BoardTestHelpers.Move(viaOtherOrder, uci));
+        }
+        SearchResult first = NewSearcher().Search(viaOneOrder, SearchLimits.ForDepth(5));
+        SearchResult second = NewSearcher().Search(viaOtherOrder, SearchLimits.ForDepth(5));
+        Assert.Equal(first.Nodes, second.Nodes);
+        Assert.Equal(first.BestMove, second.BestMove);
+        Assert.Equal(first.Score, second.Score);
+    }
+
+    [Fact]
+    public void AStoppedFirstIterationReportsAConsistentPrincipalVariation()
+    {
+        for (int nodes = 1; nodes <= 40; nodes += 13)
+        {
+            SearchResult result = NewSearcher().Search(Board.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq d3 0 3"), new SearchLimits { Nodes = nodes });
+            Assert.Equal(result.BestMove, result.PrincipalVariation[0]);
+        }
+    }
+
+    [Fact]
     public void LeavesTheCallersBoardUntouched()
     {
         Board board = Board.StartPosition();

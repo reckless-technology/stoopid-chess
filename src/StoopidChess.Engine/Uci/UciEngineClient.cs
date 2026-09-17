@@ -281,7 +281,7 @@ public sealed class UciEngineClient : IDisposable
 
     private void Dispatch(string line)
     {
-        string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string[] tokens = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0)
         {
             return;
@@ -313,7 +313,16 @@ public sealed class UciEngineClient : IDisposable
                 Author = string.Join(' ', tokens, 2, tokens.Length - 2);
                 break;
             case "info":
-                InfoReceived?.Invoke(this, line);
+                try
+                {
+                    InfoReceived?.Invoke(this, line);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    // A faulty handler must not kill the reader thread, which would strand every
+                    // pending command; the engine's own output is unaffected
+                    Debug.WriteLine($"InfoReceived handler failed: {ex}");
+                }
                 break;
             default:
                 break;

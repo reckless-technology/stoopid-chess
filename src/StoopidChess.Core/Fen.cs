@@ -57,7 +57,9 @@ public static class Fen
 
         board.SwitchSideToMove(sideToMove);
         board.SetCastlingRights(rights);
-        board.SetEnPassantSquare(enPassant);
+        // An en passant square nobody can capture on is dropped, so that FIDE-identical positions
+        // have identical keys whichever way they were reached
+        board.SetEnPassantSquare(enPassant != Squares.None && board.CanCaptureEnPassant(enPassant) ? enPassant : Squares.None);
         board.SetClocks(halfMoveClock, fullMoveNumber);
         return board;
     }
@@ -195,8 +197,13 @@ public static class Fen
 
     private static int ParseNumber(string field, string name)
     {
-        if (!int.TryParse(field, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
+        // Digits only; anything beyond the board's clock cap is clamped rather than rejected
+        if (field.Length == 0 || field.Length > 9 || !int.TryParse(field, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
         {
+            if (field.Length > 9 && field.All(char.IsAsciiDigit))
+            {
+                return int.MaxValue;
+            }
             throw new FormatException($"invalid {name} '{field}'");
         }
         return value;

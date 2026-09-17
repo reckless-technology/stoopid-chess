@@ -54,9 +54,15 @@ public class PerftTests
         Assert.Equal(97862, divided.Sum(d => d.Nodes));
     }
 
-    [Fact]
-    public void RejectsMalformedEpd()
+    [Theory]
+    [InlineData(";20")]
+    [InlineData(";D1 99999999999999999999")]
+    [InlineData(";D99999999999 20")]
+    [InlineData(";D1 -20")]
+    [InlineData("")]
+    public void RejectsMalformedEpd(string suffix)
     {
-        Assert.Throws<FormatException>(() => Perft.ParseEpd([Board.StartFen + ";20"]).ToList());
+        Assert.Throws<FormatException>(() => Perft.ParseEpd([Board.StartFen + suffix]).ToList());
+        Assert.Throws<FormatException>(() => Perft.ParseEpd([";D1 20"]).ToList());
     }
 }

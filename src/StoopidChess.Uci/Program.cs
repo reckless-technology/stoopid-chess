@@ -14,8 +14,10 @@ using StoopidChess.Engine.Uci;
 return args switch
 {
     [] => RunUci(),
-    ["bench", ..] => RunBench(args.Length > 1 ? ParseArgument(args[1]) : Bench.DefaultDepth),
-    ["perft", ..] => RunPerft(args.Length > 1 ? ParseArgument(args[1]) : 10),
+    ["bench"] => RunBench(Bench.DefaultDepth),
+    ["bench", string depth] when ParseArgument(depth) is int d => RunBench(d),
+    ["perft"] => RunPerft(10),
+    ["perft", string budget] when ParseArgument(budget) is int n => RunPerft(n),
     _ => PrintUsage(),
 };
 
@@ -67,12 +69,14 @@ static int RunPerft(int maxMillionNodes)
 static int PrintUsage()
 {
     Console.Error.WriteLine("usage: stoopid-chess [bench [depth] | perft [max million nodes]]");
+    Console.Error.WriteLine("       depth and max million nodes must be positive whole numbers");
     return 2;
 }
 
-static int ParseArgument(string text)
+/// <summary>
+/// A positive whole number, or null when the text is not one.
+/// </summary>
+static int? ParseArgument(string text)
 {
-    return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) && value > 0
-        ? value
-        : throw new ArgumentException($"'{text}' is not a positive number");
+    return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) && value > 0 ? value : null;
 }

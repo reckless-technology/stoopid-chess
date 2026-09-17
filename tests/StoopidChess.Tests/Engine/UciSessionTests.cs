@@ -87,6 +87,60 @@ public class UciSessionTests
     }
 
     [Fact]
+    public void RejectsIllegalPositionsAndKeepsRunning()
+    {
+        (UciSession session, StringWriter output) = NewSession();
+        using (session)
+        {
+            session.HandleCommand("position startpos moves e2e4");
+            // Black's king is in check with white to move: the black king could be captured
+            session.HandleCommand("position fen k6R/8/8/8/8/8/8/K7 w - - 0 1 moves h8a8 a1a2");
+            Assert.Equal(1, session.Board.Ply);
+            session.HandleCommand("perft 2");
+            session.HandleCommand("eval");
+            session.HandleCommand("d");
+            Assert.True(session.HandleCommand("isready"));
+        }
+        string[] lines = Lines(output);
+        Assert.Contains(lines, l => l.StartsWith("info string illegal position", StringComparison.Ordinal));
+        Assert.Equal("readyok", lines[^1]);
+    }
+
+    [Fact]
+    public void AcceptsAnyWhitespaceBetweenTokens()
+    {
+        (UciSession session, _) = NewSession();
+        using (session)
+        {
+            session.HandleCommand("position\tstartpos \t moves\te2e4  e7e5\r");
+            Assert.Equal(2, session.Board.Ply);
+        }
+    }
+
+    [Fact]
+    public void DegenerateGoLimitsStillProduceAMove()
+    {
+        (UciSession session, StringWriter output) = NewSession();
+        using (session)
+        {
+            session.HandleCommand("position startpos");
+            foreach (string go in new[] { "go wtime 0 btime 0 movestogo 0", "go depth -5", "go movetime 0", "go nodes 0", "go depth 0 nodes -1 movestogo -3" })
+            {
+                session.HandleCommand(go);
+                session.HandleCommand("stop");
+            }
+            session.HandleCommand("perft 0");
+            session.HandleCommand("bench 0");
+        }
+        string[] bestMoves = Lines(output).Where(l => l.StartsWith("bestmove ", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(5, bestMoves.Length);
+        Assert.All(bestMoves, l => Assert.NotEqual("bestmove 0000", l));
+        Assert.DoesNotContain(Lines(output), l => l.Contains("search failed", StringComparison.Ordinal));
+        Assert.Contains(Lines(output), l => l.StartsWith("nodes 20 ", StringComparison.Ordinal));
+        Assert.Contains(Lines(output), l => l.StartsWith("bench depth 1:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void GoProducesInfoAndALegalBestMove()
     {
         (UciSession session, StringWriter output) = NewSession();

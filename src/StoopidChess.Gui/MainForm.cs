@@ -35,6 +35,7 @@ public partial class MainForm : Form
 
     private UciEngineClient? engine;
     private string? enginePath;                 // Null for the built-in engine
+    private bool startingEngine;
     private CancellationTokenSource? thinking;  // Non-null while the engine is searching
     private int searchGeneration;               // Bumped whenever a pending search result must be discarded
     private string lastEngineInfo = "";
@@ -81,31 +82,50 @@ public partial class MainForm : Form
 
     private async Task StartEngineAsync()
     {
-        CancelThinking(discardResult: true);
-        engine?.Dispose();
-        engine = null;
-        Text = "Stoopid Chess";
+        if (startingEngine)
+        {
+            return;     // A start is already in progress; the menu will be re-enabled when it finishes
+        }
+        startingEngine = true;
         try
         {
-            UciEngineClient client = enginePath is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(enginePath);
-            client.InfoReceived += OnEngineInfo;
-            using var timeout = new CancellationTokenSource(EngineStartTimeout);
-            await client.InitialiseAsync(timeout.Token);
-            engine = client;
-            Text = $"Stoopid Chess - {client.Name ?? Path.GetFileName(enginePath)}";
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
-        {
-            MessageBox.Show(this, $"The engine could not be started:\n{ex.Message}\n\nThe built-in engine will be used instead.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            if (enginePath is not null)
+            CancelThinking(discardResult: true);
+            engine?.Dispose();
+            engine = null;
+            Text = "Stoopid Chess";
+            UciEngineClient? client = null;
+            try
             {
-                enginePath = null;
-                UpdateEngineMenu();
-                await StartEngineAsync();
-                return;
+                client = enginePath is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(enginePath);
+                client.InfoReceived += OnEngineInfo;
+                using var timeout = new CancellationTokenSource(EngineStartTimeout);
+                await client.InitialiseAsync(timeout.Token);
+                engine = client;
+                Text = $"Stoopid Chess - {client.Name ?? Path.GetFileName(enginePath)}";
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
+            {
+                client?.Dispose();      // Otherwise a half-started external process would live on
+                if (IsDisposed)
+                {
+                    return;
+                }
+                MessageBox.Show(this, $"The engine could not be started:\n{ex.Message}\n\nThe built-in engine will be used instead.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (enginePath is not null)
+                {
+                    enginePath = null;
+                    UpdateEngineMenu();
+                    startingEngine = false;
+                    await StartEngineAsync();
+                    return;
+                }
             }
         }
-        if (IsEngineTurn)
+        finally
+        {
+            startingEngine = false;
+        }
+        if (!IsDisposed && IsEngineTurn)
         {
             StartThinking();
         }
@@ -463,7 +483,7 @@ public partial class MainForm : Form
             graphics.DrawRectangle(LastMovePen, fromOrigin.X, fromOrigin.Y, size, size);
             graphics.DrawRectangle(LastMovePen, toOrigin.X, toOrigin.Y, size, size);
         }
-        if (dragFrom != Squares.None)
+        if (dragFrom != Squares.None && !board[dragFrom].IsNone)
         {
             graphics.DrawImage(images[board[dragFrom]], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
         }
@@ -597,6 +617,10 @@ public partial class MainForm : Form
         if (!IsEditing)
         {
             moveListTextBox.Text = "Position edited by user";
+            if (!game.IsOver)
+            {
+                clockTimer.Start();     // The clocks stop at the end of a game; an edit may revive it
+            }
             if (IsEngineTurn)
             {
                 StartThinking();
@@ -747,6 +771,7 @@ public partial class MainForm : Form
         isBoardFlipped = saved.IsBoardFlipped;
         SetLevel(saved.Level);
         lastMove = game.Board.LastMove is Move last ? (last.From, last.To) : null;
+        dragFrom = Squares.None;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
         RefreshAll();
@@ -777,6 +802,7 @@ public partial class MainForm : Form
             game.UndoMove();    // Take back the engine's reply as well so that it is the human's turn
         }
         lastMove = game.Board.LastMove is Move last ? (last.From, last.To) : null;
+        dragFrom = Squares.None;
         RefreshAll();
         clockTimer.Start();
         if (IsEngineTurn)
