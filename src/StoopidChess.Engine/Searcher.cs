@@ -348,7 +348,25 @@ public sealed class Searcher
         {
             return DrawScore;
         }
+
+        // Entries from the main search (and from earlier quiescence searches) settle many nodes here
+        Move tableMove = Move.None;
+        if (table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry))
+        {
+            tableMove = entry.BestMove;
+            int tableScore = ScoreFromTable(entry.Score, ply);
+            if (entry.Type == NodeType.Exact
+                || (entry.Type == NodeType.LowerBound && tableScore >= beta)
+                || (entry.Type == NodeType.UpperBound && tableScore <= alpha))
+            {
+                statistics.TranspositionCutoffs++;
+                return tableScore;
+            }
+        }
+
+        int originalAlpha = alpha;
         int bestScore = -Infinity;
+        Move bestMove = Move.None;
         if (!inCheck)
         {
             // Stand pat: the side to move need not capture at all
@@ -370,7 +388,7 @@ public sealed class Searcher
         {
             MoveGenerator.GenerateCaptures(board, moves);
         }
-        OrderMoves(moves, ply, Move.None);
+        OrderMoves(moves, ply, tableMove);
 
         int legalMoves = 0;
         Colour us = board.SideToMove;
@@ -394,10 +412,15 @@ public sealed class Searcher
             {
                 return alpha;
             }
-            bestScore = Math.Max(bestScore, score);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMove = move;
+            }
             if (score >= beta)
             {
                 statistics.BetaCutoffs++;
+                table.Store(board.Key, board.SecondaryKey, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
@@ -407,6 +430,7 @@ public sealed class Searcher
         {
             return -MateScore + ply;
         }
+        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
         return bestScore;
     }
 

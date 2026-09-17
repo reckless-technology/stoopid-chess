@@ -33,7 +33,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
    perft count changes, the move generator is wrong, not the reference.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (341,249 nodes; depth 6 is 1721985). Any change to search
+   `BenchTests.Depth5Signature` (273839 nodes; depth 6 is 1721985). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
