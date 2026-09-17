@@ -170,82 +170,14 @@ public class BoardTests
     }
 
     [Fact]
-    public void SetPieceEditsPositionAndFixesCastlingRights()
+    public void IndexersRangeCheck()
     {
         Board board = Board.StartPosition();
-        board.SetPiece(Squares.E1, Piece.None);
-        Assert.Equal(CastlingRights.Black, board.CastlingRights);
-        board.SetPiece(Squares.Parse("d4"), Piece.WhiteKing);
-        Assert.True(board.HasValidKings);
-        board.SetPiece(Squares.H8, Piece.None);
-        Assert.Equal(CastlingRights.BlackQueenSide, board.CastlingRights);
-        (ulong key, _, _) = board.ComputeKeys();
-        Assert.Equal(key, board.Key);
-        Assert.Equal(0, board.Ply);
-    }
-
-    [Fact]
-    public void SetSideToMoveIsAnEditThatDiscardsHistory()
-    {
-        Board board = Board.StartPosition();
-        board.MakeMove(FindMove(board, "e2e4")!.Value);
-        Assert.Equal(Colour.Black, board.SideToMove);
-        board.SetSideToMove(Colour.White);
-        Assert.Equal(Colour.White, board.SideToMove);
-        Assert.Equal(0, board.Ply);
-        Assert.Equal(Squares.None, board.EnPassantSquare);
-        (ulong key, _, _) = board.ComputeKeys();
-        Assert.Equal(key, board.Key);
-        Assert.Throws<ArgumentOutOfRangeException>(() => board.SetSideToMove(Colour.None));
-        // Making a move, by contrast, keeps the history
-        board.MakeMove(FindMove(board, "d2d4")!.Value);
-        Assert.Equal(1, board.Ply);
-        board.UnmakeMove();
-    }
-
-    [Fact]
-    public void PositionLegalityCoversKingsChecksAndBackRankPawns()
-    {
-        Board board = Board.StartPosition();
-        Assert.True(MoveGenerator.IsPositionLegal(board));
-        board.SetPiece(Squares.A8, Piece.WhitePawn);
-        Assert.False(MoveGenerator.IsPositionLegal(board), "pawn on the eighth rank");
-        board.SetPiece(Squares.A8, Piece.BlackRook);
-        Assert.True(MoveGenerator.IsPositionLegal(board));
-        // White to move with the black king in check from a white rook: black must have moved into check
-        Assert.False(MoveGenerator.IsPositionLegal(Board.FromFen("4k3/4R3/8/8/8/8/8/4K3 w - - 0 1")), "side not to move is in check");
-        Assert.False(MoveGenerator.IsPositionLegal(Board.FromFen("4k3/4K3/8/8/8/8/8/8 w - - 0 1")), "adjacent kings");
-        Board noKing = Board.StartPosition();
-        noKing.SetPiece(Squares.E8, Piece.None);
-        Assert.False(MoveGenerator.IsPositionLegal(noKing));
-    }
-
-    [Fact]
-    public void RejectsInvalidPiecesAndSquares()
-    {
-        Board board = Board.StartPosition();
-        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece((Colour)5, PieceType.Pawn)));
-        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.White, (PieceType)9)));
-        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.None, PieceType.Pawn)));
-        Assert.Throws<ArgumentException>(() => board.SetPiece(Squares.Parse("e4"), new Piece(Colour.White, PieceType.None)));
-        Assert.Throws<ArgumentOutOfRangeException>(() => board.SetPiece(0x08, Piece.WhitePawn));
         Assert.Throws<ArgumentOutOfRangeException>(() => board[Squares.None]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[0x78]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[8, 0]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[0, -1]);
-        Assert.Equal(Board.StartFen, board.ToFen());
-    }
-
-    [Fact]
-    public void MoveGenerationRefusesUnplayablePositions()
-    {
-        Board board = Board.StartPosition();
-        board.SetPiece(Squares.A8, Piece.WhitePawn);
-        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateLegalMoves(board));
-        Board noKing = Board.StartPosition();
-        noKing.SetPiece(Squares.E1, Piece.None);
-        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateLegalMoves(noKing));
-        Assert.Throws<InvalidOperationException>(() => MoveGenerator.GenerateCaptures(noKing, []));
+        Assert.Equal(Piece.WhiteKing, board[4, 0]);
     }
 
     [Fact]
@@ -275,15 +207,6 @@ public class BoardTests
         board.MakeMove(FindMove(board, "e2e4")!.Value);
         Assert.Equal(Board.StartFen, copy.ToFen());
         Assert.NotEqual(board.Key, copy.Key);
-    }
-
-    [Fact]
-    public void KingSquareThrowsWithoutExactlyOneKing()
-    {
-        Board board = Board.StartPosition();
-        board.SetPiece(Squares.E1, Piece.None);
-        Assert.False(board.HasValidKings);
-        Assert.Throws<InvalidOperationException>(() => board.KingSquare(Colour.White));
     }
 
     internal static Move? FindMove(Board board, string uci)

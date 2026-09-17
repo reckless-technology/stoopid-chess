@@ -19,7 +19,7 @@ public sealed class Game
     private readonly List<Move> moves = [];
     private readonly Colour startSideToMove;
     private List<Move>? legalMoves;
-    private (ulong Key, int Ply, int EditCount) legalMovesFor;
+    private (ulong Key, int Ply) legalMovesFor;
 
     /// <summary>
     /// A game from the standard starting position.
@@ -32,7 +32,7 @@ public sealed class Game
     /// <summary>
     /// A game starting from the given position, which must be legal (see
     /// <see cref="MoveGenerator.IsPositionLegal"/>) and must not have any moves made on it yet;
-    /// use <see cref="MakeMove"/> to replay moves. The game owns the board from here on: mutate it
+    /// use <see cref="MakeMove"/> to replay moves. The game owns the board from here on: make moves
     /// only through the game, or the move history will not match.
     /// </summary>
     public Game(Board board)
@@ -63,14 +63,14 @@ public sealed class Game
     public IReadOnlyList<Move> Moves => moves;
 
     /// <summary>
-    /// The legal moves in the current position. Cached, and recomputed if the board turns out to
-    /// have been changed behind the game's back.
+    /// The legal moves in the current position. Cached, and recomputed if a move turns out to have
+    /// been made on the board directly rather than through the game.
     /// </summary>
     public IReadOnlyList<Move> LegalMoves
     {
         get
         {
-            (ulong, int, int) current = (Board.Key, Board.Ply, Board.EditCount);
+            (ulong, int) current = (Board.Key, Board.Ply);
             if (legalMoves is null || legalMovesFor != current)
             {
                 legalMoves = MoveGenerator.GenerateLegalMoves(Board);

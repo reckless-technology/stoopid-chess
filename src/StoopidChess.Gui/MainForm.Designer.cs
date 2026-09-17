@@ -54,8 +54,8 @@ namespace StoopidChess.Gui
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.flipBoardToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.debugToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.cPUVsCPUGameToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.engineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.engineVersusEngineToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
@@ -110,12 +110,12 @@ namespace StoopidChess.Gui
             this.chessBoardPictureBox.Size = new System.Drawing.Size(512, 512);
             this.chessBoardPictureBox.TabIndex = 0;
             this.chessBoardPictureBox.TabStop = false;
-            this.chessBoardPictureBox.MouseMove += new System.Windows.Forms.MouseEventHandler(this.ChessBoardPictureBoxMouseMoveHandler);
-            this.chessBoardPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.ChessBoardMouseClickHandler);
-            this.chessBoardPictureBox.MouseDown += new System.Windows.Forms.MouseEventHandler(this.ChessBoardPictureBoxMouseDownHandler);
-            this.chessBoardPictureBox.Paint += new System.Windows.Forms.PaintEventHandler(this.ChessBoardPictureBoxPaintHandler);
-            this.chessBoardPictureBox.MouseUp += new System.Windows.Forms.MouseEventHandler(this.ChessBoardPictureBoxMouseUpHandler);
-            this.chessBoardPictureBox.SizeChanged += new System.EventHandler(this.ChessBoardSizeChangedHandler);
+            this.chessBoardPictureBox.MouseMove += new System.Windows.Forms.MouseEventHandler(this.OnBoardMouseMove);
+            this.chessBoardPictureBox.MouseClick += new System.Windows.Forms.MouseEventHandler(this.OnBoardMouseClick);
+            this.chessBoardPictureBox.MouseDown += new System.Windows.Forms.MouseEventHandler(this.OnBoardMouseDown);
+            this.chessBoardPictureBox.Paint += new System.Windows.Forms.PaintEventHandler(this.OnBoardPaint);
+            this.chessBoardPictureBox.MouseUp += new System.Windows.Forms.MouseEventHandler(this.OnBoardMouseUp);
+            this.chessBoardPictureBox.SizeChanged += new System.EventHandler(this.OnBoardSizeChanged);
             // 
             // captureBinPictureBox
             // 
@@ -125,7 +125,7 @@ namespace StoopidChess.Gui
             this.captureBinPictureBox.Size = new System.Drawing.Size(512, 64);
             this.captureBinPictureBox.TabIndex = 9;
             this.captureBinPictureBox.TabStop = false;
-            this.captureBinPictureBox.Paint += new System.Windows.Forms.PaintEventHandler(this.CaptureBinPictureBoxPaintHandler);
+            this.captureBinPictureBox.Paint += new System.Windows.Forms.PaintEventHandler(this.OnCaptureBinPaint);
             // 
             // verticalSplitContainer
             // 
@@ -189,7 +189,7 @@ namespace StoopidChess.Gui
             this.gameToolStripMenuItem,
             this.viewToolStripMenuItem,
             this.helpToolStripMenuItem,
-            this.debugToolStripMenuItem});
+            this.engineToolStripMenuItem});
             this.mainMenuStrip.Location = new System.Drawing.Point(0, 0);
             this.mainMenuStrip.Name = "mainMenuStrip";
             this.mainMenuStrip.Size = new System.Drawing.Size(744, 24);
@@ -211,21 +211,21 @@ namespace StoopidChess.Gui
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
             this.saveToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.saveToolStripMenuItem.Text = "Save game";
-            this.saveToolStripMenuItem.Click += new System.EventHandler(this.FileSaveGameHandler);
+            this.saveToolStripMenuItem.Click += new System.EventHandler(this.OnSaveGame);
             // 
             // loadToolStripMenuItem
             // 
             this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
             this.loadToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.loadToolStripMenuItem.Text = "Load game";
-            this.loadToolStripMenuItem.Click += new System.EventHandler(this.FileLoadGameHandler);
+            this.loadToolStripMenuItem.Click += new System.EventHandler(this.OnLoadGame);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
             this.exitToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.exitToolStripMenuItem.Text = "Exit";
-            this.exitToolStripMenuItem.Click += new System.EventHandler(this.FileExitHandler);
+            this.exitToolStripMenuItem.Click += new System.EventHandler(this.OnExit);
             // 
             // gameToolStripMenuItem
             // 
@@ -243,7 +243,7 @@ namespace StoopidChess.Gui
             this.undoLastMoveToolStripMenuItem.Name = "undoLastMoveToolStripMenuItem";
             this.undoLastMoveToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.undoLastMoveToolStripMenuItem.Text = "Undo last move";
-            this.undoLastMoveToolStripMenuItem.Click += new System.EventHandler(this.UndoLastMoveHandler);
+            this.undoLastMoveToolStripMenuItem.Click += new System.EventHandler(this.OnUndoMove);
             // 
             // setLevelToolStripMenuItem
             // 
@@ -262,35 +262,35 @@ namespace StoopidChess.Gui
             this.beginnerMenuItem.Name = "beginnerMenuItem";
             this.beginnerMenuItem.Size = new System.Drawing.Size(131, 22);
             this.beginnerMenuItem.Text = "Beginner";
-            this.beginnerMenuItem.Click += new System.EventHandler(this.SetLevelBeginnerHandler);
+            this.beginnerMenuItem.Click += new System.EventHandler(this.OnLevelBeginner);
             // 
             // easyToolStripMenuItem
             // 
             this.easyToolStripMenuItem.Name = "easyToolStripMenuItem";
             this.easyToolStripMenuItem.Size = new System.Drawing.Size(131, 22);
             this.easyToolStripMenuItem.Text = "Easy";
-            this.easyToolStripMenuItem.Click += new System.EventHandler(this.SetLevelEasyHandler);
+            this.easyToolStripMenuItem.Click += new System.EventHandler(this.OnLevelEasy);
             // 
             // mediumToolStripMenuItem
             // 
             this.mediumToolStripMenuItem.Name = "mediumToolStripMenuItem";
             this.mediumToolStripMenuItem.Size = new System.Drawing.Size(131, 22);
             this.mediumToolStripMenuItem.Text = "Medium";
-            this.mediumToolStripMenuItem.Click += new System.EventHandler(this.SetLevelMediumHandler);
+            this.mediumToolStripMenuItem.Click += new System.EventHandler(this.OnLevelMedium);
             // 
             // hardToolStripMenuItem
             // 
             this.hardToolStripMenuItem.Name = "hardToolStripMenuItem";
             this.hardToolStripMenuItem.Size = new System.Drawing.Size(131, 22);
             this.hardToolStripMenuItem.Text = "Hard";
-            this.hardToolStripMenuItem.Click += new System.EventHandler(this.SetLevelHardHandler);
+            this.hardToolStripMenuItem.Click += new System.EventHandler(this.OnLevelHard);
             // 
             // bestslowToolStripMenuItem
             // 
             this.bestslowToolStripMenuItem.Name = "bestslowToolStripMenuItem";
             this.bestslowToolStripMenuItem.Size = new System.Drawing.Size(131, 22);
             this.bestslowToolStripMenuItem.Text = "Best (slow)";
-            this.bestslowToolStripMenuItem.Click += new System.EventHandler(this.SetLevelBestHandler);
+            this.bestslowToolStripMenuItem.Click += new System.EventHandler(this.OnLevelBest);
             // 
             // newGameToolStripMenuItem
             // 
@@ -306,14 +306,14 @@ namespace StoopidChess.Gui
             this.whiteToolStripMenuItem.Name = "whiteToolStripMenuItem";
             this.whiteToolStripMenuItem.Size = new System.Drawing.Size(105, 22);
             this.whiteToolStripMenuItem.Text = "White";
-            this.whiteToolStripMenuItem.Click += new System.EventHandler(this.NewGameWhiteHandler);
+            this.whiteToolStripMenuItem.Click += new System.EventHandler(this.OnNewGameWhite);
             // 
             // blackToolStripMenuItem
             // 
             this.blackToolStripMenuItem.Name = "blackToolStripMenuItem";
             this.blackToolStripMenuItem.Size = new System.Drawing.Size(105, 22);
             this.blackToolStripMenuItem.Text = "Black";
-            this.blackToolStripMenuItem.Click += new System.EventHandler(this.NewGameBlackHandler);
+            this.blackToolStripMenuItem.Click += new System.EventHandler(this.OnNewGameBlack);
             // 
             // viewToolStripMenuItem
             // 
@@ -328,29 +328,29 @@ namespace StoopidChess.Gui
             this.flipBoardToolStripMenuItem.Name = "flipBoardToolStripMenuItem";
             this.flipBoardToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
             this.flipBoardToolStripMenuItem.Text = "Flip board";
-            this.flipBoardToolStripMenuItem.Click += new System.EventHandler(this.ViewFlipBoardHandler);
+            this.flipBoardToolStripMenuItem.Click += new System.EventHandler(this.OnFlipBoard);
             // 
             // helpToolStripMenuItem
             // 
             this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
             this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
             this.helpToolStripMenuItem.Text = "Help";
-            this.helpToolStripMenuItem.Click += new System.EventHandler(this.MenuHelpHandler);
+            this.helpToolStripMenuItem.Click += new System.EventHandler(this.OnHelp);
             // 
-            // debugToolStripMenuItem
+            // engineToolStripMenuItem
             // 
-            this.debugToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.cPUVsCPUGameToolStripMenuItem});
-            this.debugToolStripMenuItem.Name = "debugToolStripMenuItem";
-            this.debugToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
-            this.debugToolStripMenuItem.Text = "Debug";
+            this.engineToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.engineVersusEngineToolStripMenuItem});
+            this.engineToolStripMenuItem.Name = "engineToolStripMenuItem";
+            this.engineToolStripMenuItem.Size = new System.Drawing.Size(54, 20);
+            this.engineToolStripMenuItem.Text = "&Engine";
             // 
-            // cPUVsCPUGameToolStripMenuItem
+            // engineVersusEngineToolStripMenuItem
             // 
-            this.cPUVsCPUGameToolStripMenuItem.Name = "cPUVsCPUGameToolStripMenuItem";
-            this.cPUVsCPUGameToolStripMenuItem.Size = new System.Drawing.Size(151, 22);
-            this.cPUVsCPUGameToolStripMenuItem.Text = "Play test game";
-            this.cPUVsCPUGameToolStripMenuItem.Click += new System.EventHandler(this.TestGameHandler);
+            this.engineVersusEngineToolStripMenuItem.Name = "engineVersusEngineToolStripMenuItem";
+            this.engineVersusEngineToolStripMenuItem.Size = new System.Drawing.Size(151, 22);
+            this.engineVersusEngineToolStripMenuItem.Text = "&Play engine against itself";
+            this.engineVersusEngineToolStripMenuItem.Click += new System.EventHandler(this.OnEngineVersusEngine);
             // 
             // saveFileDialog
             // 
@@ -464,7 +464,7 @@ namespace StoopidChess.Gui
             this.clearSquareToolStripMenuItem.Name = "clearSquareToolStripMenuItem";
             this.clearSquareToolStripMenuItem.Size = new System.Drawing.Size(168, 22);
             this.clearSquareToolStripMenuItem.Text = "Clear square";
-            this.clearSquareToolStripMenuItem.Click += new System.EventHandler(this.ClearSquareHandler);
+            this.clearSquareToolStripMenuItem.Click += new System.EventHandler(this.OnClearSquare);
             // 
             // whiteToolStripMenuItem1
             // 
@@ -484,42 +484,42 @@ namespace StoopidChess.Gui
             this.whitePawnToolStripMenuItem.Name = "whitePawnToolStripMenuItem";
             this.whitePawnToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whitePawnToolStripMenuItem.Text = "Pawn";
-            this.whitePawnToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhitePawn);
+            this.whitePawnToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhitePawn);
             // 
             // whiteKnightToolStripMenuItem
             // 
             this.whiteKnightToolStripMenuItem.Name = "whiteKnightToolStripMenuItem";
             this.whiteKnightToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whiteKnightToolStripMenuItem.Text = "Knight";
-            this.whiteKnightToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhiteKnight);
+            this.whiteKnightToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhiteKnight);
             // 
             // whiteBishopToolStripMenuItem
             // 
             this.whiteBishopToolStripMenuItem.Name = "whiteBishopToolStripMenuItem";
             this.whiteBishopToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whiteBishopToolStripMenuItem.Text = "Bishop";
-            this.whiteBishopToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhiteBishop);
+            this.whiteBishopToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhiteBishop);
             // 
             // whiteRookToolStripMenuItem
             // 
             this.whiteRookToolStripMenuItem.Name = "whiteRookToolStripMenuItem";
             this.whiteRookToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whiteRookToolStripMenuItem.Text = "Rook";
-            this.whiteRookToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhiteRook);
+            this.whiteRookToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhiteRook);
             // 
             // whiteQueenToolStripMenuItem
             // 
             this.whiteQueenToolStripMenuItem.Name = "whiteQueenToolStripMenuItem";
             this.whiteQueenToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whiteQueenToolStripMenuItem.Text = "Queen";
-            this.whiteQueenToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhiteQueen);
+            this.whiteQueenToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhiteQueen);
             // 
             // whiteKingToolStripMenuItem
             // 
             this.whiteKingToolStripMenuItem.Name = "whiteKingToolStripMenuItem";
             this.whiteKingToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.whiteKingToolStripMenuItem.Text = "King";
-            this.whiteKingToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareWhiteKing);
+            this.whiteKingToolStripMenuItem.Click += new System.EventHandler(this.OnSetWhiteKing);
             // 
             // blackToolStripMenuItem1
             // 
@@ -539,49 +539,49 @@ namespace StoopidChess.Gui
             this.blackPawnToolStripMenuItem.Name = "blackPawnToolStripMenuItem";
             this.blackPawnToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackPawnToolStripMenuItem.Text = "Pawn";
-            this.blackPawnToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackPawn);
+            this.blackPawnToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackPawn);
             // 
             // blackKnightToolStripMenuItem
             // 
             this.blackKnightToolStripMenuItem.Name = "blackKnightToolStripMenuItem";
             this.blackKnightToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackKnightToolStripMenuItem.Text = "Knight";
-            this.blackKnightToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackKnight);
+            this.blackKnightToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackKnight);
             // 
             // blackBishopToolStripMenuItem
             // 
             this.blackBishopToolStripMenuItem.Name = "blackBishopToolStripMenuItem";
             this.blackBishopToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackBishopToolStripMenuItem.Text = "Bishop";
-            this.blackBishopToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackBishop);
+            this.blackBishopToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackBishop);
             // 
             // blackRookToolStripMenuItem
             // 
             this.blackRookToolStripMenuItem.Name = "blackRookToolStripMenuItem";
             this.blackRookToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackRookToolStripMenuItem.Text = "Rook";
-            this.blackRookToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackRook);
+            this.blackRookToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackRook);
             // 
             // blackQueenToolStripMenuItem
             // 
             this.blackQueenToolStripMenuItem.Name = "blackQueenToolStripMenuItem";
             this.blackQueenToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackQueenToolStripMenuItem.Text = "Queen";
-            this.blackQueenToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackQueen);
+            this.blackQueenToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackQueen);
             // 
             // blackKingToolStripMenuItem
             // 
             this.blackKingToolStripMenuItem.Name = "blackKingToolStripMenuItem";
             this.blackKingToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.blackKingToolStripMenuItem.Text = "King";
-            this.blackKingToolStripMenuItem.Click += new System.EventHandler(this.HandlerSetSquareBlackKing);
+            this.blackKingToolStripMenuItem.Click += new System.EventHandler(this.OnSetBlackKing);
             // 
             // clearEntireBoardToolStripMenuItem
             // 
             this.clearEntireBoardToolStripMenuItem.Name = "clearEntireBoardToolStripMenuItem";
             this.clearEntireBoardToolStripMenuItem.Size = new System.Drawing.Size(168, 22);
             this.clearEntireBoardToolStripMenuItem.Text = "Clear entire board";
-            this.clearEntireBoardToolStripMenuItem.Click += new System.EventHandler(this.ClearBoardHandler);
+            this.clearEntireBoardToolStripMenuItem.Click += new System.EventHandler(this.OnClearBoard);
             // 
             // stopThinkingButton
             // 
@@ -591,14 +591,14 @@ namespace StoopidChess.Gui
             this.stopThinkingButton.TabIndex = 18;
             this.stopThinkingButton.Text = "Move now!";
             this.stopThinkingButton.UseVisualStyleBackColor = true;
-            this.stopThinkingButton.Click += new System.EventHandler(this.StopThinkingButtonHandler);
+            this.stopThinkingButton.Click += new System.EventHandler(this.OnMoveNow);
             // 
             // switchSidesToolStripMenuItem
             // 
             this.switchSidesToolStripMenuItem.Name = "switchSidesToolStripMenuItem";
             this.switchSidesToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
             this.switchSidesToolStripMenuItem.Text = "Switch sides";
-            this.switchSidesToolStripMenuItem.Click += new System.EventHandler(this.SwitchSidesHandler);
+            this.switchSidesToolStripMenuItem.Click += new System.EventHandler(this.OnSwitchSides);
             // 
             // MainForm
             // 
@@ -685,8 +685,8 @@ namespace StoopidChess.Gui
         private System.Windows.Forms.ToolStripStatusLabel blackClockLabel;
         private System.Windows.Forms.ToolStripMenuItem beginnerMenuItem;
         private System.Windows.Forms.ToolStripMenuItem clearEntireBoardToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem debugToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem cPUVsCPUGameToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem engineToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem engineVersusEngineToolStripMenuItem;
         private System.Windows.Forms.RichTextBox moveListTextBox;
         private System.Windows.Forms.ToolStripMenuItem bestslowToolStripMenuItem;
         private System.Windows.Forms.Button stopThinkingButton;

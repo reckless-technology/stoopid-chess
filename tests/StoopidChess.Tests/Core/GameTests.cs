@@ -126,19 +126,6 @@ public class GameTests
     }
 
     [Fact]
-    public void EditingTheBoardBehindTheGamesBackInvalidatesTheLegalMoves()
-    {
-        var game = new Game();
-        IReadOnlyList<Move> before = game.LegalMoves;
-        Move pawnPush = before.Single(m => m.ToUci() == "e2e4");
-        game.Board.SetPiece(Squares.Parse("e2"), Piece.None);
-        Assert.DoesNotContain(pawnPush, game.LegalMoves);
-        Assert.Throws<ArgumentException>(() => game.MakeMove(pawnPush));
-        (ulong key, _, _) = game.Board.ComputeKeys();
-        Assert.Equal(key, game.Board.Key);
-    }
-
-    [Fact]
     public void RejectsBoardsThatAlreadyHaveMoves()
     {
         Board board = Board.StartPosition();
@@ -149,8 +136,8 @@ public class GameTests
     [Fact]
     public void RejectsPositionsWithoutKings()
     {
-        Board board = Board.StartPosition();
-        board.SetPiece(Squares.E8, Piece.None);
-        Assert.Throws<ArgumentException>(() => new Game(board));
+        PositionBuilder builder = PositionBuilder.From(Board.StartPosition());
+        builder[Squares.E8] = Piece.None;
+        Assert.Throws<InvalidOperationException>(() => new Game(builder.Build()));
     }
 }

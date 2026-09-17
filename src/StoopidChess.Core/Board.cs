@@ -15,8 +15,9 @@ namespace StoopidChess.Core;
 /// <item>a history of made moves so that they can be unmade in strict last-in first-out order, and
 /// so that repetitions can be detected.</item>
 /// </list>
-/// A board is created from FEN (<see cref="FromFen"/>, <see cref="StartPosition"/>) and may then be
-/// mutated only by <see cref="MakeMove"/>, <see cref="UnmakeMove"/> and <see cref="SetPiece"/>.
+/// A board is created from FEN (<see cref="FromFen"/>, <see cref="StartPosition"/>) or by a
+/// <see cref="PositionBuilder"/>, and may then be changed only by <see cref="MakeMove"/> and
+/// <see cref="UnmakeMove"/>.
 /// </summary>
 public sealed partial class Board
 {
@@ -41,11 +42,6 @@ public sealed partial class Board
     public static Board StartPosition() => Fen.Parse(StartFen);
 
     public static Board FromFen(string fen) => Fen.Parse(fen);
-
-    /// <summary>
-    /// A board with no pieces, white to move and no castling rights, as a starting point for editing.
-    /// </summary>
-    public static Board Empty() => new();
 
     public Colour SideToMove { get; private set; } = Colour.White;
 
@@ -150,7 +146,6 @@ public sealed partial class Board
             copy.pieceSquares[i].AddRange(pieceSquares[i]);
         }
         copy.history.AddRange(history);
-        copy.EditCount = EditCount;
         copy.SideToMove = SideToMove;
         copy.CastlingRights = CastlingRights;
         copy.EnPassantSquare = EnPassantSquare;
@@ -213,64 +208,6 @@ public sealed partial class Board
     public static bool IsLightSquare(int square) => ((Squares.FileOf(square) + Squares.RankOf(square)) & 1) == 1;
 
     /// <summary>
-    /// Place a piece (or clear a square) while editing a position. This discards the move history,
-    /// resets the half-move clock and en passant square, and removes any castling rights whose king or
-    /// rook is no longer on its home square.
-    /// </summary>
-    public void SetPiece(int square, Piece piece)
-    {
-        if (!Squares.IsOnBoard(square))
-        {
-            throw new ArgumentOutOfRangeException(nameof(square));
-        }
-        bool validPiece = piece.IsNone
-            ? piece.Colour == Colour.None
-            : piece.Colour is Colour.White or Colour.Black && piece.Type is >= PieceType.Pawn and <= PieceType.King;
-        if (!validPiece)
-        {
-            throw new ArgumentException($"'{piece.Colour} {piece.Type}' is not a valid piece", nameof(piece));
-        }
-        history.Clear();
-        EditCount++;
-        if (!squares[square].IsNone)
-        {
-            RemovePiece(square);
-        }
-        if (!piece.IsNone)
-        {
-            PutPiece(square, piece);
-        }
-        CastlingRights rights = CastlingRights;
-        if (squares[Squares.E1] != Piece.WhiteKing)
-        {
-            rights &= ~CastlingRights.White;
-        }
-        if (squares[Squares.H1] != Piece.WhiteRook)
-        {
-            rights &= ~CastlingRights.WhiteKingSide;
-        }
-        if (squares[Squares.A1] != Piece.WhiteRook)
-        {
-            rights &= ~CastlingRights.WhiteQueenSide;
-        }
-        if (squares[Squares.E8] != Piece.BlackKing)
-        {
-            rights &= ~CastlingRights.Black;
-        }
-        if (squares[Squares.H8] != Piece.BlackRook)
-        {
-            rights &= ~CastlingRights.BlackKingSide;
-        }
-        if (squares[Squares.A8] != Piece.BlackRook)
-        {
-            rights &= ~CastlingRights.BlackQueenSide;
-        }
-        SetCastlingRights(rights);
-        SetEnPassantSquare(Squares.None);
-        HalfMoveClock = 0;
-    }
-
-    /// <summary>
     /// Text rendering for debugging: rank 8 at the top, upper case for white.
     /// </summary>
     public override string ToString()
@@ -327,28 +264,6 @@ public sealed partial class Board
         RemovePiece(from);
         PutPiece(to, piece);
     }
-
-    /// <summary>
-    /// Change the side to move while editing a position. Like <see cref="SetPiece"/> this discards
-    /// the move history and the en passant square.
-    /// </summary>
-    public void SetSideToMove(Colour colour)
-    {
-        if (colour is not (Colour.White or Colour.Black))
-        {
-            throw new ArgumentOutOfRangeException(nameof(colour));
-        }
-        history.Clear();
-        EditCount++;
-        SetEnPassantSquare(Squares.None);
-        SwitchSideToMove(colour);
-    }
-
-    /// <summary>
-    /// Incremented by every edit (<see cref="SetPiece"/>, <see cref="SetSideToMove"/>), so that
-    /// anything caching derived data can notice a change that is not a move.
-    /// </summary>
-    public int EditCount { get; private set; }
 
     /// <summary>
     /// Sort the piece square lists. Making and unmaking moves leaves the pieces in the lists in an

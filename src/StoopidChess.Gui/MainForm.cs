@@ -21,7 +21,7 @@ public partial class MainForm : Form
     private readonly Timer clockTimer = new() { Interval = 100 };
 
     private Game game = new();
-    private Board? editedBoard;                 // Set while the user is editing a position that is not yet legal
+    private PositionBuilder? editing;           // Set while the user is editing a position that is not yet legal
     private Colour humanColour = Colour.White;  // Colour.None when the engine plays itself
     private bool isBoardFlipped;
     private Level level = Level.Easy;
@@ -45,7 +45,7 @@ public partial class MainForm : Form
     {
         InitializeComponent();
         moveListTextBox.SelectionTabs = [40, 80, 120, 160, 200];
-        clockTimer.Tick += ClockTick;
+        clockTimer.Tick += OnClockTick;
         BuildEngineMenu();
         BuildSideToMoveMenu();
         SetLevel(Level.Easy);
@@ -54,18 +54,28 @@ public partial class MainForm : Form
         clockTimer.Start();
     }
 
-    private Board DisplayBoard => editedBoard ?? game.Board;
-
-    private bool IsEditing => editedBoard is not null;
+    private bool IsEditing => editing is not null;
 
     private bool IsEngineTurn => !IsEditing && !game.IsOver && (humanColour == Colour.None || game.SideToMove != humanColour);
 
     private bool IsHumanTurn => !IsEditing && !game.IsOver && game.SideToMove == humanColour;
 
+    private Piece PieceAt(int square) => editing is null ? game.Board[square] : editing[square];
+
+    private Colour DisplayedSideToMove => editing?.SideToMove ?? game.SideToMove;
+
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        await StartEngineAsync();
+        try
+        {
+            await StartEngineAsync();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // An async void handler must not let an exception escape, or the process dies
+            MessageBox.Show(this, $"The engine could not be started:\n{ex.Message}", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
@@ -84,7 +94,7 @@ public partial class MainForm : Form
     {
         if (startingEngine)
         {
-            return;     // A start is already in progress; the menu will be re-enabled when it finishes
+            return;     // A start is already in progress
         }
         startingEngine = true;
         try
@@ -160,7 +170,7 @@ public partial class MainForm : Form
             return;
         }
         thinking = new CancellationTokenSource();
-        SetThinkingUi(true);
+        stopThinkingButton.Enabled = true;
         _ = ThinkAsync(client, thinking, searchGeneration);
     }
 
@@ -184,7 +194,7 @@ public partial class MainForm : Form
                 thinking = null;
                 if (!IsDisposed)
                 {
-                    SetThinkingUi(false);
+                    stopThinkingButton.Enabled = false;
                 }
             }
         }
@@ -227,7 +237,7 @@ public partial class MainForm : Form
 
     /// <summary>
     /// Stop the engine. With <paramref name="discardResult"/> the move it returns is ignored;
-    /// otherwise it is played (the "stop thinking" button).
+    /// otherwise it is played (the "Move now!" button).
     /// </summary>
     private void CancelThinking(bool discardResult)
     {
@@ -236,12 +246,6 @@ public partial class MainForm : Form
             searchGeneration++;
         }
         thinking?.Cancel();
-    }
-
-    private void SetThinkingUi(bool isThinking)
-    {
-        // The menus stay usable: every action that changes the game cancels the search itself
-        stopThinkingButton.Enabled = isThinking;
     }
 
     /// <summary>
@@ -277,7 +281,7 @@ public partial class MainForm : Form
     {
         CancelThinking(discardResult: true);
         game = new Game();
-        editedBoard = null;
+        editing = null;
         humanColour = human;
         isBoardFlipped = human == Colour.Black;
         lastMove = null;
@@ -388,8 +392,8 @@ public partial class MainForm : Form
 
     private void UpdateStatus()
     {
-        colourToMoveLabel.Text = DisplayBoard.SideToMove.ToString();
-        humanColourLabel.Text = humanColour == Colour.None ? "Nobody (CPU vs CPU)" : humanColour.ToString();
+        colourToMoveLabel.Text = DisplayedSideToMove.ToString();
+        humanColourLabel.Text = humanColour == Colour.None ? "Nobody (engine vs engine)" : humanColour.ToString();
         difficultyLabel.Text = level.ToString();
         UpdateClockLabels();
     }
@@ -408,7 +412,7 @@ public partial class MainForm : Form
         blackClockLabel.Text = blackClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
     }
 
-    private void ClockTick(object? sender, EventArgs e)
+    private void OnClockTick(object? sender, EventArgs e)
     {
         if (IsEditing || game.IsOver)
         {
@@ -457,11 +461,10 @@ public partial class MainForm : Form
         return Squares.Index(file, rank);
     }
 
-    private void ChessBoardPictureBoxPaintHandler(object? sender, PaintEventArgs e)
+    private void OnBoardPaint(object? sender, PaintEventArgs e)
     {
         Graphics graphics = e.Graphics;
         int size = SquareSize;
-        Board board = DisplayBoard;
         foreach (int square in Squares.All)
         {
             Point origin = SquareOrigin(square);
@@ -469,7 +472,7 @@ public partial class MainForm : Form
         }
         foreach (int square in Squares.All)
         {
-            Piece piece = board[square];
+            Piece piece = PieceAt(square);
             if (!piece.IsNone && square != dragFrom)
             {
                 Point origin = SquareOrigin(square);
@@ -483,13 +486,13 @@ public partial class MainForm : Form
             graphics.DrawRectangle(LastMovePen, fromOrigin.X, fromOrigin.Y, size, size);
             graphics.DrawRectangle(LastMovePen, toOrigin.X, toOrigin.Y, size, size);
         }
-        if (dragFrom != Squares.None && !board[dragFrom].IsNone)
+        if (dragFrom != Squares.None && !PieceAt(dragFrom).IsNone)
         {
-            graphics.DrawImage(images[board[dragFrom]], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
+            graphics.DrawImage(images[PieceAt(dragFrom)], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
         }
     }
 
-    private void CaptureBinPictureBoxPaintHandler(object? sender, PaintEventArgs e)
+    private void OnCaptureBinPaint(object? sender, PaintEventArgs e)
     {
         if (IsEditing)
         {
@@ -508,7 +511,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void ChessBoardPictureBoxMouseDownHandler(object? sender, MouseEventArgs e)
+    private void OnBoardMouseDown(object? sender, MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Left)
         {
@@ -516,8 +519,7 @@ public partial class MainForm : Form
         }
         if (IsEditing)
         {
-            using var dialog = new IllegalPositionForm();
-            dialog.ShowDialog(this);
+            MessageBox.Show(this, "The position is not legal yet. Each side needs exactly one king, no pawns on the first or last rank, and the side that is not to move may not be in check.", "Editing position", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         if (!IsHumanTurn || thinking is not null)
@@ -533,7 +535,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void ChessBoardPictureBoxMouseMoveHandler(object? sender, MouseEventArgs e)
+    private void OnBoardMouseMove(object? sender, MouseEventArgs e)
     {
         if (dragFrom != Squares.None)
         {
@@ -542,7 +544,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void ChessBoardPictureBoxMouseUpHandler(object? sender, MouseEventArgs e)
+    private void OnBoardMouseUp(object? sender, MouseEventArgs e)
     {
         if (dragFrom == Squares.None || e.Button != MouseButtons.Left)
         {
@@ -559,8 +561,7 @@ public partial class MainForm : Form
         List<Move> candidates = game.LegalMovesBetween(from, to).ToList();
         if (candidates.Count == 0)
         {
-            using var dialog = new MoveNotPermittedForm();
-            dialog.ShowDialog(this);
+            MessageBox.Show(this, "That move is not permitted.", "Illegal move", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         Move move = candidates[0];
@@ -573,7 +574,7 @@ public partial class MainForm : Form
         MakeMove(move);
     }
 
-    private void ChessBoardMouseClickHandler(object? sender, MouseEventArgs e)
+    private void OnBoardMouseClick(object? sender, MouseEventArgs e)
     {
         if (e.Button != MouseButtons.Right || thinking is not null || (IsEngineTurn && humanColour != Colour.None))
         {
@@ -583,7 +584,7 @@ public partial class MainForm : Form
         contextMenuStrip.Show(chessBoardPictureBox, e.Location);
     }
 
-    private void ChessBoardSizeChangedHandler(object? sender, EventArgs e)
+    private void OnBoardSizeChanged(object? sender, EventArgs e)
     {
         chessBoardPictureBox.Invalidate();
     }
@@ -592,24 +593,26 @@ public partial class MainForm : Form
     // Position editing
     // ---------------------------------------------------------------------------------------------
 
+    private PositionBuilder BeginEdit() => editing ?? PositionBuilder.From(game.Board);
+
     private void EditSquare(Piece piece)
     {
-        Board board = DisplayBoard.Clone();
-        board.SetPiece(SquareAt(contextMenuPosition), piece);
-        ApplyEditedBoard(board);
+        PositionBuilder builder = BeginEdit();
+        builder[SquareAt(contextMenuPosition)] = piece;
+        ApplyEdit(builder);
     }
 
-    private void ApplyEditedBoard(Board board)
+    private void ApplyEdit(PositionBuilder builder)
     {
         CancelThinking(discardResult: true);
-        if (MoveGenerator.IsPositionLegal(board))
+        if (builder.TryBuild(out Board board))
         {
             game = new Game(board);
-            editedBoard = null;
+            editing = null;
         }
         else
         {
-            editedBoard = board;
+            editing = builder;
         }
         lastMove = null;
         dragFrom = Squares.None;
@@ -641,34 +644,32 @@ public partial class MainForm : Form
 
     private void SetSideToMove(Colour colour)
     {
-        if (DisplayBoard.SideToMove == colour)
+        if (DisplayedSideToMove == colour)
         {
             return;
         }
-        Board board = DisplayBoard.Clone();
-        board.SetSideToMove(colour);
-        ApplyEditedBoard(board);
+        PositionBuilder builder = BeginEdit();
+        builder.SideToMove = colour;
+        ApplyEdit(builder);
     }
 
-    private void HandlerSetSquareWhitePawn(object? sender, EventArgs e) => EditSquare(Piece.WhitePawn);
-    private void HandlerSetSquareWhiteKnight(object? sender, EventArgs e) => EditSquare(Piece.WhiteKnight);
-    private void HandlerSetSquareWhiteBishop(object? sender, EventArgs e) => EditSquare(Piece.WhiteBishop);
-    private void HandlerSetSquareWhiteRook(object? sender, EventArgs e) => EditSquare(Piece.WhiteRook);
-    private void HandlerSetSquareWhiteQueen(object? sender, EventArgs e) => EditSquare(Piece.WhiteQueen);
-    private void HandlerSetSquareWhiteKing(object? sender, EventArgs e) => EditSquare(Piece.WhiteKing);
-    private void HandlerSetSquareBlackPawn(object? sender, EventArgs e) => EditSquare(Piece.BlackPawn);
-    private void HandlerSetSquareBlackKnight(object? sender, EventArgs e) => EditSquare(Piece.BlackKnight);
-    private void HandlerSetSquareBlackBishop(object? sender, EventArgs e) => EditSquare(Piece.BlackBishop);
-    private void HandlerSetSquareBlackRook(object? sender, EventArgs e) => EditSquare(Piece.BlackRook);
-    private void HandlerSetSquareBlackQueen(object? sender, EventArgs e) => EditSquare(Piece.BlackQueen);
-    private void HandlerSetSquareBlackKing(object? sender, EventArgs e) => EditSquare(Piece.BlackKing);
-    private void ClearSquareHandler(object? sender, EventArgs e) => EditSquare(Piece.None);
+    private void OnSetWhitePawn(object? sender, EventArgs e) => EditSquare(Piece.WhitePawn);
+    private void OnSetWhiteKnight(object? sender, EventArgs e) => EditSquare(Piece.WhiteKnight);
+    private void OnSetWhiteBishop(object? sender, EventArgs e) => EditSquare(Piece.WhiteBishop);
+    private void OnSetWhiteRook(object? sender, EventArgs e) => EditSquare(Piece.WhiteRook);
+    private void OnSetWhiteQueen(object? sender, EventArgs e) => EditSquare(Piece.WhiteQueen);
+    private void OnSetWhiteKing(object? sender, EventArgs e) => EditSquare(Piece.WhiteKing);
+    private void OnSetBlackPawn(object? sender, EventArgs e) => EditSquare(Piece.BlackPawn);
+    private void OnSetBlackKnight(object? sender, EventArgs e) => EditSquare(Piece.BlackKnight);
+    private void OnSetBlackBishop(object? sender, EventArgs e) => EditSquare(Piece.BlackBishop);
+    private void OnSetBlackRook(object? sender, EventArgs e) => EditSquare(Piece.BlackRook);
+    private void OnSetBlackQueen(object? sender, EventArgs e) => EditSquare(Piece.BlackQueen);
+    private void OnSetBlackKing(object? sender, EventArgs e) => EditSquare(Piece.BlackKing);
+    private void OnClearSquare(object? sender, EventArgs e) => EditSquare(Piece.None);
 
-    private void ClearBoardHandler(object? sender, EventArgs e)
+    private void OnClearBoard(object? sender, EventArgs e)
     {
-        Board board = Board.Empty();
-        board.SetSideToMove(DisplayBoard.SideToMove);
-        ApplyEditedBoard(board);
+        ApplyEdit(new PositionBuilder { SideToMove = DisplayedSideToMove });
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -677,9 +678,6 @@ public partial class MainForm : Form
 
     private void BuildEngineMenu()
     {
-        debugToolStripMenuItem.Text = "&Engine";
-        debugToolStripMenuItem.Visible = true;
-        cPUVsCPUGameToolStripMenuItem.Text = "&Play engine against itself";
         var builtIn = new ToolStripMenuItem("Use &built-in engine") { Name = "builtInEngineMenuItem", Checked = true };
         var choose = new ToolStripMenuItem("&Choose UCI engine...") { Name = "chooseEngineMenuItem" };
         var output = new ToolStripMenuItem("Show engine &output in move list") { CheckOnClick = true };
@@ -701,25 +699,25 @@ public partial class MainForm : Form
             await StartEngineAsync();
         };
         output.CheckedChanged += (_, _) => showEngineOutput = output.Checked;
-        debugToolStripMenuItem.DropDownItems.Insert(0, builtIn);
-        debugToolStripMenuItem.DropDownItems.Insert(1, choose);
-        debugToolStripMenuItem.DropDownItems.Insert(2, output);
-        debugToolStripMenuItem.DropDownItems.Insert(3, new ToolStripSeparator());
+        engineToolStripMenuItem.DropDownItems.Insert(0, builtIn);
+        engineToolStripMenuItem.DropDownItems.Insert(1, choose);
+        engineToolStripMenuItem.DropDownItems.Insert(2, output);
+        engineToolStripMenuItem.DropDownItems.Insert(3, new ToolStripSeparator());
     }
 
     private void UpdateEngineMenu()
     {
-        if (debugToolStripMenuItem.DropDownItems["builtInEngineMenuItem"] is ToolStripMenuItem builtIn)
+        if (engineToolStripMenuItem.DropDownItems["builtInEngineMenuItem"] is ToolStripMenuItem builtIn)
         {
             builtIn.Checked = enginePath is null;
         }
-        if (debugToolStripMenuItem.DropDownItems["chooseEngineMenuItem"] is ToolStripMenuItem choose)
+        if (engineToolStripMenuItem.DropDownItems["chooseEngineMenuItem"] is ToolStripMenuItem choose)
         {
             choose.Checked = enginePath is not null;
         }
     }
 
-    private void FileSaveGameHandler(object? sender, EventArgs e)
+    private void OnSaveGame(object? sender, EventArgs e)
     {
         if (IsEditing)
         {
@@ -741,7 +739,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void FileLoadGameHandler(object? sender, EventArgs e)
+    private void OnLoadGame(object? sender, EventArgs e)
     {
         if (openFileDialog.ShowDialog(this) != DialogResult.OK)
         {
@@ -766,7 +764,7 @@ public partial class MainForm : Form
         }
         CancelThinking(discardResult: true);
         game = loaded;
-        editedBoard = null;
+        editing = null;
         humanColour = saved.HumanColour;
         isBoardFlipped = saved.IsBoardFlipped;
         SetLevel(saved.Level);
@@ -781,15 +779,15 @@ public partial class MainForm : Form
         }
     }
 
-    private void FileExitHandler(object? sender, EventArgs e) => Close();
+    private void OnExit(object? sender, EventArgs e) => Close();
 
-    private void NewGameWhiteHandler(object? sender, EventArgs e) => NewGame(Colour.White);
+    private void OnNewGameWhite(object? sender, EventArgs e) => NewGame(Colour.White);
 
-    private void NewGameBlackHandler(object? sender, EventArgs e) => NewGame(Colour.Black);
+    private void OnNewGameBlack(object? sender, EventArgs e) => NewGame(Colour.Black);
 
-    private void TestGameHandler(object? sender, EventArgs e) => NewGame(Colour.None);
+    private void OnEngineVersusEngine(object? sender, EventArgs e) => NewGame(Colour.None);
 
-    private void UndoLastMoveHandler(object? sender, EventArgs e)
+    private void OnUndoMove(object? sender, EventArgs e)
     {
         if (IsEditing)
         {
@@ -811,7 +809,7 @@ public partial class MainForm : Form
         }
     }
 
-    private void SwitchSidesHandler(object? sender, EventArgs e)
+    private void OnSwitchSides(object? sender, EventArgs e)
     {
         if (humanColour == Colour.None)
         {
@@ -831,25 +829,25 @@ public partial class MainForm : Form
         }
     }
 
-    private void ViewFlipBoardHandler(object? sender, EventArgs e)
+    private void OnFlipBoard(object? sender, EventArgs e)
     {
         isBoardFlipped = !isBoardFlipped;
         chessBoardPictureBox.Invalidate();
     }
 
-    private void StopThinkingButtonHandler(object? sender, EventArgs e) => CancelThinking(discardResult: false);
+    private void OnMoveNow(object? sender, EventArgs e) => CancelThinking(discardResult: false);
 
-    private void SetLevelBeginnerHandler(object? sender, EventArgs e) => SetLevel(Level.Beginner);
+    private void OnLevelBeginner(object? sender, EventArgs e) => SetLevel(Level.Beginner);
 
-    private void SetLevelEasyHandler(object? sender, EventArgs e) => SetLevel(Level.Easy);
+    private void OnLevelEasy(object? sender, EventArgs e) => SetLevel(Level.Easy);
 
-    private void SetLevelMediumHandler(object? sender, EventArgs e) => SetLevel(Level.Medium);
+    private void OnLevelMedium(object? sender, EventArgs e) => SetLevel(Level.Medium);
 
-    private void SetLevelHardHandler(object? sender, EventArgs e) => SetLevel(Level.Hard);
+    private void OnLevelHard(object? sender, EventArgs e) => SetLevel(Level.Hard);
 
-    private void SetLevelBestHandler(object? sender, EventArgs e) => SetLevel(Level.Best);
+    private void OnLevelBest(object? sender, EventArgs e) => SetLevel(Level.Best);
 
-    private void MenuHelpHandler(object? sender, EventArgs e)
+    private void OnHelp(object? sender, EventArgs e)
     {
         using var help = new HelpForm();
         help.ShowDialog(this);

@@ -67,7 +67,7 @@ public sealed class Searcher
     /// <param name="limits">When to stop.</param>
     /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
     /// <param name="onProgress">Called after each completed depth.</param>
-    public SearchResult Search(Board position, SearchLimits limits, Action<SearchProgress>? onProgress = null, CancellationToken cancellationToken = default)
+    public SearchResult Search(Board position, SearchLimits limits, Action<SearchResult>? onProgress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(position);
         ArgumentNullException.ThrowIfNull(limits);
@@ -85,7 +85,7 @@ public sealed class Searcher
         List<Move> rootMoves = MoveGenerator.GenerateLegalMoves(board);
         if (rootMoves.Count == 0)
         {
-            return new SearchResult(Move.None, MoveGenerator.IsInCheck(board) ? -MateScore : DrawScore, 0, 0, stopwatch.Elapsed, []);
+            return new SearchResult(0, MoveGenerator.IsInCheck(board) ? -MateScore : DrawScore, 0, stopwatch.Elapsed, []);
         }
 
         int maxDepth = limits.Infinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
@@ -113,7 +113,7 @@ public sealed class Searcher
             bestScore = score;
             completedDepth = depth;
             principalVariation = ExtractPrincipalVariation(bestMove, depth);
-            onProgress?.Invoke(new SearchProgress(depth, score, statistics.Nodes, stopwatch.Elapsed, principalVariation));
+            onProgress?.Invoke(new SearchResult(depth, score, statistics.Nodes, stopwatch.Elapsed, principalVariation));
 
             if (IsMateScore(score) && !limits.Infinite && limits.Depth is null)
             {
@@ -126,8 +126,7 @@ public sealed class Searcher
         }
 
         stopwatch.Stop();
-        statistics.PawnHashHits = evaluator.PawnHashHits;
-        return new SearchResult(bestMove, bestScore, completedDepth, statistics.Nodes, stopwatch.Elapsed, principalVariation);
+        return new SearchResult(completedDepth, bestScore, statistics.Nodes, stopwatch.Elapsed, principalVariation);
     }
 
     /// <summary>
@@ -206,7 +205,6 @@ public sealed class Searcher
         Move tableMove = Move.None;
         if (table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry))
         {
-            statistics.TranspositionHits++;
             tableMove = entry.BestMove;
             if (entry.Depth >= depth)
             {
@@ -371,7 +369,6 @@ public sealed class Searcher
 
     private int Evaluate()
     {
-        statistics.Evaluations++;
         return evaluator.Evaluate(board);
     }
 
@@ -454,12 +451,10 @@ public sealed class Searcher
         {
             if (move == killers[ply, 0])
             {
-                statistics.KillerMoveHits++;
                 return 90_000;
             }
             if (move == killers[ply, 1])
             {
-                statistics.KillerMoveHits++;
                 return 80_000;
             }
         }

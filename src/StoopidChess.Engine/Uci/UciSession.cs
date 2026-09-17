@@ -25,6 +25,7 @@ public sealed class UciSession : IDisposable
     private readonly Lock outputLock = new();
     private readonly TranspositionTable table = new();
     private readonly Searcher searcher;
+    private readonly Evaluator evaluator = new();
     private Board board = Board.StartPosition();
     private Task? searchTask;
     private CancellationTokenSource? searchCancellation;
@@ -114,7 +115,7 @@ public sealed class UciSession : IDisposable
                 break;
             case "eval":
                 StopSearch();
-                WriteLine($"eval {new Evaluator().Evaluate(board)} cp (side to move)");
+                WriteLine($"eval {evaluator.Evaluate(board)} cp (side to move)");
                 break;
             case "perft":
                 StopSearch();
@@ -300,7 +301,7 @@ public sealed class UciSession : IDisposable
         searchCancellation = null;
     }
 
-    private void WriteProgress(SearchProgress progress)
+    private void WriteProgress(SearchResult progress)
     {
         string score = progress.IsMateScore ? $"mate {progress.MateIn}" : $"cp {progress.Score}";
         string pv = string.Join(' ', progress.PrincipalVariation);
