@@ -40,8 +40,12 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 3. **Make/unmake must be exact.** `BoardTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
    recomputes the keys after every random move. Anything that touches `Board`'s state must keep the
    incremental keys, piece lists and history consistent; `Board.ComputeKeys()` is the oracle.
-4. Strength changes should be checked by self-play against the previous build with `cutechess-cli`
-   or `fastchess` (not installed here); the UCI engine supports clock-based time controls for that.
+4. Strength changes should be checked by self-play or a match against another engine with
+   `fastchess`: `tools/match.ps1 -Opponent <uci engine exe>` builds the engine and runs paired
+   games from an openings file (defaults point at the copies under `C:\Users\jonny\tools`; both
+   engines are deterministic, so openings are essential). First result, 2026-09-17, 40 games at
+   10+0.1 against pawnstar 0.13.593 single-threaded without book: 0-40 (Stoopid Chess searches
+   to depth 5-7 per move, pawnstar to 11-15).
 
 ## Architecture notes
 
