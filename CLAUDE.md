@@ -44,9 +44,13 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 4. Strength changes should be checked by self-play or a match against another engine with
    `fastchess`: `tools/match.ps1 -Opponent <uci engine exe>` builds the engine and runs paired
    games from an openings file (defaults point at the copies under `C:\Users\jonny\tools`; both
-   engines are deterministic, so openings are essential). First result, 2026-09-17, 40 games at
-   10+0.1 against pawnstar 0.13.593 single-threaded without book: 0-40 (Stoopid Chess searches
-   to depth 5-7 per move, pawnstar to 11-15).
+   engines are deterministic, so openings are essential). `tools/selfplay.ps1` plays the current
+   build against a snapshot in `C:\Users\jonny\tools\stoopid-baseline` (refresh it with
+   `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change).
+   Results so far, all 40-60 games at 10+0.1, single-threaded, no book: pawnstar 0.13.593 beat
+   the original search 40-0 and the improved search 40-0; self-play gains were null move
+   +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
+   windows -35 ± 76 (not kept).
 
 ## Architecture notes
 

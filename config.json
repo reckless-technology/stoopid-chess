@@ -32,7 +32,7 @@
         "additional_lines_rgx": [],
         "event_name": "Fastchess Tournament",
         "site": "?",
-        "file": "C:\\Users\\jonny\\AppData\\Local\\Temp/selfplay-asp.pgn",
+        "file": "C:\\Users\\jonny\\AppData\\Local\\Temp/pawnstar2.pgn",
         "notation": 0,
         "append_file": true,
         "track_nodes": false,
@@ -60,7 +60,7 @@
     },
     "config_name": "config.json",
     "output": 0,
-    "seed": 15742328277487654874,
+    "seed": 12274448273600861869,
     "variant": 0,
     "type": 0,
     "gauntlet_seeds": 1,
@@ -69,7 +69,7 @@
     "wait": 0,
     "autosaveinterval": 20,
     "games": 2,
-    "rounds": 30,
+    "rounds": 20,
     "concurrency": 4,
     "force_concurrency": false,
     "recover": false,
@@ -109,12 +109,17 @@
             "variant": 0
         },
         {
-            "name": "stoopid-chess",
+            "name": "pawnstar-0.13.593-windows-x86_64",
             "dir": "",
-            "cmd": "C:\\Users\\jonny\\tools\\stoopid-baseline\\stoopid-chess.exe",
+            "cmd": "C:/Users/jonny/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
             "args": "",
             "restart": false,
-            "options": [],
+            "options": [
+                [
+                    "Threads",
+                    "1,option.OwnBook=false"
+                ]
+            ],
             "limit": {
                 "tc": {
                     "increment": 100,
@@ -130,16 +135,16 @@
         }
     ],
     "stats": {
-        "StoopidChess vs stoopid-chess": {
-            "wins": 23,
-            "losses": 29,
-            "draws": 8,
-            "penta_WW": 4,
-            "penta_WD": 2,
-            "penta_WL": 13,
+        "StoopidChess vs pawnstar-0.13.593-windows-x86_64": {
+            "wins": 0,
+            "losses": 40,
+            "draws": 0,
+            "penta_WW": 0,
+            "penta_WD": 0,
+            "penta_WL": 0,
             "penta_DD": 0,
-            "penta_LD": 6,
-            "penta_LL": 5
+            "penta_LD": 0,
+            "penta_LL": 20
         }
     }
 }
