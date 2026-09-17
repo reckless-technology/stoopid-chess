@@ -153,6 +153,31 @@ public class UciSessionTests
     }
 
     [Fact]
+    public void ANewPositionOrOptionDuringASearchFinishesItFirst()
+    {
+        (UciSession session, StringWriter output) = NewSession();
+        using (session)
+        {
+            session.HandleCommand("position startpos");
+            session.HandleCommand("go infinite");
+            session.HandleCommand("setoption name Hash value 2");
+            Assert.False(session.IsSearching);
+            session.HandleCommand("go infinite");
+            session.HandleCommand("position fen 6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
+            Assert.False(session.IsSearching);
+            session.HandleCommand("go depth 2");
+            session.HandleCommand("quit");
+        }
+        string[] lines = Lines(output);
+        int[] bestMoveLines = lines.Select((line, index) => (line, index)).Where(t => t.line.StartsWith("bestmove ", StringComparison.Ordinal)).Select(t => t.index).ToArray();
+        Assert.Equal(3, bestMoveLines.Length);
+        Assert.Equal("bestmove d1d8", lines[bestMoveLines[2]]);
+        // Every bestmove precedes the info lines of the next search, so after the second bestmove
+        // only the mate position's lines appear
+        Assert.All(lines.Skip(bestMoveLines[1] + 1).Where(l => l.StartsWith("info depth", StringComparison.Ordinal)), l => Assert.Contains("d1d8", l, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AcceptsHashOptionAndNewGame()
     {
         (UciSession session, _) = NewSession();

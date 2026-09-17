@@ -23,7 +23,7 @@ public class SearchTests
     [Fact]
     public void FindsMateInTwo()
     {
-        // Qxg6+ then Qxh7# or similar; a classic two-mover
+        // Nf6+ gxf6 Bxf7#
         SearchResult result = NewSearcher().Search(Board.FromFen("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1"), SearchLimits.ForDepth(4));
         Assert.True(result.IsMateScore);
         Assert.Equal(2, result.MateIn);
@@ -63,23 +63,61 @@ public class SearchTests
     [Fact]
     public void PrefersADrawByRepetitionWhenLosing()
     {
-        // Black is down a queen but can repeat with perpetual check on g1/h1... here instead we check the
-        // engine sees a repetition as a draw: the position has already occurred twice, so any move that
-        // repeats it a third time scores as a draw rather than the material deficit.
-        Board board = Board.FromFen("7k/8/8/8/8/8/6q1/K6R b - - 0 1");
-        // Play Qg2-a2+ Ka1-b1 Qa2-b2+ Kb1-a1 ... twice to establish two occurrences
-        string[] cycle = ["g2f1", "h1f1", "f1f1"];
-        _ = cycle;
+        // White has a rook against a queen. The kings have shuffled a1-b1-a1 and a8-b8-a8 once, so
+        // Kb1 now recreates an earlier position, which the search treats as a draw: better than the
+        // material deficit of every other move.
+        Board board = Board.FromFen("k7/8/8/8/8/8/6q1/K6R w - - 0 1");
+        foreach (string uci in new[] { "a1b1", "a8b8", "b1a1", "b8a8" })
+        {
+            board.MakeMove(BoardTestHelpers.Move(board, uci));
+        }
+        Assert.Equal(1, board.RepetitionCount());
         SearchResult result = NewSearcher().Search(board, SearchLimits.ForDepth(3));
-        Assert.False(result.BestMove.IsNone);
+        Assert.Equal("a1b1", result.BestMove.ToUci());
+        Assert.Equal(Searcher.DrawScore, result.Score);
     }
 
     [Fact]
-    public void DoesNotPlayIntoInsufficientMaterialWhenAhead()
+    public void InsufficientMaterialIsScoredAsADraw()
     {
-        // White knight vs lone king: any capture-free line is a dead draw; the score must be zero
-        SearchResult result = NewSearcher().Search(Board.FromFen("7k/8/8/8/8/8/8/K6N w - - 0 1"), SearchLimits.ForDepth(3));
-        Assert.Equal(Searcher.DrawScore, result.Score);
+        // A lone knight cannot mate; add a pawn and the position is worth something again
+        Assert.Equal(Searcher.DrawScore, NewSearcher().Search(Board.FromFen("7k/8/8/8/8/8/8/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score);
+        Assert.True(NewSearcher().Search(Board.FromFen("7k/8/8/8/8/8/P7/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score > 0);
+    }
+
+    [Fact]
+    public void FiftyMoveRuleDoesNotHideAMate()
+    {
+        // The hundredth half-move is checkmate, which takes precedence over the fifty-move rule
+        SearchResult result = NewSearcher().Search(Board.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 99 1"), SearchLimits.ForDepth(3));
+        Assert.Equal("d1d8", result.BestMove.ToUci());
+        Assert.True(result.IsMateScore);
+        // Without the mate (and without pawn moves to reset the clock) every line is a draw
+        SearchResult drawn = NewSearcher().Search(Board.FromFen("6k1/8/8/8/8/8/8/R5K1 w - - 99 1"), SearchLimits.ForDepth(3));
+        Assert.Equal(Searcher.DrawScore, drawn.Score);
+    }
+
+    [Fact]
+    public void TableScoresAreRelativeToTheNode()
+    {
+        // A mate in 5 plies found at ply 3 is a mate in 2 plies from that node; read back at ply 7 it is a mate in 9
+        int score = Searcher.MateScore - 5;
+        int stored = Searcher.ScoreToTable(score, 3);
+        Assert.Equal(Searcher.MateScore - 2, stored);
+        Assert.Equal(score, Searcher.ScoreFromTable(stored, 3));
+        Assert.Equal(Searcher.MateScore - 9, Searcher.ScoreFromTable(stored, 7));
+        Assert.Equal(-(Searcher.MateScore - 2), Searcher.ScoreToTable(-(Searcher.MateScore - 5), 3));
+        Assert.Equal(123, Searcher.ScoreFromTable(Searcher.ScoreToTable(123, 9), 4));
+    }
+
+    [Fact]
+    public void AStoppedFirstIterationStillReturnsTheBestCompletedRootMove()
+    {
+        // With a node budget too small to finish depth 1, the mating move is found early enough
+        // (captures and checks are ordered first) that it must still be the answer
+        SearchResult result = NewSearcher().Search(Board.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"), new SearchLimits { Nodes = 12 });
+        Assert.False(result.BestMove.IsNone);
+        Assert.Equal(0, result.Depth);
     }
 
     [Fact]

@@ -86,6 +86,34 @@ followed; each item notes what was done about it.
     xunit tests (perft on the standard positions, make/unmake key invariants, game rules, search,
     UCI session and client, a bench signature), GitHub Actions on Linux and Windows.
 
+## Second pass: review of the refactored code
+
+An independent review of the restructured code (commit `f2cc207`) found the following, all fixed in
+the commit that followed:
+
+24. **Pawns on the first or eighth rank crashed move generation**, and both the position editor
+    and FEN parsing let them in. *Fixed:* `MoveGenerator.IsPositionLegal` and `Fen.Parse` reject
+    them; the UCI search task also now catches failures and still answers `bestmove`.
+25. **The fifty-move check ran before mate detection in the search tree**, so a mating hundredth
+    half-move scored as a draw. *Fixed:* when in check the rule is applied only once a legal move
+    exists; a test covers the mate-on-move-100 case.
+26. **FEN accepted an en passant square inconsistent with the side to move**, after which the
+    generated capture removed a non-existent pawn and corrupted the board. *Fixed:* the square must
+    be empty, on the right rank, with the double-pushed pawn behind it; the generator also checks.
+27. **Editing a position into a legal one with the engine to move left the GUI idle** with both
+    mouse buttons ignored. *Fixed:* `ApplyEditedBoard` starts the engine.
+28. **The UCI client had no "engine has exited" state**, so a crashed external engine surfaced as an
+    unhandled exception in a mouse handler. *Fixed:* `UciEngineClient.HasExited`; the GUI reports
+    the loss once and offers the Engine menu.
+29. **Computer-versus-computer games disabled the main menu for the whole game.** *Fixed:* menus
+    stay enabled; every game-changing action cancels the search itself.
+30. **A search stopped during its first iteration returned a generation-order move** rather than
+    the best root move completed so far.
+31. **Two tests asserted nothing useful** (a repetition test whose moves were never played, an
+    insufficient-material test that was trivially true). Replaced, and tests added for the items
+    above, for node-relative mate scores in the transposition table, and for command sequencing
+    during a search.
+
 ## Things that were good and were kept
 
 - The 0x88 board with piece lists and incrementally maintained Zobrist keys, which is simple and

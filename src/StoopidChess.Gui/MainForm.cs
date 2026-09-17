@@ -114,9 +114,17 @@ public partial class MainForm : Form
     private void OnEngineInfo(object? sender, string line)
     {
         // Raised on the engine reader thread
-        if (line.Contains(" pv ", StringComparison.Ordinal) && !IsDisposed)
+        if (!line.Contains(" pv ", StringComparison.Ordinal) || IsDisposed || !IsHandleCreated)
+        {
+            return;
+        }
+        try
         {
             BeginInvoke(() => lastEngineInfo = line);
+        }
+        catch (InvalidOperationException)
+        {
+            // The window was closed between the check and the call
         }
     }
 
@@ -126,22 +134,27 @@ public partial class MainForm : Form
         {
             return;
         }
+        UciEngineClient client = engine;
+        if (!TryEngine(() => client.SetPosition(game.StartFen, game.UciMoves)))
+        {
+            return;
+        }
         thinking = new CancellationTokenSource();
         SetThinkingUi(true);
-        engine.SetPosition(game.StartFen, game.UciMoves);
-        _ = ThinkAsync(engine, thinking, searchGeneration);
+        _ = ThinkAsync(client, thinking, searchGeneration);
     }
 
     private async Task ThinkAsync(UciEngineClient client, CancellationTokenSource cancellation, int generation)
     {
         string bestMove = "0000";
+        string? failure = null;
         try
         {
             bestMove = await client.GoAsync(level.Limits(), cancellation.Token);
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
-            // The engine has gone away; the move stays "0000" and the user can restart it from the menu
+            failure = ex.Message;
         }
         finally
         {
@@ -149,8 +162,23 @@ public partial class MainForm : Form
             {
                 thinking.Dispose();
                 thinking = null;
-                SetThinkingUi(false);
+                if (!IsDisposed)
+                {
+                    SetThinkingUi(false);
+                }
             }
+        }
+        if (IsDisposed)
+        {
+            return;     // The window was closed while the engine was thinking
+        }
+        if (failure is not null)
+        {
+            if (ReferenceEquals(engine, client))
+            {
+                OnEngineLost(failure);      // Otherwise the engine was replaced deliberately
+            }
+            return;
         }
         if (generation != searchGeneration)
         {
@@ -192,9 +220,33 @@ public partial class MainForm : Form
 
     private void SetThinkingUi(bool isThinking)
     {
+        // The menus stay usable: every action that changes the game cancels the search itself
         stopThinkingButton.Enabled = isThinking;
-        mainMenuStrip.Enabled = !isThinking;
-        UseWaitCursor = isThinking;
+    }
+
+    /// <summary>
+    /// Run an engine command, reporting a dead engine once and forgetting it.
+    /// </summary>
+    private bool TryEngine(Action command)
+    {
+        try
+        {
+            command();
+            return true;
+        }
+        catch (InvalidOperationException ex)
+        {
+            OnEngineLost(ex.Message);
+            return false;
+        }
+    }
+
+    private void OnEngineLost(string message)
+    {
+        engine?.Dispose();
+        engine = null;
+        Text = "Stoopid Chess";
+        MessageBox.Show(this, $"The engine stopped responding:\n{message}\n\nChoose an engine from the Engine menu to continue.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -211,7 +263,7 @@ public partial class MainForm : Form
         lastMove = null;
         dragFrom = Squares.None;
         ResetClocks();
-        engine?.NewGame();
+        TryEngine(() => engine?.NewGame());
         RefreshAll();
         if (IsEngineTurn)
         {
@@ -252,8 +304,9 @@ public partial class MainForm : Form
             return;
         }
         var text = new StringBuilder();
-        Colour mover = Board.FromFen(game.StartFen).SideToMove;
-        int moveNumber = Board.FromFen(game.StartFen).FullMoveNumber;
+        Board start = Board.FromFen(game.StartFen);
+        Colour mover = start.SideToMove;
+        int moveNumber = start.FullMoveNumber;
         bool lineOpen = false;
         if (mover == Colour.Black && game.Moves.Count > 0)
         {
@@ -544,6 +597,10 @@ public partial class MainForm : Form
         if (!IsEditing)
         {
             moveListTextBox.Text = "Position edited by user";
+            if (IsEngineTurn)
+            {
+                StartThinking();
+            }
         }
     }
 
@@ -567,10 +624,6 @@ public partial class MainForm : Form
         Board board = DisplayBoard.Clone();
         board.SetSideToMove(colour);
         ApplyEditedBoard(board);
-        if (IsEngineTurn)
-        {
-            StartThinking();
-        }
     }
 
     private void HandlerSetSquareWhitePawn(object? sender, EventArgs e) => EditSquare(Piece.WhitePawn);
@@ -695,7 +748,7 @@ public partial class MainForm : Form
         SetLevel(saved.Level);
         lastMove = game.Board.LastMove is Move last ? (last.From, last.To) : null;
         ResetClocks();
-        engine?.NewGame();
+        TryEngine(() => engine?.NewGame());
         RefreshAll();
         if (IsEngineTurn)
         {

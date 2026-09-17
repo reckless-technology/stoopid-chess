@@ -85,8 +85,10 @@ public class UciEngineClientTests
     {
         var client = UciEngineClient.StartInProcess();
         await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        Assert.False(client.HasExited);
         client.Dispose();
         client.Dispose();   // Idempotent
+        Assert.True(client.HasExited);
         Assert.Throws<ObjectDisposedException>(() => client.NewGame());
     }
 

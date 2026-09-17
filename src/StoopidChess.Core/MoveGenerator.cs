@@ -146,12 +146,32 @@ public static class MoveGenerator
     public static bool IsPositionLegal(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        if (!board.HasValidKings)
+        if (!board.HasValidKings || HasPawnsOnBackRanks(board))
         {
             return false;
         }
         Colour justMoved = board.SideToMove.Opponent();
         return !IsAttacked(board, board.KingSquare(justMoved), board.SideToMove);
+    }
+
+    /// <summary>
+    /// A pawn on its own first rank or on the promotion rank cannot exist in a real game, and pawn
+    /// move generation relies on that.
+    /// </summary>
+    public static bool HasPawnsOnBackRanks(Board board)
+    {
+        ArgumentNullException.ThrowIfNull(board);
+        foreach (Colour colour in stackalloc[] { Colour.White, Colour.Black })
+        {
+            foreach (int square in board.SquaresOf(colour, PieceType.Pawn))
+            {
+                if (Squares.RankOf(square) is 0 or 7)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -272,7 +292,7 @@ public static class MoveGenerator
                     moves.Add(new Move(from, to, PieceType.Pawn, target.Type));
                 }
             }
-            else if (to == board.EnPassantSquare)
+            else if (to == board.EnPassantSquare && board[Squares.Index(Squares.FileOf(to), Squares.RankOf(from))] == new Piece(them, PieceType.Pawn))
             {
                 moves.Add(new Move(from, to, PieceType.Pawn, PieceType.Pawn, MoveKind.EnPassant));
             }

@@ -160,7 +160,7 @@ public class BoardTests
     [InlineData("4k3/8/8/8/8/8/8/4KB2 w - - 0 1", true)]
     [InlineData("4k3/8/8/8/8/8/8/4KN2 w - - 0 1", true)]
     [InlineData("4k3/8/8/8/8/8/8/4KNN1 w - - 0 1", false)]
-    [InlineData("4k3/8/8/8/8/8/8/4KP2 w - - 0 1", false)]
+    [InlineData("4k3/8/8/8/8/8/5P2/4K3 w - - 0 1", false)]
     [InlineData("4kb2/8/8/8/8/8/8/4KB2 w - - 0 1", false)]   // f8 is dark, f1 is light
     [InlineData("4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1", true)]   // g8 and f1 are both light
     [InlineData("4k3/8/8/8/8/8/8/4KR2 w - - 0 1", false)]
@@ -201,6 +201,23 @@ public class BoardTests
         board.MakeMove(FindMove(board, "d2d4")!.Value);
         Assert.Equal(1, board.Ply);
         board.UnmakeMove();
+    }
+
+    [Fact]
+    public void PositionLegalityCoversKingsChecksAndBackRankPawns()
+    {
+        Board board = Board.StartPosition();
+        Assert.True(MoveGenerator.IsPositionLegal(board));
+        board.SetPiece(Squares.A8, Piece.WhitePawn);
+        Assert.False(MoveGenerator.IsPositionLegal(board), "pawn on the eighth rank");
+        board.SetPiece(Squares.A8, Piece.BlackRook);
+        Assert.True(MoveGenerator.IsPositionLegal(board));
+        // White to move with the black king in check from a white rook: black must have moved into check
+        Assert.False(MoveGenerator.IsPositionLegal(Board.FromFen("4k3/4R3/8/8/8/8/8/4K3 w - - 0 1")), "side not to move is in check");
+        Assert.False(MoveGenerator.IsPositionLegal(Board.FromFen("4k3/4K3/8/8/8/8/8/8 w - - 0 1")), "adjacent kings");
+        Board noKing = Board.StartPosition();
+        noKing.SetPiece(Squares.E8, Piece.None);
+        Assert.False(MoveGenerator.IsPositionLegal(noKing));
     }
 
     [Fact]

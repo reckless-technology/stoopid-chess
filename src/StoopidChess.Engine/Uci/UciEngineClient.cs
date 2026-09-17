@@ -44,6 +44,14 @@ public sealed class UciEngineClient : IDisposable
     public string? Author { get; private set; }
 
     /// <summary>
+    /// True once the engine has closed its output: it has quit, crashed or been disposed. Commands
+    /// sent after that throw <see cref="InvalidOperationException"/>.
+    /// </summary>
+    public bool HasExited => Volatile.Read(ref exited);
+
+    private bool exited;
+
+    /// <summary>
     /// Raised on the reader thread for every "info" line the engine sends.
     /// </summary>
     public event EventHandler<string>? InfoReceived;
@@ -82,6 +90,10 @@ public sealed class UciEngineClient : IDisposable
             try
             {
                 session.Run();
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or AggregateException)
+            {
+                // The pipe closed or the session failed; closing our ends tells the client the engine has gone
             }
             finally
             {
@@ -152,6 +164,10 @@ public sealed class UciEngineClient : IDisposable
     public Task<string> GoAsync(SearchLimits limits, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(limits);
+        if (HasExited)
+        {
+            throw new InvalidOperationException("the engine has exited");
+        }
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (sync)
         {
@@ -164,7 +180,17 @@ public sealed class UciEngineClient : IDisposable
         Send("go " + FormatGo(limits));
         if (cancellationToken.CanBeCanceled)
         {
-            CancellationTokenRegistration registration = cancellationToken.Register(Stop);
+            CancellationTokenRegistration registration = cancellationToken.Register(() =>
+            {
+                try
+                {
+                    Stop();
+                }
+                catch (InvalidOperationException)
+                {
+                    // The engine has already gone; the pending task is failed by the reader
+                }
+            });
             completion.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
         }
         return completion.Task;
@@ -208,10 +234,22 @@ public sealed class UciEngineClient : IDisposable
     private void Send(string command)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        lock (writer)
+        if (HasExited)
         {
-            writer.WriteLine(command);
-            writer.Flush();
+            throw new InvalidOperationException("the engine has exited");
+        }
+        try
+        {
+            lock (writer)
+            {
+                writer.WriteLine(command);
+                writer.Flush();
+            }
+        }
+        catch (IOException ex)
+        {
+            Volatile.Write(ref exited, true);
+            throw new InvalidOperationException("the engine has exited", ex);
         }
     }
 
@@ -231,6 +269,7 @@ public sealed class UciEngineClient : IDisposable
         catch (ObjectDisposedException)
         {
         }
+        Volatile.Write(ref exited, true);
         var gone = new InvalidOperationException("the engine has exited");
         lock (sync)
         {
@@ -295,8 +334,9 @@ public sealed class UciEngineClient : IDisposable
         {
             Send("quit");
         }
-        catch (IOException)
+        catch (InvalidOperationException)
         {
+            // Already gone
         }
         disposed = true;
         if (process is not null)

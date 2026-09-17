@@ -49,6 +49,12 @@ public class FenTests
     [InlineData("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNX w KQkq - 0 1")]
     [InlineData("rnbq1bnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")]
     [InlineData("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - x 1")]
+    [InlineData("P3k3/8/8/8/8/8/8/4K3 w - - 0 1")]                       // Pawn on the eighth rank
+    [InlineData("4k3/8/8/8/8/8/8/3pK3 w - - 0 1")]                       // Pawn on the first rank
+    [InlineData("4k3/8/8/8/8/8/3P4/4K3 w - e3 0 1")]                     // En passant square with no pawn behind it
+    [InlineData("4k3/8/8/8/4P3/8/8/4K3 w - e3 0 1")]                     // White to move cannot capture its own pawn
+    [InlineData("4k3/8/8/8/4P3/8/8/4K3 b - e6 0 1")]                     // Black to move: the square must be on rank 3
+    [InlineData("4k3/8/4p3/8/4P3/8/8/4K3 w - e6 0 1")]                   // En passant square occupied
     public void RejectsInvalidFen(string fen)
     {
         Assert.Throws<FormatException>(() => Board.FromFen(fen));

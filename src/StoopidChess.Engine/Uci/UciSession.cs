@@ -211,8 +211,17 @@ public sealed class UciSession : IDisposable
         CancellationToken token = searchCancellation.Token;
         searchTask = Task.Run(() =>
         {
-            SearchResult result = searcher.Search(position, limits, WriteProgress, token);
-            WriteLine($"bestmove {result.BestMove}");
+            try
+            {
+                SearchResult result = searcher.Search(position, limits, WriteProgress, token);
+                WriteLine($"bestmove {result.BestMove}");
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // The protocol requires an answer to every "go", and the session must survive
+                WriteLine($"info string search failed: {ex.Message}");
+                WriteLine("bestmove 0000");
+            }
         });
     }
 

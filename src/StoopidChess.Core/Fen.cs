@@ -37,7 +37,7 @@ public static class Fen
         int enPassant = Squares.None;
         if (fields[3] != "-")
         {
-            if (!Squares.TryParse(fields[3], out enPassant) || Squares.RankOf(enPassant) is not (2 or 5))
+            if (!Squares.TryParse(fields[3], out enPassant) || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
             {
                 throw new FormatException($"invalid en passant square '{fields[3]}'");
             }
@@ -49,6 +49,10 @@ public static class Fen
         if (!board.HasValidKings)
         {
             throw new FormatException("each side must have exactly one king");
+        }
+        if (MoveGenerator.HasPawnsOnBackRanks(board))
+        {
+            throw new FormatException("pawns cannot stand on the first or last rank");
         }
 
         board.SwitchSideToMove(sideToMove);
@@ -112,6 +116,22 @@ public static class Fen
         fen.Append(' ').Append(board.HalfMoveClock);
         fen.Append(' ').Append(board.FullMoveNumber);
         return fen.ToString();
+    }
+
+    /// <summary>
+    /// The en passant square must be empty, on the rank behind the pawn that just made a double push,
+    /// and that pawn must be there.
+    /// </summary>
+    private static bool IsConsistentEnPassantSquare(Board board, Colour sideToMove, int square)
+    {
+        const int up = 0x10;
+        if (!board[square].IsNone)
+        {
+            return false;
+        }
+        return sideToMove == Colour.White
+            ? Squares.RankOf(square) == 5 && board[square - up] == Piece.BlackPawn
+            : Squares.RankOf(square) == 2 && board[square + up] == Piece.WhitePawn;
     }
 
     private static void ParsePlacement(string placement, Board board)

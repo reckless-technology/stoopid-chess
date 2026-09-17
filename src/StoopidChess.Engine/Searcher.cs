@@ -98,8 +98,13 @@ public sealed class Searcher
             int score = SearchRoot(rootMoves, depth, out Move move);
             if (stopped)
             {
-                // The iteration was cut short so its result cannot be trusted, except that a move
-                // found at the root before stopping is at least as good as the previous best.
+                // The iteration was cut short so its score cannot be trusted and the previous
+                // iteration's move is kept, unless there is none: then the best of the root moves
+                // that did complete is better than an arbitrary one.
+                if (completedDepth == 0)
+                {
+                    bestMove = move;
+                }
                 break;
             }
             bestMove = move;
@@ -162,7 +167,7 @@ public sealed class Searcher
             return alpha;
         }
 
-        if (IsDraw())
+        if (board.RepetitionCount() >= 1 || board.IsInsufficientMaterial())
         {
             return DrawScore;
         }
@@ -180,6 +185,13 @@ public sealed class Searcher
         }
 
         bool inCheck = MoveGenerator.IsInCheck(board);
+        // The fifty-move rule draws the game unless this is checkmate, so when in check it is
+        // applied only once a legal move has been found
+        bool fiftyMoveRule = board.HalfMoveClock >= 100;
+        if (fiftyMoveRule && !inCheck)
+        {
+            return DrawScore;
+        }
         if (depth <= 0 && !inCheck)
         {
             return Quiescence(alpha, beta, ply);
@@ -227,6 +239,11 @@ public sealed class Searcher
                 continue;
             }
             legalMoves++;
+            if (fiftyMoveRule)
+            {
+                board.UnmakeMove();
+                return DrawScore;   // In check but not mated: the fifty-move rule stands
+            }
             int score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
             board.UnmakeMove();
             if (stopped)
@@ -283,6 +300,11 @@ public sealed class Searcher
         }
 
         bool inCheck = MoveGenerator.IsInCheck(board);
+        bool fiftyMoveRule = board.HalfMoveClock >= 100;
+        if (!inCheck && (fiftyMoveRule || board.RepetitionCount() >= 1 || board.IsInsufficientMaterial()))
+        {
+            return DrawScore;
+        }
         int bestScore = -Infinity;
         if (!inCheck)
         {
@@ -318,6 +340,11 @@ public sealed class Searcher
                 continue;
             }
             legalMoves++;
+            if (fiftyMoveRule)
+            {
+                board.UnmakeMove();
+                return DrawScore;
+            }
             int score = -Quiescence(-beta, -alpha, ply + 1);
             board.UnmakeMove();
             if (stopped)
@@ -344,15 +371,6 @@ public sealed class Searcher
     {
         statistics.Evaluations++;
         return evaluator.Evaluate(board);
-    }
-
-    /// <summary>
-    /// A repetition anywhere in the game or search path is treated as a draw, as is the fifty-move
-    /// rule or insufficient material.
-    /// </summary>
-    private bool IsDraw()
-    {
-        return board.HalfMoveClock >= 100 || board.IsInsufficientMaterial() || board.RepetitionCount() >= 1;
     }
 
     private void CheckLimits()
@@ -470,7 +488,7 @@ public sealed class Searcher
     /// Mate scores are stored relative to the node rather than the root, so that an entry found from
     /// a different root still gives the right distance to mate.
     /// </summary>
-    private static int ScoreToTable(int score, int ply)
+    internal static int ScoreToTable(int score, int ply)
     {
         if (score >= MateThreshold)
         {
@@ -483,7 +501,7 @@ public sealed class Searcher
         return score;
     }
 
-    private static int ScoreFromTable(int score, int ply)
+    internal static int ScoreFromTable(int score, int ply)
     {
         if (score >= MateThreshold)
         {
