@@ -25,6 +25,7 @@ public sealed class Searcher
     private readonly Evaluator evaluator = new();
     private readonly List<Move>[] moveLists = new List<Move>[MaxPly + 1];
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
+    private readonly int[,,] history = new int[3, 128, 128];   // [colour, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
     private Board board = Board.StartPosition();
@@ -82,6 +83,7 @@ public sealed class Searcher
         nodeLimit = limits.Infinite ? null : limits.Nodes;
         stopped = false;
         Array.Clear(killers);
+        Array.Clear(history);
         stopwatch.Restart();
 
         List<Move> rootMoves = MoveGenerator.GenerateLegalMoves(board);
@@ -284,6 +286,7 @@ public sealed class Searcher
                 if (!move.IsCapture)
                 {
                     RecordKiller(ply, move);
+                    RecordHistory(move, depth);
                 }
                 table.Store(board.Key, board.SecondaryKey, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
@@ -480,8 +483,21 @@ public sealed class Searcher
             {
                 return 80_000;
             }
+            return Math.Min(history[(int)board.SideToMove, move.From, move.To], HistoryCap);
         }
         return score;
+    }
+
+    private const int HistoryCap = 79_999;
+
+    /// <summary>
+    /// Quiet moves that cut off deep in the tree are likely to be good elsewhere too; order them by
+    /// the depth-weighted count of cutoffs they have produced in this search.
+    /// </summary>
+    private void RecordHistory(Move move, int depth)
+    {
+        ref int entry = ref history[(int)board.SideToMove, move.From, move.To];
+        entry = Math.Min(entry + (depth * depth), HistoryCap);
     }
 
     private void RecordKiller(int ply, Move move)
