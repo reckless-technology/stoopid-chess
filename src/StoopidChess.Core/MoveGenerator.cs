@@ -74,7 +74,6 @@ public static class MoveGenerator
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(moves);
-        RequirePlayablePosition(board);
         Colour us = board.SideToMove;
         foreach (int from in board.SquaresOf(us, PieceType.Pawn))
         {
@@ -107,7 +106,6 @@ public static class MoveGenerator
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(moves);
-        RequirePlayablePosition(board);
         Colour us = board.SideToMove;
         foreach (int from in board.SquaresOf(us, PieceType.Pawn))
         {
@@ -157,18 +155,6 @@ public static class MoveGenerator
     }
 
     /// <summary>
-    /// Move generation needs both kings and no pawns on the back ranks; a position being edited may
-    /// have neither, so refuse clearly rather than fail somewhere inside.
-    /// </summary>
-    private static void RequirePlayablePosition(Board board)
-    {
-        if (!board.HasValidKings || HasPawnsOnBackRanks(board))
-        {
-            throw new InvalidOperationException("moves cannot be generated for a position without exactly one king per side and no pawns on the back ranks");
-        }
-    }
-
-    /// <summary>
     /// A pawn on its own first rank or on the promotion rank cannot exist in a real game, and pawn
     /// move generation relies on that.
     /// </summary>
@@ -200,7 +186,7 @@ public static class MoveGenerator
         Piece pawn = new(by, PieceType.Pawn);
         int left = square - pawnDirection - 1;
         int right = square - pawnDirection + 1;
-        if ((Squares.IsOnBoard(left) && board[left] == pawn) || (Squares.IsOnBoard(right) && board[right] == pawn))
+        if ((Squares.IsOnBoard(left) && board.At(left) == pawn) || (Squares.IsOnBoard(right) && board.At(right) == pawn))
         {
             return true;
         }
@@ -245,7 +231,7 @@ public static class MoveGenerator
         {
             for (int to = square + delta; Squares.IsOnBoard(to); to += delta)
             {
-                Piece piece = board[to];
+                Piece piece = board.At(to);
                 if (piece.IsNone)
                 {
                     continue;
@@ -271,7 +257,7 @@ public static class MoveGenerator
         bool promotes = Squares.RankOf(forward) == promotionRank;
 
         // A pawn is promoted before it can walk off the board, so 'forward' is always on the board.
-        if (board[forward].IsNone)
+        if (board.At(forward).IsNone)
         {
             if (promotes)
             {
@@ -281,7 +267,7 @@ public static class MoveGenerator
             {
                 moves.Add(new Move(from, forward, PieceType.Pawn));
                 int doublePush = forward + direction;
-                if (Squares.RankOf(from) == startRank && board[doublePush].IsNone)
+                if (Squares.RankOf(from) == startRank && board.At(doublePush).IsNone)
                 {
                     moves.Add(new Move(from, doublePush, PieceType.Pawn, PieceType.None, MoveKind.DoublePawnPush));
                 }
@@ -294,7 +280,7 @@ public static class MoveGenerator
             {
                 continue;
             }
-            Piece target = board[to];
+            Piece target = board.At(to);
             if (target.Colour == them)
             {
                 if (promotes)
@@ -306,7 +292,7 @@ public static class MoveGenerator
                     moves.Add(new Move(from, to, PieceType.Pawn, target.Type));
                 }
             }
-            else if (to == board.EnPassantSquare && board[Squares.Index(Squares.FileOf(to), Squares.RankOf(from))] == new Piece(them, PieceType.Pawn))
+            else if (to == board.EnPassantSquare && board.At(Squares.Index(Squares.FileOf(to), Squares.RankOf(from))) == new Piece(them, PieceType.Pawn))
             {
                 moves.Add(new Move(from, to, PieceType.Pawn, PieceType.Pawn, MoveKind.EnPassant));
             }
@@ -330,7 +316,7 @@ public static class MoveGenerator
             {
                 continue;
             }
-            Piece target = board[to];
+            Piece target = board.At(to);
             if (target.IsNone)
             {
                 if (!capturesOnly)
@@ -351,7 +337,7 @@ public static class MoveGenerator
         {
             for (int to = from + delta; Squares.IsOnBoard(to); to += delta)
             {
-                Piece target = board[to];
+                Piece target = board.At(to);
                 if (target.IsNone)
                 {
                     if (!capturesOnly)
@@ -384,18 +370,18 @@ public static class MoveGenerator
         int king = us == Colour.White ? Squares.E1 : Squares.E8;
         Colour them = us.Opponent();
         Piece rook = new(us, PieceType.Rook);
-        if (board[king] != new Piece(us, PieceType.King) || IsAttacked(board, king, them))
+        if (board.At(king) != new Piece(us, PieceType.King) || IsAttacked(board, king, them))
         {
             return;
         }
         if ((board.CastlingRights & kingSide) != CastlingRights.None
-            && board[king + 3] == rook && board[king + 1].IsNone && board[king + 2].IsNone
+            && board.At(king + 3) == rook && board.At(king + 1).IsNone && board.At(king + 2).IsNone
             && !IsAttacked(board, king + 1, them) && !IsAttacked(board, king + 2, them))
         {
             moves.Add(new Move(king, king + 2, PieceType.King, PieceType.None, MoveKind.CastleKingSide));
         }
         if ((board.CastlingRights & queenSide) != CastlingRights.None
-            && board[king - 4] == rook && board[king - 1].IsNone && board[king - 2].IsNone && board[king - 3].IsNone
+            && board.At(king - 4) == rook && board.At(king - 1).IsNone && board.At(king - 2).IsNone && board.At(king - 3).IsNone
             && !IsAttacked(board, king - 1, them) && !IsAttacked(board, king - 2, them))
         {
             moves.Add(new Move(king, king - 2, PieceType.King, PieceType.None, MoveKind.CastleQueenSide));

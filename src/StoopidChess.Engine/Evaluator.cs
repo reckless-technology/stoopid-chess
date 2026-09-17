@@ -181,7 +181,7 @@ public sealed class Evaluator
             {
                 for (int to = from + delta; Squares.IsOnBoard(to); to += delta)
                 {
-                    Piece target = board[to];
+                    Piece target = board.At(to);
                     if (target.IsNone)
                     {
                         squares++;
@@ -235,7 +235,7 @@ public sealed class Evaluator
         foreach (int side in stackalloc[] { -1, 1 })
         {
             int defender = square - forward + side;
-            if (Squares.IsOnBoard(defender) && board[defender] == ownPawn)
+            if (Squares.IsOnBoard(defender) && board.At(defender) == ownPawn)
             {
                 score += DefendedPawnBonus;
             }
@@ -246,7 +246,7 @@ public sealed class Evaluator
         bool doubled = false;
         for (int ahead = square + forward; Squares.IsOnBoard(ahead); ahead += forward)
         {
-            Piece piece = board[ahead];
+            Piece piece = board.At(ahead);
             if (piece.Type == PieceType.Pawn)
             {
                 passed = false;
@@ -262,7 +262,7 @@ public sealed class Evaluator
             {
                 for (int ahead = square + forward + side; Squares.IsOnBoard(ahead); ahead += forward)
                 {
-                    if (board[ahead] == enemyPawn)
+                    if (board.At(ahead) == enemyPawn)
                     {
                         passed = false;
                         break;
@@ -282,14 +282,14 @@ public sealed class Evaluator
         // Blocked: an enemy pawn directly ahead with no enemy pawn on an adjacent file that could be
         // exchanged to unblock it.
         int inFront = square + forward;
-        if (Squares.IsOnBoard(inFront) && board[inFront] == enemyPawn)
+        if (Squares.IsOnBoard(inFront) && board.At(inFront) == enemyPawn)
         {
             bool blocked = true;
             foreach (int side in stackalloc[] { -1, 1 })
             {
                 for (int ahead = square + forward + side; Squares.IsOnBoard(ahead) && blocked; ahead += forward)
                 {
-                    if (board[ahead] == enemyPawn)
+                    if (board.At(ahead) == enemyPawn)
                     {
                         blocked = false;
                     }

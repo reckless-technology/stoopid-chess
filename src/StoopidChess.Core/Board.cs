@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace StoopidChess.Core;
 
@@ -114,9 +115,16 @@ public sealed partial class Board
     public const int MaxHalfMoveClock = 999;
 
     /// <summary>
-    /// The squares occupied by pieces of the given colour and type.
+    /// The squares occupied by pieces of the given colour and type. The span is only valid until the
+    /// next move is made or unmade.
     /// </summary>
-    public IReadOnlyList<int> SquaresOf(Colour colour, PieceType type) => pieceSquares[ListIndex(colour, type)];
+    public ReadOnlySpan<int> SquaresOf(Colour colour, PieceType type) => CollectionsMarshal.AsSpan(pieceSquares[ListIndex(colour, type)]);
+
+    /// <summary>
+    /// The piece on a square, without the range check of the indexer; for the move generator and
+    /// evaluator, which only ever ask about squares they have already checked are on the board.
+    /// </summary>
+    internal Piece At(int square) => squares[square];
 
     public int Count(Colour colour, PieceType type) => pieceSquares[ListIndex(colour, type)].Count;
 

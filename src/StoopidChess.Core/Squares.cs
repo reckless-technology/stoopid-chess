@@ -17,8 +17,6 @@ public static class Squares
     public const int A1 = 0x00, B1 = 0x01, C1 = 0x02, D1 = 0x03, E1 = 0x04, F1 = 0x05, G1 = 0x06, H1 = 0x07;
     public const int A8 = 0x70, B8 = 0x71, C8 = 0x72, D8 = 0x73, E8 = 0x74, F8 = 0x75, G8 = 0x76, H8 = 0x77;
 
-    private const int OffBoardMask = 0x88;
-
     public static int Index(int file, int rank) => file | (rank << 4);
 
     public static int FileOf(int square) => square & 0x07;
@@ -28,7 +26,7 @@ public static class Squares
     /// <summary>
     /// True for the 64 real squares; false for the unused half of the 0x88 array and for <see cref="None"/>.
     /// </summary>
-    public static bool IsOnBoard(int square) => (square & ~0x77) == 0 && (square & OffBoardMask) == 0;
+    public static bool IsOnBoard(int square) => (square & ~0x77) == 0;
 
     /// <summary>
     /// The 64 squares in a1, b1, ... h8 order.

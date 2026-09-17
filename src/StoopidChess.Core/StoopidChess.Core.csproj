@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="StoopidChess.Tests" />
+    <InternalsVisibleTo Include="StoopidChess.Engine" />
   </ItemGroup>
 
 </Project>
