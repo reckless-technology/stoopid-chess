@@ -145,10 +145,24 @@ public sealed class Searcher
         bestMove = rootMoves[0];
         int alpha = -Infinity;
         const int beta = Infinity;
+        bool first = true;
         foreach (Move move in rootMoves)
         {
             board.MakeMove(move);
-            int score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
+            int score;
+            if (first)
+            {
+                score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
+                first = false;
+            }
+            else
+            {
+                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1, 1);
+                if (score > alpha && !stopped)
+                {
+                    score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
+                }
+            }
             board.UnmakeMove();
             if (stopped)
             {
@@ -272,20 +286,27 @@ public sealed class Searcher
                 return DrawScore;   // In check but not mated: the fifty-move rule stands
             }
             int score;
-            if (depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board))
+            if (legalMoves == 1)
             {
-                // Late move reductions: a quiet move ordered this far down rarely raises alpha, so search
-                // it shallower with a null window first and only pay for the full search if it does
-                int reduction = legalMoves > LmrFullDepthMoves * 3 ? 2 : 1;
-                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1 - reduction, ply + 1);
-                if (score > alpha && !stopped)
-                {
-                    score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
-                }
+                score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
             }
             else
             {
-                score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+                // Principal variation search: the first move is expected to be best, so the rest only need
+                // to prove they are not better (a null window), and are re-searched only when they are.
+                // Late move reductions: quiet moves ordered this far down are also searched shallower first.
+                int reduction = depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board)
+                    ? (legalMoves > LmrFullDepthMoves * 3 ? 2 : 1)
+                    : 0;
+                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1 - reduction, ply + 1);
+                if (reduction > 0 && score > alpha && !stopped)
+                {
+                    score = -AlphaBeta(-alpha - 1, -alpha, depth - 1, ply + 1);
+                }
+                if (score > alpha && score < beta && !stopped)
+                {
+                    score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
+                }
             }
             board.UnmakeMove();
             if (stopped)

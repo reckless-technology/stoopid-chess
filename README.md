@@ -40,7 +40,7 @@ the above and launch configurations for debugging the GUI and the engine.
 - 0x88 board representation with per-piece square lists.
 - Two independent Zobrist keys per position (one to index hash tables, one to verify hits), plus a
   pawn-structure key. Generated from fixed seeds, so every run is reproducible.
-- Negamax alpha-beta with iterative deepening, a two-tier transposition table (depth-preferred and
+- Negamax alpha-beta (principal variation search) with iterative deepening, a two-tier transposition table (depth-preferred and
   always-replace), null-move pruning, late move reductions, killer moves and a history heuristic, MVV/LVA capture ordering, a quiescence search
   with stand-pat, a check extension at the horizon, and mate distance pruning.
 - Evaluation: material and piece-square tables, pawn structure (passed, doubled, blocked, defended
@@ -50,7 +50,7 @@ the above and launch configurations for debugging the GUI and the engine.
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 273,839 nodes, depth 6 = 1721985 nodes. A test asserts the depth-5
+Current values: depth 5 = 250,117 nodes, depth 6 = 1721985 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing
