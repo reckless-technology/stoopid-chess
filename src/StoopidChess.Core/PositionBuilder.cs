@@ -8,7 +8,7 @@ namespace StoopidChess.Core;
 /// </summary>
 public sealed class PositionBuilder
 {
-    private readonly Piece[] squares = new Piece[128];
+    private readonly Piece[] squares = new Piece[Squares.Count];
     private Colour sideToMove = Colour.White;
 
     /// <summary>

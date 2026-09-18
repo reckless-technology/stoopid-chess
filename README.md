@@ -11,7 +11,7 @@ restructured in 2026.
 
 | Project | Purpose |
 |---|---|
-| `src/StoopidChess.Core` | The rules of chess: `Board` (0x88 with piece lists and incremental Zobrist keys), `Move`, `Piece`, FEN, move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
+| `src/StoopidChess.Core` | The rules of chess: `Board` (bitboards plus a square array, with incremental Zobrist keys), `Attacks` (attack tables and magic bitboards), `Move`, `Piece`, FEN, legal move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
@@ -38,7 +38,10 @@ the above and launch configurations for debugging the GUI and the engine.
 
 ## The engine
 
-- 0x88 board representation with per-piece square lists.
+- Bitboard board representation (a set of squares per piece type and per colour, plus a square
+  array), magic bitboards for the sliding pieces, and a fully legal move generator that resolves
+  pins, checks, en passant and castling during generation rather than by make/test/unmake. Modelled
+  on pawnstar; the design and measurements are in `docs/BITBOARDS.md`.
 - Zobrist keys for the position and for the pawn structure, generated from fixed seeds so every run
   is reproducible; 16-byte transposition entries verified by the full 64-bit key.
 - Negamax alpha-beta (principal variation search) with iterative deepening and aspiration windows, a two-tier transposition table (depth-preferred and
@@ -51,7 +54,7 @@ the above and launch configurations for debugging the GUI and the engine.
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 241,437 nodes, depth 6 = 579,880 nodes. A test asserts the depth-5
+Current values: depth 5 = 242,733 nodes, depth 6 = 585,859 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing
@@ -60,9 +63,15 @@ Modelled on the sibling engines pawnstar and zenith:
 
 - **Perft** against the 128 standard positions (Ethereal's `standard.epd`, embedded in Core) is the
   move generation gate. The unit tests run each position to the deepest depth under 300k nodes;
-  `stoopid-chess perft [max million nodes]` runs the full set.
+  `stoopid-chess perft [max million nodes]` runs the full set (about 80 million nodes per second).
+- **Move generation** is also cross-checked against a deliberately naive reference generator on the
+  standard positions, their children and random games, with the awkward cases (en passant that
+  exposes the king along the rank, pinned pawns, double check, castling through attacked squares)
+  asserted directly; the magic bitboard tables are checked against ray walking on random occupancies.
 - **Make/unmake invariants**: random games check that the incremental keys match a recomputation
-  after every move and that unwinding restores the start position exactly.
+  after every move, that the bitboards and square array agree, and that unwinding restores the
+  start position exactly.
+- **Evaluation regression**: the scores of eighteen positions recorded before the move to bitboards.
 - **Rules**: checkmate, stalemate, repetition, the fifty-move rule, insufficient material,
   castling rights, en passant, promotions, FEN round trips.
 - **Search**: mates in one and two, being mated, draw recognition, determinism, limits and

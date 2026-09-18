@@ -9,8 +9,9 @@ protocol, wrapped by the `StoopidChess.Uci` console) and a Windows Forms GUI (`S
 the `StoopidChess.Play` controller) that plays against any UCI engine. .NET 10;
 `Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
 project. Read [README.md](README.md) for the architecture and
-[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is, and
-[docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements.
+[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
+[docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements,
+and [docs/BITBOARDS.md](docs/BITBOARDS.md) for the bitboard board and legal move generator.
 
 ## Build / test / run
 
@@ -36,16 +37,20 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 1. **Move generation is guarded by perft.** `tests/.../PerftTests.cs` runs every one of the 128
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
-   perft count changes, the move generator is wrong, not the reference.
+   perft count changes, the move generator is wrong, not the reference. `MoveGeneratorTests` also
+   cross-checks the legal generator against a naive reference generator and pins the en passant,
+   pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (241,437 nodes; depth 6 is 579,880). Any change to search
+   `BenchTests.Depth5Signature` (242,733 nodes; depth 6 is 585,859). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
-   decisions inside a fixed-depth search) is a bug.
+   decisions inside a fixed-depth search) is a bug. `EvaluatorRegressionTests` pins the static
+   evaluation of eighteen positions, so a refactoring of the evaluator can prove it changed nothing.
 3. **Make/unmake must be exact.** `BoardTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
    recomputes the keys after every random move. Anything that touches `Board`'s state must keep the
-   incremental keys, piece lists and history consistent; `Board.ComputeKeys()` is the oracle.
+   incremental keys, the bitboards, the square array and the history consistent;
+   `Board.ComputeKeys()` and `Board.IsConsistent()` are the oracles.
 4. Strength changes should be checked by self-play or a match against another engine with
    `fastchess`: `tools/match.ps1 -Opponent <uci engine exe>` builds the engine and runs paired
    games from an openings file (defaults point at the copies under `C:\Users\jonny\tools`; both
@@ -55,19 +60,27 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    Results so far, all 40-60 games at 10+0.1, single-threaded, no book: pawnstar 0.13.593 beat
    the original search 40-0 and the improved search 40-0; self-play gains were null move
    +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
-   windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept).
+   windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept),
+   bitboards with a legal move generator (a pure speed change) +95 ± 70.
 
 ## Architecture notes
 
 - **Dependencies point one way:** Core ← Engine ← Play ← Gui (Gui also references Core directly),
   and Uci ← Engine.
-- **Core.** `Board` is a mutable 0x88 position with `MakeMove`/`UnmakeMove` (strict LIFO), piece
-  square lists, Zobrist and pawn keys, side to move, castling rights (lost by any move from or to a
-  king or rook home square, see `CastlingRightsExtensions.LostBySquare`), en passant square and
-  clocks. `Move` and `Piece` are readonly record structs (`Move` packs into 32 bits). `MoveGenerator`
-  is static and deterministic; legal move generation is pseudo-legal generation plus
-  make/test/unmake. `Game` layers a legal-moves-only API, move history and `GameStatus` on top and is
-  what the controller uses. `Fen` and `MoveNotation` do text; `PositionBuilder` edits positions.
+- **Core.** Squares are `int` 0..63 (a1 = 0, h8 = 63, so a square is its bit number; `Squares` has
+  the helpers). `Board` is a mutable position held as bitboards (`ulong` sets per piece type and per
+  colour plus the occupancy, see `Bitboards`) and a 64-entry `Piece` array, with
+  `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist and pawn keys, side to move, castling rights (lost
+  by any move from or to a king or rook home square, see `CastlingRightsExtensions.LostBySquare`),
+  en passant square, clocks, and `Checkers` (the pieces giving check, computed lazily and cached
+  until the next move). `Attacks` holds the knight/king/pawn tables, `Between`/`Line` and the magic
+  bitboard slider tables (pawnstar's magic numbers; built at startup and verified). `Move` and
+  `Piece` are readonly record structs (`Move` packs into 32 bits). `MoveGenerator` is static,
+  deterministic and generates only legal moves (pins, check masks, en passant and castling resolved
+  during generation, following pawnstar); `GenerateLegalCaptures` serves quiescence. Bit iteration
+  is `for (ulong b = set; b != 0;) { int sq = Bitboards.PopFirst(ref b); }`. `Game` layers a
+  legal-moves-only API, move history and `GameStatus` on top and is what the controller uses. `Fen`
+  and `MoveNotation` do text; `PositionBuilder` edits positions.
 - **Engine.** `Searcher` owns per-search state (killers, history, per-ply move lists, statistics) and
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`

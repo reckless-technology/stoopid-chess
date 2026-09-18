@@ -73,9 +73,9 @@ public class NotationTests
         }
         Assert.Equal(64, Squares.All.Count());
         Assert.False(Squares.IsOnBoard(Squares.None));
-        Assert.False(Squares.IsOnBoard(0x08));
-        Assert.False(Squares.IsOnBoard(0x78));
-        Assert.False(Squares.IsOnBoard(0x80));
+        Assert.False(Squares.IsOnBoard(Squares.Count));
+        Assert.False(Squares.IsOnBoard(Squares.Count + 8));
+        Assert.False(Squares.IsOnBoard(int.MinValue));
         Assert.Equal("-", Squares.Name(Squares.None));
     }
 

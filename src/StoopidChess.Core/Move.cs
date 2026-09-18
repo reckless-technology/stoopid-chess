@@ -20,19 +20,19 @@ public enum MoveKind : byte
 /// </summary>
 public readonly record struct Move
 {
-    // Bit layout: from 0-6, to 7-13, piece 14-16, captured 17-19, kind 20-22, promotion 23-25
-    private const int ToShift = 7;
-    private const int PieceShift = 14;
-    private const int CapturedShift = 17;
-    private const int KindShift = 20;
-    private const int PromotionShift = 23;
-    private const uint SquareMask = 0x7F;
+    // Bit layout: from 0-5, to 6-11, piece 12-14, captured 15-17, kind 18-20, promotion 21-23
+    private const int ToShift = 6;
+    private const int PieceShift = 12;
+    private const int CapturedShift = 15;
+    private const int KindShift = 18;
+    private const int PromotionShift = 21;
+    private const uint SquareMask = 0x3F;
     private const uint ThreeBits = 0x7;
 
     private readonly uint bits;
 
-    /// <param name="from">Source square (0x88).</param>
-    /// <param name="to">Destination square (0x88). For castling this is the king's destination.</param>
+    /// <param name="from">Source square (0..63, see <see cref="Squares"/>).</param>
+    /// <param name="to">Destination square. For castling this is the king's destination.</param>
     /// <param name="piece">The moving piece type; never <see cref="PieceType.None"/> for a real move.</param>
     /// <param name="captured">The captured piece type, or <see cref="PieceType.None"/>. A pawn for en passant.</param>
     /// <param name="kind">Special-move classification.</param>

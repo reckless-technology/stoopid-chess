@@ -104,7 +104,7 @@ public class PositionBuilderTests
         Assert.Throws<ArgumentException>(() => builder[Squares.Parse("e4")] = new Piece(Colour.White, (PieceType)9));
         Assert.Throws<ArgumentException>(() => builder[Squares.Parse("e4")] = new Piece(Colour.None, PieceType.Pawn));
         Assert.Throws<ArgumentException>(() => builder[Squares.Parse("e4")] = new Piece(Colour.White, PieceType.None));
-        Assert.Throws<ArgumentOutOfRangeException>(() => builder[0x08] = Piece.WhitePawn);
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder[Squares.Count] = Piece.WhitePawn);
         Assert.Throws<ArgumentOutOfRangeException>(() => builder[Squares.None]);
         builder[Squares.Parse("e4")] = Piece.None;
         Assert.Equal(1, PositionBuilder.From(Board.StartPosition()).Build().Count(Colour.White, PieceType.Queen));

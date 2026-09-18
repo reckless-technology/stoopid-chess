@@ -106,15 +106,6 @@ public sealed partial class Board
     public bool LastMoveWasNull => history.Count != 0 && history[^1].Move.IsNone;
 
     /// <summary>
-    /// Does the side have any piece other than pawns and the king? Null-move pruning is unsafe
-    /// without them, because of zugzwang.
-    /// </summary>
-    public bool HasNonPawnMaterial(Colour colour)
-    {
-        return Count(colour, PieceType.Knight) + Count(colour, PieceType.Bishop) + Count(colour, PieceType.Rook) + Count(colour, PieceType.Queen) != 0;
-    }
-
-    /// <summary>
     /// Unmake the most recently made move (or null move).
     /// </summary>
     public void UnmakeMove()
@@ -130,6 +121,7 @@ public sealed partial class Board
         Colour them = SideToMove;
         Colour us = them.Opponent();
         SideToMove = us;
+        checkersKnown = false;
         if (move.IsNone)
         {
             RestoreState(undo);

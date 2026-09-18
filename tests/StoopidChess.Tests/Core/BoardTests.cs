@@ -22,6 +22,7 @@ public class BoardTests
                 (ulong key, ulong pawn) = board.ComputeKeys();
                 Assert.Equal(key, board.Key);
                 Assert.Equal(pawn, board.PawnKey);
+                Assert.True(board.IsConsistent());
                 Assert.Equal(board.ToFen(), Board.FromFen(board.ToFen()).ToFen());
                 Assert.Equal(key, Board.FromFen(board.ToFen()).Key);
             }
@@ -197,14 +198,14 @@ public class BoardTests
     {
         Board board = Board.StartPosition();
         Assert.Throws<ArgumentOutOfRangeException>(() => board[Squares.None]);
-        Assert.Throws<ArgumentOutOfRangeException>(() => board[0x78]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => board[Squares.Count]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[8, 0]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[0, -1]);
         Assert.Equal(Piece.WhiteKing, board[4, 0]);
     }
 
     [Fact]
-    public void NormalisePieceOrderMakesGenerationIndependentOfHistory()
+    public void GenerationOrderIsIndependentOfHistory()
     {
         Board viaOneOrder = Board.StartPosition();
         foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
@@ -217,8 +218,6 @@ public class BoardTests
             viaOtherOrder.MakeMove(FindMove(viaOtherOrder, uci)!.Value);
         }
         Assert.Equal(viaOneOrder.ToFen(), viaOtherOrder.ToFen());
-        viaOneOrder.NormalisePieceOrder();
-        viaOtherOrder.NormalisePieceOrder();
         Assert.Equal(MoveGenerator.GenerateLegalMoves(viaOneOrder), MoveGenerator.GenerateLegalMoves(viaOtherOrder));
     }
 

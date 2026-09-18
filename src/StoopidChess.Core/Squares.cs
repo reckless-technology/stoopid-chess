@@ -1,11 +1,10 @@
 namespace StoopidChess.Core;
 
 /// <summary>
-/// Square indexing in "0x88" form: the low nibble is the file (0 = a, 7 = h) and the high nibble the
-/// rank (0 = 1, 7 = 8), so a1 is 0x00, h1 is 0x07 and h8 is 0x77. Indices with bit 3 or bit 7 set
-/// are off the board, which makes bounds checking a single mask, and the difference between two
-/// squares uniquely identifies both the distance and the direction between them.
-/// See https://www.chessprogramming.org/0x88
+/// Square indexing: a1 is 0, b1 is 1, h1 is 7, a2 is 8 and h8 is 63 ("little-endian rank-file"
+/// order), so the index of a square is also its bit number in a bitboard (see
+/// <see cref="Bitboards"/>). The file is the low three bits and the rank the next three.
+/// See https://www.chessprogramming.org/Square_Mapping_Considerations
 /// </summary>
 public static class Squares
 {
@@ -14,36 +13,26 @@ public static class Squares
     /// </summary>
     public const int None = -1;
 
-    public const int A1 = 0x00, B1 = 0x01, C1 = 0x02, D1 = 0x03, E1 = 0x04, F1 = 0x05, G1 = 0x06, H1 = 0x07;
-    public const int A8 = 0x70, B8 = 0x71, C8 = 0x72, D8 = 0x73, E8 = 0x74, F8 = 0x75, G8 = 0x76, H8 = 0x77;
+    public const int Count = 64;
 
-    public static int Index(int file, int rank) => file | (rank << 4);
+    public const int A1 = 0, B1 = 1, C1 = 2, D1 = 3, E1 = 4, F1 = 5, G1 = 6, H1 = 7;
+    public const int A8 = 56, B8 = 57, C8 = 58, D8 = 59, E8 = 60, F8 = 61, G8 = 62, H8 = 63;
 
-    public static int FileOf(int square) => square & 0x07;
+    public static int Index(int file, int rank) => file | (rank << 3);
 
-    public static int RankOf(int square) => square >> 4;
+    public static int FileOf(int square) => square & 7;
+
+    public static int RankOf(int square) => square >> 3;
 
     /// <summary>
-    /// True for the 64 real squares; false for the unused half of the 0x88 array and for <see cref="None"/>.
+    /// True for the 64 real squares; false for <see cref="None"/> and anything else out of range.
     /// </summary>
-    public static bool IsOnBoard(int square) => (square & ~0x77) == 0;
+    public static bool IsOnBoard(int square) => (uint)square < Count;
 
     /// <summary>
     /// The 64 squares in a1, b1, ... h8 order.
     /// </summary>
-    public static IEnumerable<int> All
-    {
-        get
-        {
-            for (int rank = 0; rank < 8; rank++)
-            {
-                for (int file = 0; file < 8; file++)
-                {
-                    yield return Index(file, rank);
-                }
-            }
-        }
-    }
+    public static IEnumerable<int> All => Enumerable.Range(0, Count);
 
     /// <summary>
     /// Algebraic name, e.g. "e4".

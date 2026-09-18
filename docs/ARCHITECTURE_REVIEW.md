@@ -106,7 +106,7 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
 
 ## Not recommended
 
-- **Bitboards now.** Rewriting `Board`, `MoveGenerator` and `Evaluator` (~1,000 lines) with perft
+- **Bitboards now.** (Superseded: done in September 2026 once the search work below had landed; see `BITBOARDS.md`.) Rewriting `Board`, `MoveGenerator` and `Evaluator` (~1,000 lines) with perft
   as the safety net is feasible but returns about one ply. Revisit only if profiling after the
   search work shows attack detection dominating, or when SEE, mobility and king-safety terms are
   wanted, which is where attack maps genuinely pay. The Core boundary means a bitboard `Board`
@@ -133,5 +133,5 @@ nightly fastchess job is worth it only once opponent binaries are checked in or 
 | 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | done |
 | 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | done |
 | 7 | `TimeManager` | simplification | ~50 | low | with soft/hard limits |
-| 8 | Bitboards | capability | ~1000 | high | not now |
+| 8 | Bitboards (done: legal bitboard generator, magic sliders; perft 19 -> 81 Mnps, search 1.9x nps in play, see `BITBOARDS.md`) | capability | ~1000 | high | done |
 | 9 | Separate client project, in-process interface, replace pipes | – | – | – | no |

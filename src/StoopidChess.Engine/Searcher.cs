@@ -30,7 +30,7 @@ public sealed class Searcher
     private readonly Evaluator evaluator = new();
     private readonly List<Move>[] moveLists = new List<Move>[MaxPly + 1];
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
-    private readonly int[,,] history = new int[3, 128, 128];   // [colour, from, to]: how often a quiet move caused a cutoff
+    private readonly int[,,] history = new int[3, Squares.Count, Squares.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
     private Board board = Board.StartPosition();
@@ -80,7 +80,6 @@ public sealed class Searcher
         ArgumentNullException.ThrowIfNull(limits);
 
         board = position.Clone();
-        board.NormalisePieceOrder();    // So that the search depends only on the position, not on how it was reached
         statistics = new SearchStatistics();
         cancellation = cancellationToken;
         timeBudget = limits.TimeBudget(board.SideToMove);
@@ -304,31 +303,31 @@ public sealed class Searcher
 
         List<Move> moves = moveLists[ply];
         moves.Clear();
-        MoveGenerator.GeneratePseudoLegalMoves(board, moves);
+        MoveGenerator.GenerateLegalMoves(board, moves);
+        if (moves.Count == 0)
+        {
+            return inCheck ? -MateScore + ply : DrawScore;
+        }
+        if (fiftyMoveRule)
+        {
+            return DrawScore;   // In check but not mated: the fifty-move rule stands
+        }
         OrderMoves(moves, ply, tableMove);
 
         int originalAlpha = alpha;
         int bestScore = -Infinity;
         Move bestMove = Move.None;
-        int legalMoves = 0;
+        int moveNumber = 0;
 
         foreach (Move move in moves)
         {
-            if (!TryMakeLegal(move))
-            {
-                continue;
-            }
-            legalMoves++;
-            if (fiftyMoveRule)
-            {
-                board.UnmakeMove();
-                return DrawScore;   // In check but not mated: the fifty-move rule stands
-            }
+            moveNumber++;
+            board.MakeMove(move);
             // Late move reductions: quiet moves ordered this far down are searched shallower first
-            int reduction = depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board)
-                ? (legalMoves > LmrFullDepthMoves * 3 ? 2 : 1)
+            int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !board.IsInCheck
+                ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
                 : 0;
-            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: legalMoves == 1, reduction);
+            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction);
             board.UnmakeMove();
             if (stopped)
             {
@@ -351,11 +350,6 @@ public sealed class Searcher
                 return score;
             }
             alpha = Math.Max(alpha, score);
-        }
-
-        if (legalMoves == 0)
-        {
-            return inCheck ? -MateScore + ply : DrawScore;
         }
 
         NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
@@ -412,27 +406,25 @@ public sealed class Searcher
         moves.Clear();
         if (inCheck)
         {
-            MoveGenerator.GeneratePseudoLegalMoves(board, moves);
+            MoveGenerator.GenerateLegalMoves(board, moves);
+            if (moves.Count == 0)
+            {
+                return -MateScore + ply;
+            }
+            if (fiftyMoveRule)
+            {
+                return DrawScore;   // In check but not mated
+            }
         }
         else
         {
-            MoveGenerator.GenerateCaptures(board, moves);
+            MoveGenerator.GenerateLegalCaptures(board, moves);
         }
         OrderMoves(moves, ply, tableMove);
 
-        int legalMoves = 0;
         foreach (Move move in moves)
         {
-            if (!TryMakeLegal(move))
-            {
-                continue;
-            }
-            legalMoves++;
-            if (fiftyMoveRule)
-            {
-                board.UnmakeMove();
-                return DrawScore;
-            }
+            board.MakeMove(move);
             int score = -Quiescence(-beta, -alpha, ply + 1);
             board.UnmakeMove();
             if (stopped)
@@ -453,28 +445,8 @@ public sealed class Searcher
             alpha = Math.Max(alpha, score);
         }
 
-        if (inCheck && legalMoves == 0)
-        {
-            return -MateScore + ply;
-        }
         table.Store(board.Key, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
         return bestScore;
-    }
-
-    /// <summary>
-    /// Make the move if it does not leave the mover's own king attacked; otherwise leave the board
-    /// unchanged and return false.
-    /// </summary>
-    private bool TryMakeLegal(Move move)
-    {
-        Colour us = board.SideToMove;
-        board.MakeMove(move);
-        if (MoveGenerator.IsKingAttacked(board, us))
-        {
-            board.UnmakeMove();
-            return false;
-        }
-        return true;
     }
 
     /// <summary>

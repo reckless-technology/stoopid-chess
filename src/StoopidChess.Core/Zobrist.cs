@@ -13,11 +13,10 @@ public static class Zobrist
 
     private const int PieceTypes = 7;
     private const int Colours = 3;
-    private const int BoardSize = 128;
 
-    private static readonly ulong[] Pieces = new ulong[Colours * PieceTypes * BoardSize];
+    private static readonly ulong[] Pieces = new ulong[Colours * PieceTypes * Squares.Count];
     private static readonly ulong[] CastlingKeys = new ulong[16];
-    private static readonly ulong[] EnPassantKeys = new ulong[BoardSize];
+    private static readonly ulong[] EnPassantKeys = new ulong[Squares.Count];
 
     static Zobrist()
     {
@@ -51,7 +50,7 @@ public static class Zobrist
 
     public static ulong Piece(Piece piece, int square)
     {
-        return Pieces[((((int)piece.Colour * PieceTypes) + (int)piece.Type) * BoardSize) + square];
+        return Pieces[((((int)piece.Colour * PieceTypes) + (int)piece.Type) * Squares.Count) + square];
     }
 
     public static ulong Castling(CastlingRights rights) => CastlingKeys[(int)rights];
