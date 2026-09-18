@@ -85,7 +85,7 @@ public sealed class SavedGame
     /// </summary>
     public Game? ToGame()
     {
-        if (!Fen.TryParse(StartFen, out Board board) || !MoveGenerator.IsPositionLegal(board))
+        if (Fen.TryParse(StartFen) is not Board board || !MoveGenerator.IsPositionLegal(board))
         {
             return null;
         }

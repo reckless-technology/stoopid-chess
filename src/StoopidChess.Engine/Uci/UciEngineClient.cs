@@ -21,9 +21,10 @@ public sealed class UciEngineClient : IDisposable
     private readonly Action? shutdown;
     private readonly Thread readerThread;
     private readonly Lock sync = new();
-    private TaskCompletionSource<bool>? uciOk;
-    private TaskCompletionSource<bool>? readyOk;
-    private TaskCompletionSource<string>? bestMove;
+    private TaskCompletionSource<string>? uciOk;      // Completed by "uciok"
+    private TaskCompletionSource<string>? readyOk;    // Completed by "readyok"
+    private TaskCompletionSource<string>? bestMove;   // Completed by "bestmove <move>"
+    private volatile bool exited;
     private bool disposed;
 
     private UciEngineClient(TextReader reader, TextWriter writer, Process? process, Action? shutdown)
@@ -47,9 +48,7 @@ public sealed class UciEngineClient : IDisposable
     /// True once the engine has closed its output: it has quit, crashed or been disposed. Commands
     /// sent after that throw <see cref="InvalidOperationException"/>.
     /// </summary>
-    public bool HasExited => Volatile.Read(ref exited);
-
-    private bool exited;
+    public bool HasExited => exited;
 
     /// <summary>
     /// Raised on the reader thread for every "info" line the engine sends.
@@ -117,30 +116,12 @@ public sealed class UciEngineClient : IDisposable
     /// <summary>
     /// Send "uci" and wait for "uciok".
     /// </summary>
-    public async Task InitialiseAsync(CancellationToken cancellationToken = default)
-    {
-        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (sync)
-        {
-            uciOk = completion;
-        }
-        Send("uci");
-        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task InitialiseAsync(CancellationToken cancellationToken = default) => SendAndAwaitAsync("uci", ref uciOk, cancellationToken);
 
     /// <summary>
     /// Send "isready" and wait for "readyok".
     /// </summary>
-    public async Task WaitUntilReadyAsync(CancellationToken cancellationToken = default)
-    {
-        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (sync)
-        {
-            readyOk = completion;
-        }
-        Send("isready");
-        await completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
+    public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default) => SendAndAwaitAsync("isready", ref readyOk, cancellationToken);
 
     public void NewGame() => Send("ucinewgame");
 
@@ -164,20 +145,14 @@ public sealed class UciEngineClient : IDisposable
     public Task<string> GoAsync(SearchLimits limits, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(limits);
-        if (HasExited)
-        {
-            throw new InvalidOperationException("the engine has exited");
-        }
-        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (sync)
         {
             if (bestMove is { Task.IsCompleted: false })
             {
                 throw new InvalidOperationException("a search is already in progress");
             }
-            bestMove = completion;
         }
-        Send("go " + FormatGo(limits));
+        Task<string> reply = SendAndAwaitAsync("go " + FormatGo(limits), ref bestMove, CancellationToken.None);
         if (cancellationToken.CanBeCanceled)
         {
             CancellationTokenRegistration registration = cancellationToken.Register(() =>
@@ -191,9 +166,9 @@ public sealed class UciEngineClient : IDisposable
                     // The engine has already gone; the pending task is failed by the reader
                 }
             });
-            completion.Task.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
+            reply.ContinueWith(_ => registration.Dispose(), TaskScheduler.Default);
         }
-        return completion.Task;
+        return reply;
     }
 
     public void Stop() => Send("stop");
@@ -231,10 +206,24 @@ public sealed class UciEngineClient : IDisposable
         static long? Milliseconds(TimeSpan? time) => time is null ? null : (long)time.Value.TotalMilliseconds;
     }
 
+    /// <summary>
+    /// Send a command whose reply the reader thread delivers through <paramref name="pending"/>.
+    /// </summary>
+    private Task<string> SendAndAwaitAsync(string command, ref TaskCompletionSource<string>? pending, CancellationToken cancellationToken)
+    {
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (sync)
+        {
+            pending = completion;
+        }
+        Send(command);
+        return cancellationToken.CanBeCanceled ? completion.Task.WaitAsync(cancellationToken) : completion.Task;
+    }
+
     private void Send(string command)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (HasExited)
+        if (exited)
         {
             throw new InvalidOperationException("the engine has exited");
         }
@@ -248,7 +237,7 @@ public sealed class UciEngineClient : IDisposable
         }
         catch (IOException ex)
         {
-            Volatile.Write(ref exited, true);
+            exited = true;
             throw new InvalidOperationException("the engine has exited", ex);
         }
     }
@@ -269,7 +258,7 @@ public sealed class UciEngineClient : IDisposable
         catch (ObjectDisposedException)
         {
         }
-        Volatile.Write(ref exited, true);
+        exited = true;
         var gone = new InvalidOperationException("the engine has exited");
         lock (sync)
         {
@@ -289,22 +278,13 @@ public sealed class UciEngineClient : IDisposable
         switch (tokens[0])
         {
             case "uciok":
-                lock (sync)
-                {
-                    uciOk?.TrySetResult(true);
-                }
+                Complete(uciOk, "");
                 break;
             case "readyok":
-                lock (sync)
-                {
-                    readyOk?.TrySetResult(true);
-                }
+                Complete(readyOk, "");
                 break;
             case "bestmove":
-                lock (sync)
-                {
-                    bestMove?.TrySetResult(tokens.Length > 1 ? tokens[1] : "0000");
-                }
+                Complete(bestMove, tokens.ElementAtOrDefault(1) ?? "0000");
                 break;
             case "id" when tokens.Length > 2 && tokens[1] == "name":
                 Name = string.Join(' ', tokens, 2, tokens.Length - 2);
@@ -326,6 +306,14 @@ public sealed class UciEngineClient : IDisposable
                 break;
             default:
                 break;
+        }
+    }
+
+    private void Complete(TaskCompletionSource<string>? pending, string result)
+    {
+        lock (sync)
+        {
+            pending?.TrySetResult(result);
         }
     }
 

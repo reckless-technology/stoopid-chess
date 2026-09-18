@@ -22,7 +22,6 @@ public sealed class Evaluator
     public const int BishopMobilityBonus = 2;    // Per reachable square; discourages trapped bishops
 
     private const int PawnTableSize = 1 << 16;
-    private const int Up = 0x10;
 
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram. Values from https://www.chessprogramming.org/Simplified_Evaluation_Function
@@ -123,7 +122,7 @@ public sealed class Evaluator
     /// <summary>
     /// Number of times the pawn structure score was found in the pawn hash table.
     /// </summary>
-    public long PawnHashHits { get; private set; }
+    internal long PawnHashHits { get; private set; }
 
     /// <summary>
     /// The score of the position from the side to move's point of view, in centipawns.
@@ -133,7 +132,7 @@ public sealed class Evaluator
         ArgumentNullException.ThrowIfNull(board);
         int score = 0;
         bool endgame = IsEndgame(board);
-        foreach (Colour colour in stackalloc[] { Colour.White, Colour.Black })
+        foreach (Colour colour in ColourExtensions.Sides)
         {
             int[][] tables = PieceSquareValues[(int)colour];
             for (PieceType type = PieceType.Pawn; type <= PieceType.Queen; type++)
@@ -157,7 +156,7 @@ public sealed class Evaluator
     public static bool IsEndgame(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        foreach (Colour colour in stackalloc[] { Colour.White, Colour.Black })
+        foreach (Colour colour in ColourExtensions.Sides)
         {
             if (board.Count(colour, PieceType.Queen) != 0 && MinorAndRookCount(board, colour) > 1)
             {
@@ -177,7 +176,7 @@ public sealed class Evaluator
         int squares = 0;
         foreach (int from in board.SquaresOf(colour, PieceType.Bishop))
         {
-            foreach (int delta in stackalloc[] { 0x11, 0x0F, -0x0F, -0x11 })
+            foreach (int delta in MoveGenerator.BishopDeltas)
             {
                 for (int to = from + delta; Squares.IsOnBoard(to); to += delta)
                 {
@@ -202,7 +201,7 @@ public sealed class Evaluator
     {
         ulong key = board.PawnKey;
         ref PawnHashEntry entry = ref pawnHashTable[(int)(key >> (64 - 16))];
-        if (entry.Key == key && entry.IsValid)
+        if (entry.Key == key)
         {
             PawnHashHits++;
             return entry.Score;
@@ -225,7 +224,7 @@ public sealed class Evaluator
     /// </summary>
     private static int EvaluatePawn(Board board, int square, Colour colour)
     {
-        int forward = colour == Colour.White ? Up : -Up;
+        int forward = Board.PawnDirection(colour);
         Piece ownPawn = new(colour, PieceType.Pawn);
         Piece enemyPawn = new(colour.Opponent(), PieceType.Pawn);
         int score = 0;
@@ -241,36 +240,29 @@ public sealed class Evaluator
             }
         }
 
-        // Passed: no pawn of either colour ahead on this file and no enemy pawn ahead on the adjacent files.
-        bool passed = true;
+        // What lies ahead on this file and on the two adjacent files
+        bool pawnAheadOnFile = false;
         bool doubled = false;
         for (int ahead = square + forward; Squares.IsOnBoard(ahead); ahead += forward)
         {
             Piece piece = board.At(ahead);
             if (piece.Type == PieceType.Pawn)
             {
-                passed = false;
-                if (piece == ownPawn)
-                {
-                    doubled = true;
-                }
+                pawnAheadOnFile = true;
+                doubled |= piece == ownPawn;
             }
         }
-        if (passed)
+        bool enemyPawnAheadOnAdjacentFile = false;
+        foreach (int side in stackalloc[] { -1, 1 })
         {
-            foreach (int side in stackalloc[] { -1, 1 })
+            for (int ahead = square + forward + side; Squares.IsOnBoard(ahead) && !enemyPawnAheadOnAdjacentFile; ahead += forward)
             {
-                for (int ahead = square + forward + side; Squares.IsOnBoard(ahead); ahead += forward)
-                {
-                    if (board.At(ahead) == enemyPawn)
-                    {
-                        passed = false;
-                        break;
-                    }
-                }
+                enemyPawnAheadOnAdjacentFile = board.At(ahead) == enemyPawn;
             }
         }
-        if (passed)
+
+        // Passed: nothing ahead on the file and no enemy pawn that could capture it on the way
+        if (!pawnAheadOnFile && !enemyPawnAheadOnAdjacentFile)
         {
             score += PassedPawnBonus;
         }
@@ -278,27 +270,11 @@ public sealed class Evaluator
         {
             score += DoubledPawnPenalty;
         }
-
-        // Blocked: an enemy pawn directly ahead with no enemy pawn on an adjacent file that could be
-        // exchanged to unblock it.
+        // Blocked: an enemy pawn directly ahead with none on an adjacent file to exchange it away
         int inFront = square + forward;
-        if (Squares.IsOnBoard(inFront) && board.At(inFront) == enemyPawn)
+        if (Squares.IsOnBoard(inFront) && board.At(inFront) == enemyPawn && !enemyPawnAheadOnAdjacentFile)
         {
-            bool blocked = true;
-            foreach (int side in stackalloc[] { -1, 1 })
-            {
-                for (int ahead = square + forward + side; Squares.IsOnBoard(ahead) && blocked; ahead += forward)
-                {
-                    if (board.At(ahead) == enemyPawn)
-                    {
-                        blocked = false;
-                    }
-                }
-            }
-            if (blocked)
-            {
-                score += BlockedPawnPenalty;
-            }
+            score += BlockedPawnPenalty;
         }
         return score;
     }
@@ -342,10 +318,7 @@ public sealed class Evaluator
         return values;
     }
 
-    private readonly record struct PawnHashEntry(ulong Key, int Score)
-    {
-        // A struct array starts zeroed; a zero pawn key (no pawns) scores zero anyway, but mark
-        // real entries so that an empty slot is never mistaken for one.
-        public bool IsValid => Key != 0 || Score != 0;
-    }
+    // An empty slot has key 0 and score 0, which is also the right answer for the one position with
+    // pawn key 0: no pawns at all.
+    private readonly record struct PawnHashEntry(ulong Key, int Score);
 }

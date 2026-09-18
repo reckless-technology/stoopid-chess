@@ -13,6 +13,11 @@ public enum Colour : byte
 public static class ColourExtensions
 {
     /// <summary>
+    /// The two sides, for iterating over both.
+    /// </summary>
+    public static ReadOnlySpan<Colour> Sides => [Colour.White, Colour.Black];
+
+    /// <summary>
     /// The other side. <see cref="Colour.None"/> is returned unchanged.
     /// </summary>
     public static Colour Opponent(this Colour colour) => colour switch

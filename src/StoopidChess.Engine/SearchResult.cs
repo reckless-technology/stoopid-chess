@@ -21,11 +21,16 @@ public sealed record SearchResult(int Depth, int Score, long Nodes, TimeSpan Ela
     /// </summary>
     public int MateIn => Searcher.MateIn(Score);
 
-    public long NodesPerSecond => Elapsed.TotalSeconds > 0 ? (long)(Nodes / Elapsed.TotalSeconds) : 0;
+    public long NodesPerSecond => Rate(Nodes, Elapsed);
+
+    /// <summary>
+    /// Nodes per second, zero when no time has passed.
+    /// </summary>
+    public static long Rate(long nodes, TimeSpan elapsed) => elapsed > TimeSpan.Zero ? (long)(nodes / elapsed.TotalSeconds) : 0;
 }
 
 /// <summary>
-/// Counters describing the work done by a search, for diagnostics and the bench command.
+/// Counters describing the work done by a search, for diagnostics and tuning.
 /// </summary>
 public sealed class SearchStatistics
 {

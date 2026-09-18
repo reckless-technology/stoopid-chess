@@ -99,7 +99,7 @@ public class FenTests
     public void RejectsInvalidFen(string fen)
     {
         Assert.Throws<FormatException>(() => Board.FromFen(fen));
-        Assert.False(Fen.TryParse(fen, out _));
+        Assert.Null(Fen.TryParse(fen));
     }
 
     [Fact]

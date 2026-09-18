@@ -39,8 +39,8 @@ public sealed class UciSession : IDisposable
     }
 
     public static string EngineVersion { get; } =
-        Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
-        ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)
+        typeof(UciSession).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+        ?? typeof(UciSession).Assembly.GetName().Version?.ToString(3)
         ?? "0.0.0";
 
     /// <summary>
@@ -76,6 +76,7 @@ public sealed class UciSession : IDisposable
         {
             return true;
         }
+        // Every command except the asynchronous ones ("isready", "stop") first ends any running search
         switch (tokens[0])
         {
             case "uci":
@@ -86,6 +87,9 @@ public sealed class UciSession : IDisposable
                 break;
             case "isready":
                 WriteLine("readyok");
+                break;
+            case "stop":
+                StopSearch();
                 break;
             case "setoption":
                 SetOption(tokens);
@@ -99,10 +103,8 @@ public sealed class UciSession : IDisposable
                 SetPosition(tokens);
                 break;
             case "go":
-                Go(tokens);
-                break;
-            case "stop":
                 StopSearch();
+                Go(ParseGo(tokens));
                 break;
             case "quit":
                 StopSearch();
@@ -119,11 +121,11 @@ public sealed class UciSession : IDisposable
                 break;
             case "perft":
                 StopSearch();
-                RunPerft(Math.Max(1, tokens.Length > 1 ? ParseInt(tokens[1]) ?? 1 : 1));
+                RunPerft(Math.Max(1, ParseInt(tokens.ElementAtOrDefault(1)) ?? 1));
                 break;
             case "bench":
                 StopSearch();
-                Bench.Run(Math.Max(1, tokens.Length > 1 ? ParseInt(tokens[1]) ?? Bench.DefaultDepth : Bench.DefaultDepth), output);
+                Bench.Run(Math.Max(1, ParseInt(tokens.ElementAtOrDefault(1)) ?? Bench.DefaultDepth), output);
                 break;
             default:
                 // UCI says unknown commands and tokens are ignored
@@ -149,69 +151,52 @@ public sealed class UciSession : IDisposable
         }
     }
 
+    /// <summary>
+    /// position (startpos | fen &lt;fen&gt;) [moves &lt;move&gt;...]. The position is left unchanged
+    /// if the FEN is invalid; the moves are replayed up to the first illegal one.
+    /// </summary>
     private void SetPosition(string[] tokens)
     {
         int movesIndex = Array.IndexOf(tokens, "moves");
         int fenEnd = movesIndex < 0 ? tokens.Length : movesIndex;
-        Board newBoard;
+        Board start;
         if (tokens.Length > 1 && tokens[1] == "startpos")
         {
-            newBoard = Board.StartPosition();
+            start = Board.StartPosition();
         }
         else if (tokens.Length > 2 && tokens[1] == "fen")
         {
             string fen = string.Join(' ', tokens, 2, fenEnd - 2);
-            if (!Fen.TryParse(fen, out newBoard))
+            if (Fen.TryParse(fen) is not Board parsed)
             {
                 WriteLine($"info string invalid fen '{fen}'");
                 return;
             }
-            if (!MoveGenerator.IsPositionLegal(newBoard))
+            if (!MoveGenerator.IsPositionLegal(parsed))
             {
                 WriteLine($"info string illegal position '{fen}'");
                 return;
             }
+            start = parsed;
         }
         else
         {
             return;
         }
-        if (movesIndex >= 0)
+        var game = new Game(start);
+        foreach (string uci in tokens.Skip(movesIndex < 0 ? tokens.Length : movesIndex + 1))
         {
-            for (int i = movesIndex + 1; i < tokens.Length; i++)
+            if (!game.TryMakeMove(uci))
             {
-                Move? move = FindLegalMove(newBoard, tokens[i]);
-                if (move is null)
-                {
-                    WriteLine($"info string illegal move '{tokens[i]}' ignored");
-                    break;
-                }
-                newBoard.MakeMove(move.Value);
+                WriteLine($"info string illegal move '{uci}' ignored");
+                break;
             }
         }
-        board = newBoard;
+        board = game.Board;
     }
 
-    private static Move? FindLegalMove(Board board, string uci)
+    private void Go(SearchLimits limits)
     {
-        if (!MoveNotation.TryParseUci(uci, out int from, out int to, out PieceType promotion))
-        {
-            return null;
-        }
-        foreach (Move move in MoveGenerator.GenerateLegalMoves(board))
-        {
-            if (move.From == from && move.To == to && move.Promotion == promotion)
-            {
-                return move;
-            }
-        }
-        return null;
-    }
-
-    private void Go(string[] tokens)
-    {
-        StopSearch();
-        SearchLimits limits = ParseGo(tokens);
         Board position = board.Clone();
         searchCancellation = new CancellationTokenSource();
         CancellationToken token = searchCancellation.Token;
@@ -232,7 +217,7 @@ public sealed class UciSession : IDisposable
     }
 
     /// <summary>
-    /// Parse the arguments of a "go" command.
+    /// Parse the arguments of a "go" command. Unknown words (ponder, searchmoves) are ignored.
     /// </summary>
     public static SearchLimits ParseGo(string[] tokens)
     {
@@ -240,46 +225,29 @@ public sealed class UciSession : IDisposable
         var limits = new SearchLimits();
         for (int i = 1; i < tokens.Length; i++)
         {
-            string? next = i + 1 < tokens.Length ? tokens[i + 1] : null;
-            switch (tokens[i])
+            if (tokens[i] == "infinite")
             {
-                case "infinite":
-                    limits = limits with { Infinite = true };
-                    break;
-                case "depth" when ParseInt(next) is int depth:
-                    limits = limits with { Depth = depth };
-                    i++;
-                    break;
-                case "movetime" when ParseInt(next) is int moveTime:
-                    limits = limits with { MoveTime = TimeSpan.FromMilliseconds(moveTime) };
-                    i++;
-                    break;
-                case "nodes" when ParseLong(next) is long nodes:
-                    limits = limits with { Nodes = nodes };
-                    i++;
-                    break;
-                case "wtime" when ParseInt(next) is int wtime:
-                    limits = limits with { WhiteTime = TimeSpan.FromMilliseconds(wtime) };
-                    i++;
-                    break;
-                case "btime" when ParseInt(next) is int btime:
-                    limits = limits with { BlackTime = TimeSpan.FromMilliseconds(btime) };
-                    i++;
-                    break;
-                case "winc" when ParseInt(next) is int winc:
-                    limits = limits with { WhiteIncrement = TimeSpan.FromMilliseconds(winc) };
-                    i++;
-                    break;
-                case "binc" when ParseInt(next) is int binc:
-                    limits = limits with { BlackIncrement = TimeSpan.FromMilliseconds(binc) };
-                    i++;
-                    break;
-                case "movestogo" when ParseInt(next) is int movesToGo:
-                    limits = limits with { MovesToGo = movesToGo };
-                    i++;
-                    break;
-                default:
-                    break;  // ponder, searchmoves and anything unknown are ignored
+                limits = limits with { Infinite = true };
+                continue;
+            }
+            string? argument = tokens.ElementAtOrDefault(i + 1);
+            long? value = ParseLong(argument);
+            SearchLimits? updated = (tokens[i], value) switch
+            {
+                ("depth", long depth) => limits with { Depth = (int)Math.Clamp(depth, int.MinValue, int.MaxValue) },
+                ("movetime", long moveTime) => limits with { MoveTime = TimeSpan.FromMilliseconds(moveTime) },
+                ("nodes", long nodes) => limits with { Nodes = nodes },
+                ("wtime", long wtime) => limits with { WhiteTime = TimeSpan.FromMilliseconds(wtime) },
+                ("btime", long btime) => limits with { BlackTime = TimeSpan.FromMilliseconds(btime) },
+                ("winc", long winc) => limits with { WhiteIncrement = TimeSpan.FromMilliseconds(winc) },
+                ("binc", long binc) => limits with { BlackIncrement = TimeSpan.FromMilliseconds(binc) },
+                ("movestogo", long movesToGo) => limits with { MovesToGo = (int)Math.Clamp(movesToGo, int.MinValue, int.MaxValue) },
+                _ => null,
+            };
+            if (updated is not null)
+            {
+                limits = updated;
+                i++;
             }
         }
         return limits;
@@ -318,8 +286,7 @@ public sealed class UciSession : IDisposable
             total += nodes;
         }
         stopwatch.Stop();
-        long nps = stopwatch.Elapsed.TotalSeconds > 0 ? (long)(total / stopwatch.Elapsed.TotalSeconds) : 0;
-        WriteLine($"nodes {total} time {(long)stopwatch.Elapsed.TotalMilliseconds} nps {nps}");
+        WriteLine($"nodes {total} time {(long)stopwatch.Elapsed.TotalMilliseconds} nps {SearchResult.Rate(total, stopwatch.Elapsed)}");
     }
 
     private void WriteLine(string text)

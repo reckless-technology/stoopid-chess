@@ -10,10 +10,7 @@ public class NotationTests
     [InlineData("a2a1n", "a2", "a1", PieceType.Knight)]
     public void ParsesUciMoves(string text, string from, string to, PieceType promotion)
     {
-        Assert.True(MoveNotation.TryParseUci(text, out int parsedFrom, out int parsedTo, out PieceType parsedPromotion));
-        Assert.Equal(Squares.Parse(from), parsedFrom);
-        Assert.Equal(Squares.Parse(to), parsedTo);
-        Assert.Equal(promotion, parsedPromotion);
+        Assert.Equal((Squares.Parse(from), Squares.Parse(to), promotion), MoveNotation.ParseUci(text));
     }
 
     [Theory]
@@ -25,7 +22,7 @@ public class NotationTests
     [InlineData("0000")]
     public void RejectsMalformedUciMoves(string text)
     {
-        Assert.False(MoveNotation.TryParseUci(text, out _, out _, out _));
+        Assert.Null(MoveNotation.ParseUci(text));
     }
 
     [Fact]
@@ -87,10 +84,9 @@ public class NotationTests
     {
         foreach (char c in "PNBRQKpnbrqk")
         {
-            Assert.True(Piece.TryFromChar(c, out Piece piece));
-            Assert.Equal(c, piece.ToChar());
+            Assert.Equal(c, Piece.FromChar(c)?.ToChar());
         }
-        Assert.False(Piece.TryFromChar('x', out _));
+        Assert.Null(Piece.FromChar('x'));
         Assert.Equal('.', Piece.None.ToChar());
     }
 }

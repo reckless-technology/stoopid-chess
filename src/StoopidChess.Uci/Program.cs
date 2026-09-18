@@ -60,8 +60,7 @@ static int RunPerft(int maxMillionNodes)
         }
     }
     stopwatch.Stop();
-    long nps = stopwatch.Elapsed.TotalSeconds > 0 ? (long)(totalNodes / stopwatch.Elapsed.TotalSeconds) : 0;
-    Console.WriteLine($"perft: {Perft.StandardPositions.Count} positions, {totalNodes} nodes, {nps} nps, {(long)stopwatch.Elapsed.TotalMilliseconds} ms");
+    Console.WriteLine($"perft: {Perft.StandardPositions.Count} positions, {totalNodes} nodes, {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps, {(long)stopwatch.Elapsed.TotalMilliseconds} ms");
     Console.WriteLine(failures == 0 ? "perft PASS" : $"perft FAIL ({failures} mismatches)");
     return failures == 0 ? 0 : 1;
 }

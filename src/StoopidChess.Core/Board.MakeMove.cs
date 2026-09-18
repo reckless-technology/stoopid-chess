@@ -37,11 +37,9 @@ public sealed partial class Board
 
             case MoveKind.DoublePawnPush:
                 MovePiece(move.From, move.To);
-                // Record the en passant square only if an enemy pawn stands beside the pushed pawn
+                // Record the en passant square only if an enemy pawn could actually capture there
                 int passed = (move.From + move.To) >> 1;
-                Piece enemyPawn = new(them, PieceType.Pawn);
-                if ((Squares.IsOnBoard(move.To - 1) && squares[move.To - 1] == enemyPawn)
-                    || (Squares.IsOnBoard(move.To + 1) && squares[move.To + 1] == enemyPawn))
+                if (IsAttackedByPawn(passed, them))
                 {
                     SetEnPassantSquare(passed);
                 }

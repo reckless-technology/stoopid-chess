@@ -4,11 +4,11 @@ using StoopidChess.Core;
 namespace StoopidChess.Engine;
 
 /// <summary>
-/// Finds the best move by iterative deepening over a negamax alpha-beta search with a quiescence
+/// Finds the best move by iterative deepening over a principal variation search with a quiescence
 /// search at the leaves. Move ordering uses the transposition table move, then captures by most
-/// valuable victim / least valuable attacker, then killer moves. Searches are deterministic for a
-/// given position, table size and depth, so the bench node count acts as a signature of the search.
-/// A Searcher is not thread safe; use one per concurrent search.
+/// valuable victim / least valuable attacker, then killer and history moves. Searches are
+/// deterministic for a given position, table size and depth, so the bench node count acts as a
+/// signature of the search. A Searcher is not thread safe; use one per concurrent search.
 /// </summary>
 public sealed class Searcher
 {
@@ -24,6 +24,7 @@ public sealed class Searcher
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
     private const int AspirationWindow = 40;
+    private const int HistoryCap = 79_999;
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
@@ -41,14 +42,13 @@ public sealed class Searcher
 
     public Searcher(TranspositionTable table)
     {
-        this.table = table ?? throw new ArgumentNullException(nameof(table));
+        ArgumentNullException.ThrowIfNull(table);
+        this.table = table;
         for (int i = 0; i < moveLists.Length; i++)
         {
             moveLists[i] = new List<Move>(64);
         }
     }
-
-    public TranspositionTable Table => table;
 
     /// <summary>
     /// Statistics of the most recent search.
@@ -72,8 +72,8 @@ public sealed class Searcher
     /// </summary>
     /// <param name="position">The position to search, including its move history for repetition detection.</param>
     /// <param name="limits">When to stop.</param>
-    /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
     /// <param name="onProgress">Called after each completed depth.</param>
+    /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
     public SearchResult Search(Board position, SearchLimits limits, Action<SearchResult>? onProgress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(position);
@@ -104,7 +104,7 @@ public sealed class Searcher
 
         for (int depth = 1; depth <= maxDepth; depth++)
         {
-            int score = SearchWithAspiration(rootMoves, depth, bestScore, completedDepth, out Move move);
+            (int score, Move move) = SearchWithAspiration(rootMoves, depth, bestScore, completedDepth);
             if (stopped)
             {
                 // The iteration was cut short so its score cannot be trusted and the previous
@@ -138,28 +138,24 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// The root is searched separately so that the best move is always known even if the iteration
-    /// is stopped part way through, and so that the previous best move is searched first.
-    /// </summary>
-    /// <summary>
     /// Aspiration windows: once a few iterations have settled the score, search the next one in a
     /// narrow window around it, which cuts off far more, and widen and repeat if the score escapes.
     /// </summary>
-    private int SearchWithAspiration(List<Move> rootMoves, int depth, int previousScore, int completedDepth, out Move bestMove)
+    private (int Score, Move BestMove) SearchWithAspiration(List<Move> rootMoves, int depth, int previousScore, int completedDepth)
     {
         if (completedDepth < AspirationMinimumDepth || IsMateScore(previousScore))
         {
-            return SearchRoot(rootMoves, depth, -Infinity, Infinity, out bestMove);
+            return SearchRoot(rootMoves, depth, -Infinity, Infinity);
         }
         int window = AspirationWindow;
         int alpha = previousScore - window;
         int beta = previousScore + window;
         while (true)
         {
-            int score = SearchRoot(rootMoves, depth, alpha, beta, out bestMove);
+            (int score, Move bestMove) = SearchRoot(rootMoves, depth, alpha, beta);
             if (stopped || (score > alpha && score < beta))
             {
-                return score;
+                return (score, bestMove);
             }
             window *= 2;
             if (score <= alpha)
@@ -178,33 +174,25 @@ public sealed class Searcher
         }
     }
 
-    private int SearchRoot(List<Move> rootMoves, int depth, int alpha, int beta, out Move bestMove)
+    /// <summary>
+    /// The root is searched separately so that the best move is always known even if the iteration
+    /// is stopped part way through, and so that the previous best move is searched first.
+    /// </summary>
+    private (int Score, Move BestMove) SearchRoot(List<Move> rootMoves, int depth, int alpha, int beta)
     {
         OrderMoves(rootMoves, 0, GetTableMove());
-        bestMove = rootMoves[0];
+        Move bestMove = rootMoves[0];
         int originalAlpha = alpha;
         bool first = true;
         foreach (Move move in rootMoves)
         {
             board.MakeMove(move);
-            int score;
-            if (first)
-            {
-                score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
-                first = false;
-            }
-            else
-            {
-                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1, 1);
-                if (score > alpha && !stopped)
-                {
-                    score = -AlphaBeta(-beta, -alpha, depth - 1, 1);
-                }
-            }
+            int score = SearchChild(alpha, beta, depth - 1, 1, first);
             board.UnmakeMove();
+            first = false;
             if (stopped)
             {
-                return alpha;
+                return (alpha, bestMove);
             }
             if (score > alpha)
             {
@@ -218,7 +206,30 @@ public sealed class Searcher
         }
         NodeType type = alpha >= beta ? NodeType.LowerBound : alpha <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
         table.Store(board.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
-        return alpha;
+        return (alpha, bestMove);
+    }
+
+    /// <summary>
+    /// Principal variation search of a child: the first move is expected to be best and gets the
+    /// full window; the rest only need to prove they are not better (a null window) and are
+    /// re-searched with the full window only when they are.
+    /// </summary>
+    private int SearchChild(int alpha, int beta, int depth, int ply, bool first, int reduction = 0)
+    {
+        if (first)
+        {
+            return -AlphaBeta(-beta, -alpha, depth, ply);
+        }
+        int score = -AlphaBeta(-alpha - 1, -alpha, depth - reduction, ply);
+        if (reduction > 0 && score > alpha && !stopped)
+        {
+            score = -AlphaBeta(-alpha - 1, -alpha, depth, ply);
+        }
+        if (score > alpha && score < beta && !stopped)
+        {
+            score = -AlphaBeta(-beta, -alpha, depth, ply);
+        }
+        return score;
     }
 
     private int AlphaBeta(int alpha, int beta, int depth, int ply)
@@ -265,21 +276,9 @@ public sealed class Searcher
             depth = 1;      // Check extension: never evaluate a position statically while in check
         }
 
-        Move tableMove = Move.None;
-        if (table.TryGet(board.Key, out TranspositionEntry entry))
+        if (TryTableCutoff(alpha, beta, depth, ply, out Move tableMove, out int tableScore))
         {
-            tableMove = entry.BestMove;
-            if (entry.Depth >= depth)
-            {
-                int tableScore = ScoreFromTable(entry.Score, ply);
-                if (entry.Type == NodeType.Exact
-                    || (entry.Type == NodeType.LowerBound && tableScore >= beta)
-                    || (entry.Type == NodeType.UpperBound && tableScore <= alpha))
-                {
-                    statistics.TranspositionCutoffs++;
-                    return tableScore;
-                }
-            }
+            return tableScore;
         }
 
         // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
@@ -312,14 +311,11 @@ public sealed class Searcher
         int bestScore = -Infinity;
         Move bestMove = Move.None;
         int legalMoves = 0;
-        Colour us = board.SideToMove;
 
         foreach (Move move in moves)
         {
-            board.MakeMove(move);
-            if (MoveGenerator.IsAttacked(board, board.KingSquare(us), board.SideToMove))
+            if (!TryMakeLegal(move))
             {
-                board.UnmakeMove();
                 continue;
             }
             legalMoves++;
@@ -328,29 +324,11 @@ public sealed class Searcher
                 board.UnmakeMove();
                 return DrawScore;   // In check but not mated: the fifty-move rule stands
             }
-            int score;
-            if (legalMoves == 1)
-            {
-                score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
-            }
-            else
-            {
-                // Principal variation search: the first move is expected to be best, so the rest only need
-                // to prove they are not better (a null window), and are re-searched only when they are.
-                // Late move reductions: quiet moves ordered this far down are also searched shallower first.
-                int reduction = depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board)
-                    ? (legalMoves > LmrFullDepthMoves * 3 ? 2 : 1)
-                    : 0;
-                score = -AlphaBeta(-alpha - 1, -alpha, depth - 1 - reduction, ply + 1);
-                if (reduction > 0 && score > alpha && !stopped)
-                {
-                    score = -AlphaBeta(-alpha - 1, -alpha, depth - 1, ply + 1);
-                }
-                if (score > alpha && score < beta && !stopped)
-                {
-                    score = -AlphaBeta(-beta, -alpha, depth - 1, ply + 1);
-                }
-            }
+            // Late move reductions: quiet moves ordered this far down are searched shallower first
+            int reduction = depth >= LmrMinimumDepth && legalMoves > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !MoveGenerator.IsInCheck(board)
+                ? (legalMoves > LmrFullDepthMoves * 3 ? 2 : 1)
+                : 0;
+            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: legalMoves == 1, reduction);
             board.UnmakeMove();
             if (stopped)
             {
@@ -372,10 +350,7 @@ public sealed class Searcher
                 table.Store(board.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
             }
-            if (score > alpha)
-            {
-                alpha = score;
-            }
+            alpha = Math.Max(alpha, score);
         }
 
         if (legalMoves == 0)
@@ -414,18 +389,9 @@ public sealed class Searcher
         }
 
         // Entries from the main search (and from earlier quiescence searches) settle many nodes here
-        Move tableMove = Move.None;
-        if (table.TryGet(board.Key, out TranspositionEntry entry))
+        if (TryTableCutoff(alpha, beta, 0, ply, out Move tableMove, out int tableScore))
         {
-            tableMove = entry.BestMove;
-            int tableScore = ScoreFromTable(entry.Score, ply);
-            if (entry.Type == NodeType.Exact
-                || (entry.Type == NodeType.LowerBound && tableScore >= beta)
-                || (entry.Type == NodeType.UpperBound && tableScore <= alpha))
-            {
-                statistics.TranspositionCutoffs++;
-                return tableScore;
-            }
+            return tableScore;
         }
 
         int originalAlpha = alpha;
@@ -455,13 +421,10 @@ public sealed class Searcher
         OrderMoves(moves, ply, tableMove);
 
         int legalMoves = 0;
-        Colour us = board.SideToMove;
         foreach (Move move in moves)
         {
-            board.MakeMove(move);
-            if (MoveGenerator.IsAttacked(board, board.KingSquare(us), board.SideToMove))
+            if (!TryMakeLegal(move))
             {
-                board.UnmakeMove();
                 continue;
             }
             legalMoves++;
@@ -498,10 +461,56 @@ public sealed class Searcher
         return bestScore;
     }
 
-    private int Evaluate()
+    /// <summary>
+    /// Make the move if it does not leave the mover's own king attacked; otherwise leave the board
+    /// unchanged and return false.
+    /// </summary>
+    private bool TryMakeLegal(Move move)
     {
-        return evaluator.Evaluate(board);
+        Colour us = board.SideToMove;
+        board.MakeMove(move);
+        if (MoveGenerator.IsKingAttacked(board, us))
+        {
+            board.UnmakeMove();
+            return false;
+        }
+        return true;
     }
+
+    /// <summary>
+    /// Probe the transposition table for this position. The stored move comes back for ordering
+    /// whether or not the entry is deep enough to settle the node.
+    /// </summary>
+    private bool TryTableCutoff(int alpha, int beta, int depth, int ply, out Move tableMove, out int score)
+    {
+        tableMove = Move.None;
+        score = 0;
+        if (!table.TryGet(board.Key, out TranspositionEntry entry))
+        {
+            return false;
+        }
+        tableMove = entry.BestMove;
+        if (entry.Depth < depth)
+        {
+            return false;
+        }
+        int tableScore = ScoreFromTable(entry.Score, ply);
+        bool cutoff = entry.Type switch
+        {
+            NodeType.Exact => true,
+            NodeType.LowerBound => tableScore >= beta,
+            NodeType.UpperBound => tableScore <= alpha,
+            _ => false,
+        };
+        score = tableScore;
+        if (cutoff)
+        {
+            statistics.TranspositionCutoffs++;
+        }
+        return cutoff;
+    }
+
+    private int Evaluate() => evaluator.Evaluate(board);
 
     private void CheckLimits()
     {
@@ -514,12 +523,10 @@ public sealed class Searcher
             stopped = true;
             return;
         }
-        if (statistics.Nodes % NodesBetweenTimeChecks == 0)
+        if (statistics.Nodes % NodesBetweenTimeChecks == 0
+            && (cancellation.IsCancellationRequested || (timeBudget is not null && stopwatch.Elapsed >= timeBudget.Value)))
         {
-            if (cancellation.IsCancellationRequested || (timeBudget is not null && stopwatch.Elapsed >= timeBudget.Value))
-            {
-                stopped = true;
-            }
+            stopped = true;
         }
     }
 
@@ -531,8 +538,8 @@ public sealed class Searcher
     /// <summary>
     /// Order moves best-first to maximise cutoffs: the table move, then captures by most valuable
     /// victim / least valuable attacker (promotions count as capturing the promoted piece), then the
-    /// killer moves for this ply, then the rest in generation order. The sort is stable so that the
-    /// search is deterministic.
+    /// killer moves for this ply, then quiet moves by history. The sort is stable so that the search
+    /// is deterministic.
     /// </summary>
     private void OrderMoves(List<Move> moves, int ply, Move tableMove)
     {
@@ -578,22 +585,20 @@ public sealed class Searcher
         {
             score += 100_000 + PieceValue(move.Promotion);
         }
-        if (score == 0)
+        if (score != 0)
         {
-            if (move == killers[ply, 0])
-            {
-                return 90_000;
-            }
-            if (move == killers[ply, 1])
-            {
-                return 80_000;
-            }
-            return Math.Min(history[(int)board.SideToMove, move.From, move.To], HistoryCap);
+            return score;
         }
-        return score;
+        if (move == killers[ply, 0])
+        {
+            return 90_000;
+        }
+        if (move == killers[ply, 1])
+        {
+            return 80_000;
+        }
+        return Math.Min(history[(int)board.SideToMove, move.From, move.To], HistoryCap);
     }
-
-    private const int HistoryCap = 79_999;
 
     /// <summary>
     /// Quiet, non-killer moves may be searched with a reduced depth when ordered late.
@@ -637,31 +642,19 @@ public sealed class Searcher
     /// Mate scores are stored relative to the node rather than the root, so that an entry found from
     /// a different root still gives the right distance to mate.
     /// </summary>
-    internal static int ScoreToTable(int score, int ply)
+    internal static int ScoreToTable(int score, int ply) => score switch
     {
-        if (score >= MateThreshold)
-        {
-            return score + ply;
-        }
-        if (score <= -MateThreshold)
-        {
-            return score - ply;
-        }
-        return score;
-    }
+        >= MateThreshold => score + ply,
+        <= -MateThreshold => score - ply,
+        _ => score,
+    };
 
-    internal static int ScoreFromTable(int score, int ply)
+    internal static int ScoreFromTable(int score, int ply) => score switch
     {
-        if (score >= MateThreshold)
-        {
-            return score - ply;
-        }
-        if (score <= -MateThreshold)
-        {
-            return score + ply;
-        }
-        return score;
-    }
+        >= MateThreshold => score - ply,
+        <= -MateThreshold => score + ply,
+        _ => score,
+    };
 
     /// <summary>
     /// Follow the table's best moves from the root to reconstruct the expected line of play.

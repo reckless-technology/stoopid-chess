@@ -31,18 +31,12 @@ public readonly record struct Piece(Colour Colour, PieceType Type)
     }
 
     /// <summary>
-    /// Parse a FEN piece letter.
+    /// The piece for a FEN letter, or null for anything else.
     /// </summary>
-    public static bool TryFromChar(char letter, out Piece piece)
+    public static Piece? FromChar(char letter)
     {
         PieceType type = PieceTypeExtensions.FromChar(letter);
-        if (type == PieceType.None)
-        {
-            piece = None;
-            return false;
-        }
-        piece = new Piece(char.IsUpper(letter) ? Colour.White : Colour.Black, type);
-        return true;
+        return type == PieceType.None ? null : new Piece(char.IsUpper(letter) ? Colour.White : Colour.Black, type);
     }
 
     public override string ToString() => ToChar().ToString();

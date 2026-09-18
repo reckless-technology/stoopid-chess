@@ -68,7 +68,7 @@ public class PositionBuilderTests
     {
         var empty = new PositionBuilder();
         Assert.False(empty.IsLegal);
-        Assert.False(empty.TryBuild(out _));
+        Assert.Null(empty.TryBuild());
         Assert.Throws<InvalidOperationException>(() => empty.Build());
 
         PositionBuilder noBlackKing = PositionBuilder.From(Board.StartPosition());
@@ -107,7 +107,7 @@ public class PositionBuilderTests
         Assert.Throws<ArgumentOutOfRangeException>(() => builder[0x08] = Piece.WhitePawn);
         Assert.Throws<ArgumentOutOfRangeException>(() => builder[Squares.None]);
         builder[Squares.Parse("e4")] = Piece.None;
-        Assert.Equal(1, PositionBuilder.From(Board.StartPosition()).Count(Colour.White, PieceType.Queen));
+        Assert.Equal(1, PositionBuilder.From(Board.StartPosition()).Build().Count(Colour.White, PieceType.Queen));
     }
 
     [Fact]

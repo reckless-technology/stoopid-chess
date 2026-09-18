@@ -54,27 +54,21 @@ public static class Squares
     }
 
     /// <summary>
-    /// Parse an algebraic square name such as "e4".
+    /// Parse an algebraic square name such as "e4", or null if it is not one.
     /// </summary>
-    public static bool TryParse(ReadOnlySpan<char> name, out int square)
+    public static int? TryParse(ReadOnlySpan<char> name)
     {
-        square = None;
         if (name.Length != 2)
         {
-            return false;
+            return null;
         }
         int file = name[0] - 'a';
         int rank = name[1] - '1';
-        if (file is < 0 or > 7 || rank is < 0 or > 7)
-        {
-            return false;
-        }
-        square = Index(file, rank);
-        return true;
+        return file is >= 0 and <= 7 && rank is >= 0 and <= 7 ? Index(file, rank) : null;
     }
 
     public static int Parse(ReadOnlySpan<char> name)
     {
-        return TryParse(name, out int square) ? square : throw new FormatException($"'{name}' is not a square");
+        return TryParse(name) ?? throw new FormatException($"'{name}' is not a square");
     }
 }

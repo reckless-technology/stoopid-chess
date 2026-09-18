@@ -65,37 +65,18 @@ public sealed class PositionBuilder
     /// </summary>
     public CastlingRights CastlingRights { get; set; }
 
-    public int Count(Colour colour, PieceType type)
-    {
-        int count = 0;
-        foreach (int square in Squares.All)
-        {
-            if (squares[square] == new Piece(colour, type))
-            {
-                count++;
-            }
-        }
-        return count;
-    }
-
     /// <summary>
     /// Can play proceed from this position? See <see cref="MoveGenerator.IsPositionLegal"/>.
     /// </summary>
-    public bool IsLegal => TryBuild(out _);
+    public bool IsLegal => TryBuild() is not null;
 
     /// <summary>
-    /// Build the board, or return false if the position is not legal.
+    /// Build the board, or return null if the position is not legal.
     /// </summary>
-    public bool TryBuild(out Board board)
+    public Board? TryBuild()
     {
         Board candidate = Assemble();
-        if (MoveGenerator.IsPositionLegal(candidate))
-        {
-            board = candidate;
-            return true;
-        }
-        board = null!;
-        return false;
+        return MoveGenerator.IsPositionLegal(candidate) ? candidate : null;
     }
 
     /// <summary>
@@ -104,7 +85,7 @@ public sealed class PositionBuilder
     /// <exception cref="InvalidOperationException">The position is not legal.</exception>
     public Board Build()
     {
-        return TryBuild(out Board board) ? board : throw new InvalidOperationException("the position is not legal: each side needs exactly one king, no pawns on the back ranks, and the side not to move may not be in check");
+        return TryBuild() ?? throw new InvalidOperationException("the position is not legal: each side needs exactly one king, no pawns on the back ranks, and the side not to move may not be in check");
     }
 
     private Board Assemble()
@@ -122,32 +103,22 @@ public sealed class PositionBuilder
         return board;
     }
 
+    // Castling rights survive only where the king or rook still stands on its home square
+    private static readonly (int Square, Piece Piece)[] CastlingHomes =
+    [
+        (Squares.E1, Piece.WhiteKing), (Squares.H1, Piece.WhiteRook), (Squares.A1, Piece.WhiteRook),
+        (Squares.E8, Piece.BlackKing), (Squares.H8, Piece.BlackRook), (Squares.A8, Piece.BlackRook),
+    ];
+
     private CastlingRights EffectiveCastlingRights()
     {
         CastlingRights rights = CastlingRights;
-        if (squares[Squares.E1] != Piece.WhiteKing)
+        foreach ((int square, Piece piece) in CastlingHomes)
         {
-            rights &= ~CastlingRights.White;
-        }
-        if (squares[Squares.H1] != Piece.WhiteRook)
-        {
-            rights &= ~CastlingRights.WhiteKingSide;
-        }
-        if (squares[Squares.A1] != Piece.WhiteRook)
-        {
-            rights &= ~CastlingRights.WhiteQueenSide;
-        }
-        if (squares[Squares.E8] != Piece.BlackKing)
-        {
-            rights &= ~CastlingRights.Black;
-        }
-        if (squares[Squares.H8] != Piece.BlackRook)
-        {
-            rights &= ~CastlingRights.BlackKingSide;
-        }
-        if (squares[Squares.A8] != Piece.BlackRook)
-        {
-            rights &= ~CastlingRights.BlackQueenSide;
+            if (squares[square] != piece)
+            {
+                rights &= ~CastlingRightsExtensions.LostBySquare(square);
+            }
         }
         return rights;
     }

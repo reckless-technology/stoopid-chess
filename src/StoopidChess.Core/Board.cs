@@ -237,11 +237,7 @@ public sealed partial class Board
         squares[square] = piece;
         pieceSquares[ListIndex(piece.Colour, piece.Type)].Add(square);
         PieceCount++;
-        Key ^= Zobrist.Primary.Piece(piece, square);
-        if (piece.Type == PieceType.Pawn)
-        {
-            PawnKey ^= Zobrist.Primary.Piece(piece, square);
-        }
+        ToggleKeys(piece, square);
     }
 
     internal void RemovePiece(int square)
@@ -251,10 +247,19 @@ public sealed partial class Board
         squares[square] = Piece.None;
         pieceSquares[ListIndex(piece.Colour, piece.Type)].Remove(square);
         PieceCount--;
-        Key ^= Zobrist.Primary.Piece(piece, square);
+        ToggleKeys(piece, square);
+    }
+
+    /// <summary>
+    /// Adding and removing a piece make the same change to the keys.
+    /// </summary>
+    private void ToggleKeys(Piece piece, int square)
+    {
+        ulong key = Zobrist.Piece(piece, square);
+        Key ^= key;
         if (piece.Type == PieceType.Pawn)
         {
-            PawnKey ^= Zobrist.Primary.Piece(piece, square);
+            PawnKey ^= key;
         }
     }
 
@@ -285,20 +290,20 @@ public sealed partial class Board
     {
         if (colour != SideToMove)
         {
-            Key ^= Zobrist.Primary.SideToMove;
+            Key ^= Zobrist.SideToMove;
             SideToMove = colour;
         }
     }
 
     internal void SetCastlingRights(CastlingRights rights)
     {
-        Key ^= Zobrist.Primary.Castling(CastlingRights) ^ Zobrist.Primary.Castling(rights);
+        Key ^= Zobrist.Castling(CastlingRights) ^ Zobrist.Castling(rights);
         CastlingRights = rights;
     }
 
     internal void SetEnPassantSquare(int square)
     {
-        Key ^= Zobrist.Primary.EnPassant(EnPassantSquare) ^ Zobrist.Primary.EnPassant(square);
+        Key ^= Zobrist.EnPassant(EnPassantSquare) ^ Zobrist.EnPassant(square);
         EnPassantSquare = square;
     }
 
@@ -309,16 +314,20 @@ public sealed partial class Board
     }
 
     /// <summary>
-    /// Can a pawn of the side to move capture on the given en passant square? Only then is the
-    /// square recorded, so that positions that are identical under the rules have identical keys.
+    /// The 0x88 step a pawn of the colour moves by: up the board for white, down for black.
     /// </summary>
-    internal bool CanCaptureEnPassant(int square)
+    public static int PawnDirection(Colour colour) => colour == Colour.White ? 0x10 : -0x10;
+
+    /// <summary>
+    /// Does a pawn of the given colour attack the square? Also decides whether an en passant square
+    /// is worth recording: only if a pawn could actually capture there, so that positions that are
+    /// identical under the rules have identical keys.
+    /// </summary>
+    internal bool IsAttackedByPawn(int square, Colour by)
     {
-        int direction = SideToMove == Colour.White ? 0x10 : -0x10;
-        Piece pawn = new(SideToMove, PieceType.Pawn);
-        int left = square - direction - 1;
-        int right = square - direction + 1;
-        return (Squares.IsOnBoard(left) && squares[left] == pawn) || (Squares.IsOnBoard(right) && squares[right] == pawn);
+        int behind = square - PawnDirection(by);
+        Piece pawn = new(by, PieceType.Pawn);
+        return (Squares.IsOnBoard(behind - 1) && squares[behind - 1] == pawn) || (Squares.IsOnBoard(behind + 1) && squares[behind + 1] == pawn);
     }
 
     /// <summary>
@@ -332,18 +341,18 @@ public sealed partial class Board
             Piece piece = squares[square];
             if (!piece.IsNone)
             {
-                key ^= Zobrist.Primary.Piece(piece, square);
+                key ^= Zobrist.Piece(piece, square);
                 if (piece.Type == PieceType.Pawn)
                 {
-                    pawn ^= Zobrist.Primary.Piece(piece, square);
+                    pawn ^= Zobrist.Piece(piece, square);
                 }
             }
         }
         if (SideToMove == Colour.Black)
         {
-            key ^= Zobrist.Primary.SideToMove;
+            key ^= Zobrist.SideToMove;
         }
-        key ^= Zobrist.Primary.Castling(CastlingRights) ^ Zobrist.Primary.EnPassant(EnPassantSquare);
+        key ^= Zobrist.Castling(CastlingRights) ^ Zobrist.EnPassant(EnPassantSquare);
         return (key, pawn);
     }
 

@@ -121,9 +121,7 @@ public sealed class GameController : IDisposable
         {
             CancelThinking(discardResult: true);
             await WaitUntilIdleAsync();
-            engine?.Dispose();
-            engine = null;
-            EngineName = null;
+            DropEngine();
             EnginePath = path;
             RaiseChanged();
 
@@ -157,8 +155,7 @@ public sealed class GameController : IDisposable
         {
             startingEngine = false;
         }
-        RaiseChanged();
-        StartThinkingIfEngineTurn();
+        Resume();
         return true;
     }
 
@@ -223,8 +220,7 @@ public sealed class GameController : IDisposable
         if (generation != searchGeneration)
         {
             // The game changed while the engine was thinking; its answer is for an old position
-            RaiseChanged();
-            StartThinkingIfEngineTurn();
+            Resume();
             return;
         }
         Move? move = Game.FindMove(bestMove);
@@ -276,10 +272,15 @@ public sealed class GameController : IDisposable
 
     private void LoseEngine(string message)
     {
+        DropEngine();
+        EngineFailed?.Invoke(this, $"The engine stopped responding: {message}");
+    }
+
+    private void DropEngine()
+    {
         engine?.Dispose();
         engine = null;
         EngineName = null;
-        EngineFailed?.Invoke(this, $"The engine stopped responding: {message}");
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -296,8 +297,7 @@ public sealed class GameController : IDisposable
         IsBoardFlipped = human == Colour.Black;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
-        RaiseChanged();
-        StartThinkingIfEngineTurn();
+        Resume();
     }
 
     /// <summary>
@@ -329,6 +329,14 @@ public sealed class GameController : IDisposable
     private void MakeMove(Move move)
     {
         Game.MakeMove(move);
+        Resume();
+    }
+
+    /// <summary>
+    /// Tell the GUI the state has changed and set the engine thinking if it is its turn.
+    /// </summary>
+    private void Resume()
+    {
         RaiseChanged();
         StartThinkingIfEngineTurn();
     }
@@ -349,8 +357,7 @@ public sealed class GameController : IDisposable
         {
             Game.UndoMove();
         }
-        RaiseChanged();
-        StartThinkingIfEngineTurn();
+        Resume();
     }
 
     /// <summary>
@@ -366,8 +373,7 @@ public sealed class GameController : IDisposable
         IsBoardFlipped = HumanColour == Colour.Black;
         if (IsEngineTurn)
         {
-            RaiseChanged();
-            StartThinkingIfEngineTurn();
+            Resume();
         }
         else
         {
@@ -411,7 +417,7 @@ public sealed class GameController : IDisposable
     private void ApplyEdit(PositionBuilder builder)
     {
         CancelThinking(discardResult: true);
-        if (builder.TryBuild(out Board board))
+        if (builder.TryBuild() is Board board)
         {
             Game = new Game(board);
             Editing = null;
@@ -420,8 +426,7 @@ public sealed class GameController : IDisposable
         {
             Editing = builder;
         }
-        RaiseChanged();
-        StartThinkingIfEngineTurn();
+        Resume();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -481,8 +486,7 @@ public sealed class GameController : IDisposable
         Level = saved.Level;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
-        RaiseChanged();
-        StartThinkingIfEngineTurn();
+        Resume();
         return true;
     }
 
@@ -496,8 +500,7 @@ public sealed class GameController : IDisposable
         }
         disposed = true;
         CancelThinking(discardResult: true);
-        engine?.Dispose();
-        engine = null;
+        DropEngine();
         thinking?.Dispose();
     }
 }

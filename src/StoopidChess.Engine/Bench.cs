@@ -36,19 +36,19 @@ public static class Bench
     /// </summary>
     public static (long Nodes, TimeSpan Elapsed) Run(int depth = DefaultDepth, TextWriter? log = null)
     {
-        var searcher = new Searcher(new TranspositionTable(TableSizeInMegabytes));
+        var table = new TranspositionTable(TableSizeInMegabytes);
+        var searcher = new Searcher(table);
         var stopwatch = Stopwatch.StartNew();
         long totalNodes = 0;
         for (int i = 0; i < Positions.Count; i++)
         {
-            searcher.Table.Clear();
+            table.Clear();
             SearchResult result = searcher.Search(Board.FromFen(Positions[i]), SearchLimits.ForDepth(depth));
             totalNodes += result.Nodes;
-            log?.WriteLine(string.Format(CultureInfo.InvariantCulture, "position {0,2}: bestmove {1,-5} score {2,6} nodes {3,10}", i + 1, result.BestMove, result.Score, result.Nodes));
+            log?.WriteLine(string.Create(CultureInfo.InvariantCulture, $"position {i + 1,2}: bestmove {result.BestMove,-5} score {result.Score,6} nodes {result.Nodes,10}"));
         }
         stopwatch.Stop();
-        long nps = stopwatch.Elapsed.TotalSeconds > 0 ? (long)(totalNodes / stopwatch.Elapsed.TotalSeconds) : 0;
-        log?.WriteLine(string.Format(CultureInfo.InvariantCulture, "bench depth {0}: {1} nodes {2} nps {3} ms", depth, totalNodes, nps, (long)stopwatch.Elapsed.TotalMilliseconds));
+        log?.WriteLine(string.Create(CultureInfo.InvariantCulture, $"bench depth {depth}: {totalNodes} nodes {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps {(long)stopwatch.Elapsed.TotalMilliseconds} ms"));
         return (totalNodes, stopwatch.Elapsed);
     }
 }

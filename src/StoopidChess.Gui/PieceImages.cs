@@ -5,9 +5,9 @@ namespace StoopidChess.Gui;
 /// <summary>
 /// The piece bitmaps from the embedded resources, indexed by piece.
 /// </summary>
-internal sealed class PieceImages
+internal static class PieceImages
 {
-    private readonly Dictionary<Piece, Bitmap> images = new()
+    private static readonly Dictionary<Piece, Bitmap> Images = new()
     {
         [Piece.WhitePawn] = ChessPieceImages.WhitePawn,
         [Piece.WhiteKnight] = ChessPieceImages.WhiteKnight,
@@ -23,5 +23,5 @@ internal sealed class PieceImages
         [Piece.BlackKing] = ChessPieceImages.BlackKing,
     };
 
-    public Bitmap this[Piece piece] => images[piece];
+    public static Bitmap Get(Piece piece) => Images[piece];
 }

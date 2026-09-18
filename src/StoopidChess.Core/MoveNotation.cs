@@ -8,29 +8,26 @@ namespace StoopidChess.Core;
 public static class MoveNotation
 {
     /// <summary>
-    /// Parse UCI move text ("e2e4", "e7e8q") into its components. Legality is not checked.
+    /// Parse UCI move text ("e2e4", "e7e8q") into its components, or null if malformed. Legality is
+    /// not checked.
     /// </summary>
-    public static bool TryParseUci(string text, out int from, out int to, out PieceType promotion)
+    public static (int From, int To, PieceType Promotion)? ParseUci(string? text)
     {
-        from = to = Squares.None;
-        promotion = PieceType.None;
-        if (text is null || text.Length is not (4 or 5))
+        if (text is null || text.Length is not (4 or 5)
+            || Squares.TryParse(text.AsSpan(0, 2)) is not int from || Squares.TryParse(text.AsSpan(2, 2)) is not int to)
         {
-            return false;
+            return null;
         }
-        if (!Squares.TryParse(text.AsSpan(0, 2), out from) || !Squares.TryParse(text.AsSpan(2, 2), out to))
-        {
-            return false;
-        }
+        PieceType promotion = PieceType.None;
         if (text.Length == 5)
         {
             promotion = PieceTypeExtensions.FromChar(text[4]);
             if (!PieceTypeExtensions.PromotionTypes.Contains(promotion))
             {
-                return false;
+                return null;
             }
         }
-        return true;
+        return (from, to, promotion);
     }
 
     /// <summary>

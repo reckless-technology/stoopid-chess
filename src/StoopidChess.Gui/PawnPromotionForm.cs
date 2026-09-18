@@ -11,9 +11,8 @@ internal sealed class PawnPromotionForm : Form
     private const int ImageSize = 64;
     private const int Gap = 12;
 
-    public PawnPromotionForm(Colour colour, PieceImages images)
+    public PawnPromotionForm(Colour colour)
     {
-        ArgumentNullException.ThrowIfNull(images);
         Text = "Promote pawn to";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
@@ -28,13 +27,12 @@ internal sealed class PawnPromotionForm : Form
         {
             var picture = new PictureBox
             {
-                Image = images[new Piece(colour, type)],
+                Image = PieceImages.Get(new Piece(colour, type)),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Location = new Point(x, Gap),
                 Size = new Size(ImageSize, ImageSize),
                 Cursor = Cursors.Hand,
                 BorderStyle = BorderStyle.FixedSingle,
-                Tag = type,
             };
             picture.Click += (_, _) =>
             {

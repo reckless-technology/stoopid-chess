@@ -36,6 +36,10 @@ public sealed record SearchLimits
     /// <summary>Search until told to stop, ignoring every other limit.</summary>
     public bool Infinite { get; init; }
 
+    public static readonly TimeSpan MoveOverhead = TimeSpan.FromMilliseconds(30);
+
+    public static readonly TimeSpan MinimumThinkingTime = TimeSpan.FromMilliseconds(5);
+
     public static SearchLimits ForDepth(int depth) => new() { Depth = depth };
 
     public static SearchLimits ForMoveTime(TimeSpan time) => new() { MoveTime = time };
@@ -43,7 +47,8 @@ public sealed record SearchLimits
     /// <summary>
     /// How long the side to move should think, or null when the search is not time limited.
     /// Clock time is shared out over the moves to go (assumed to be 30 when not given) with most of
-    /// the increment added, less a small allowance for communication overhead.
+    /// the increment added, less a small allowance for communication overhead, and never more than
+    /// most of the clock.
     /// </summary>
     public TimeSpan? TimeBudget(Colour sideToMove)
     {
@@ -55,23 +60,23 @@ public sealed record SearchLimits
         {
             return MoveTime;
         }
-        TimeSpan? clock = sideToMove == Colour.White ? WhiteTime : BlackTime;
-        if (clock is null)
+        TimeSpan? remaining = sideToMove == Colour.White ? WhiteTime : BlackTime;
+        if (remaining is null)
         {
             return null;
         }
-        TimeSpan increment = (sideToMove == Colour.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero;
+        TimeSpan clock = AtLeastZero(remaining.Value);
+        TimeSpan increment = AtLeastZero((sideToMove == Colour.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero);
         int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 30;
-        double budget = (Math.Max(0, clock.Value.TotalMilliseconds) / movesToGo) + (Math.Max(0, increment.TotalMilliseconds) * 0.8);
-        budget = Math.Min(budget, Math.Max(0, clock.Value.TotalMilliseconds) * 0.8) - MoveOverhead.TotalMilliseconds;
-        if (double.IsNaN(budget) || budget < MinimumThinkingTime.TotalMilliseconds)
+        TimeSpan budget = (clock / movesToGo) + (increment * 0.8);
+        TimeSpan cap = clock * 0.8;
+        if (budget > cap)
         {
-            budget = MinimumThinkingTime.TotalMilliseconds;
+            budget = cap;
         }
-        return TimeSpan.FromMilliseconds(budget);
+        budget -= MoveOverhead;
+        return budget < MinimumThinkingTime ? MinimumThinkingTime : budget;
     }
 
-    public static readonly TimeSpan MoveOverhead = TimeSpan.FromMilliseconds(30);
-
-    public static readonly TimeSpan MinimumThinkingTime = TimeSpan.FromMilliseconds(5);
+    private static TimeSpan AtLeastZero(TimeSpan time) => time < TimeSpan.Zero ? TimeSpan.Zero : time;
 }

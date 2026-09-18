@@ -37,7 +37,8 @@ public static class Fen
         int enPassant = Squares.None;
         if (fields[3] != "-")
         {
-            if (!Squares.TryParse(fields[3], out enPassant) || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
+            enPassant = Squares.TryParse(fields[3]) ?? Squares.None;
+            if (enPassant == Squares.None || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
             {
                 throw new FormatException($"invalid en passant square '{fields[3]}'");
             }
@@ -59,25 +60,23 @@ public static class Fen
         board.SetCastlingRights(rights);
         // An en passant square nobody can capture on is dropped, so that FIDE-identical positions
         // have identical keys whichever way they were reached
-        board.SetEnPassantSquare(enPassant != Squares.None && board.CanCaptureEnPassant(enPassant) ? enPassant : Squares.None);
+        board.SetEnPassantSquare(enPassant != Squares.None && board.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Squares.None);
         board.SetClocks(halfMoveClock, fullMoveNumber);
         return board;
     }
 
     /// <summary>
-    /// Try to parse a FEN string, returning false rather than throwing on invalid input.
+    /// Parse a FEN string, returning null rather than throwing on invalid input.
     /// </summary>
-    public static bool TryParse(string fen, out Board board)
+    public static Board? TryParse(string fen)
     {
         try
         {
-            board = Parse(fen);
-            return true;
+            return Parse(fen);
         }
         catch (FormatException)
         {
-            board = null!;
-            return false;
+            return null;
         }
     }
 
@@ -126,14 +125,9 @@ public static class Fen
     /// </summary>
     private static bool IsConsistentEnPassantSquare(Board board, Colour sideToMove, int square)
     {
-        const int up = 0x10;
-        if (!board[square].IsNone)
-        {
-            return false;
-        }
-        return sideToMove == Colour.White
-            ? Squares.RankOf(square) == 5 && board[square - up] == Piece.BlackPawn
-            : Squares.RankOf(square) == 2 && board[square + up] == Piece.WhitePawn;
+        int expectedRank = sideToMove == Colour.White ? 5 : 2;
+        int pushedPawn = square - Board.PawnDirection(sideToMove);
+        return board[square].IsNone && Squares.RankOf(square) == expectedRank && board[pushedPawn] == new Piece(sideToMove.Opponent(), PieceType.Pawn);
     }
 
     private static void ParsePlacement(string placement, Board board)
@@ -153,7 +147,7 @@ public static class Fen
                 {
                     file += c - '0';
                 }
-                else if (Piece.TryFromChar(c, out Piece piece))
+                else if (Piece.FromChar(c) is Piece piece)
                 {
                     if (file > 7)
                     {
@@ -198,14 +192,12 @@ public static class Fen
     private static int ParseNumber(string field, string name)
     {
         // Digits only; anything beyond the board's clock cap is clamped rather than rejected
-        if (field.Length == 0 || field.Length > 9 || !int.TryParse(field, NumberStyles.None, CultureInfo.InvariantCulture, out int value))
+        if (field.Length > 9 && field.All(char.IsAsciiDigit))
         {
-            if (field.Length > 9 && field.All(char.IsAsciiDigit))
-            {
-                return int.MaxValue;
-            }
-            throw new FormatException($"invalid {name} '{field}'");
+            return int.MaxValue;
         }
-        return value;
+        return int.TryParse(field, NumberStyles.None, CultureInfo.InvariantCulture, out int value)
+            ? value
+            : throw new FormatException($"invalid {name} '{field}'");
     }
 }

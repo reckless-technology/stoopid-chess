@@ -17,7 +17,6 @@ public enum GameStatus
 public sealed class Game
 {
     private readonly List<Move> moves = [];
-    private readonly Colour startSideToMove;
     private List<Move>? legalMoves;
     private (ulong Key, int Ply) legalMovesFor;
 
@@ -48,7 +47,8 @@ public sealed class Game
         }
         Board = board;
         StartFen = board.ToFen();
-        startSideToMove = board.SideToMove;
+        StartSideToMove = board.SideToMove;
+        StartMoveNumber = board.FullMoveNumber;
     }
 
     public static Game FromFen(string fen) => new(Board.FromFen(fen));
@@ -59,6 +59,10 @@ public sealed class Game
     /// FEN of the position the game started from.
     /// </summary>
     public string StartFen { get; }
+
+    public Colour StartSideToMove { get; }
+
+    public int StartMoveNumber { get; }
 
     public IReadOnlyList<Move> Moves => moves;
 
@@ -140,7 +144,7 @@ public sealed class Game
     /// </summary>
     public Move? FindMove(string uci)
     {
-        return MoveNotation.TryParseUci(uci, out int from, out int to, out PieceType promotion) ? FindMove(from, to, promotion) : null;
+        return MoveNotation.ParseUci(uci) is (int from, int to, PieceType promotion) ? FindMove(from, to, promotion) : null;
     }
 
     /// <summary>
@@ -193,7 +197,7 @@ public sealed class Game
     public IReadOnlyList<Piece> CapturedPieces(Colour colour)
     {
         var captured = new List<Piece>();
-        Colour mover = startSideToMove;
+        Colour mover = StartSideToMove;
         foreach (Move move in moves)
         {
             if (move.IsCapture && mover.Opponent() == colour)

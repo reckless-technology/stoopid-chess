@@ -35,8 +35,5 @@ public static class PieceTypeExtensions
     /// <summary>
     /// The piece types a pawn may promote to.
     /// </summary>
-    public static readonly IReadOnlyList<PieceType> PromotionTypes =
-    [
-        PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight,
-    ];
+    public static ReadOnlySpan<PieceType> PromotionTypes => [PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight];
 }

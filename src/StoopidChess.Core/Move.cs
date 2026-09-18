@@ -70,8 +70,6 @@ public readonly record struct Move
 
     public bool IsCapture => Captured != PieceType.None;
 
-    public bool IsCastling => Kind is MoveKind.CastleKingSide or MoveKind.CastleQueenSide;
-
     public bool IsPromotion => Kind == MoveKind.Promotion;
 
     /// <summary>

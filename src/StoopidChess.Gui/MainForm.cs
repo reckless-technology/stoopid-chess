@@ -15,13 +15,14 @@ public partial class MainForm : Form
     private static readonly Pen LastMovePen = new(Color.DarkGoldenrod, 2.5f);
 
     private readonly GameController controller = new();
-    private readonly PieceImages images = new();
     private readonly Timer clockTimer = new() { Interval = 100 };
+    private readonly ToolStripMenuItem builtInEngineMenuItem = new("Use &built-in engine") { Checked = true };
+    private readonly ToolStripMenuItem chooseEngineMenuItem = new("&Choose UCI engine...");
+    private readonly ToolStripMenuItem showEngineOutputMenuItem = new("Show engine &output in move list") { CheckOnClick = true };
 
     private int dragFrom = Squares.None;        // Square of the piece being dragged, or None
     private Point dragPosition;
     private Point contextMenuPosition;
-    private bool showEngineOutput;
 
     public MainForm()
     {
@@ -90,9 +91,8 @@ public partial class MainForm : Form
         }
         Game game = controller.Game;
         var text = new StringBuilder();
-        Board start = Board.FromFen(game.StartFen);
-        Colour mover = start.SideToMove;
-        int moveNumber = start.FullMoveNumber;
+        Colour mover = game.StartSideToMove;
+        int moveNumber = game.StartMoveNumber;
         bool lineOpen = false;
         if (mover == Colour.Black && game.Moves.Count > 0)
         {
@@ -151,7 +151,7 @@ public partial class MainForm : Form
                 }
                 break;
         }
-        if (showEngineOutput && controller.LastEngineInfo.Length != 0)
+        if (showEngineOutputMenuItem.Checked && controller.LastEngineInfo.Length != 0)
         {
             text.AppendLine().Append(controller.LastEngineInfo);
         }
@@ -212,7 +212,7 @@ public partial class MainForm : Form
             if (!piece.IsNone && square != dragFrom)
             {
                 Point origin = SquareOrigin(square);
-                graphics.DrawImage(images[piece], origin.X, origin.Y, size, size);
+                graphics.DrawImage(PieceImages.Get(piece), origin.X, origin.Y, size, size);
             }
         }
         if (!controller.IsEditing && controller.Game.Board.LastMove is Move last && !last.IsNone)
@@ -224,7 +224,7 @@ public partial class MainForm : Form
         }
         if (dragFrom != Squares.None && !controller.PieceAt(dragFrom).IsNone)
         {
-            graphics.DrawImage(images[controller.PieceAt(dragFrom)], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
+            graphics.DrawImage(PieceImages.Get(controller.PieceAt(dragFrom)), dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
         }
     }
 
@@ -241,7 +241,7 @@ public partial class MainForm : Form
             int x = 0;
             foreach (Piece piece in controller.Game.CapturedPieces(colour))
             {
-                e.Graphics.DrawImage(images[piece], x, y, size, size);
+                e.Graphics.DrawImage(PieceImages.Get(piece), x, y, size, size);
                 x += size;
             }
         }
@@ -306,7 +306,7 @@ public partial class MainForm : Form
         PieceType promotion = PieceType.None;
         if (candidates.Count > 1)
         {
-            using var dialog = new PawnPromotionForm(controller.HumanColour, images);
+            using var dialog = new PawnPromotionForm(controller.HumanColour);
             dialog.ShowDialog(this);
             promotion = dialog.Choice;
         }
@@ -331,11 +331,8 @@ public partial class MainForm : Form
 
     private void BuildEngineMenu()
     {
-        var builtIn = new ToolStripMenuItem("Use &built-in engine") { Name = "builtInEngineMenuItem", Checked = true };
-        var choose = new ToolStripMenuItem("&Choose UCI engine...") { Name = "chooseEngineMenuItem" };
-        var output = new ToolStripMenuItem("Show engine &output in move list") { CheckOnClick = true };
-        builtIn.Click += async (_, _) => await controller.StartEngineAsync(null);
-        choose.Click += async (_, _) =>
+        builtInEngineMenuItem.Click += async (_, _) => await controller.StartEngineAsync(null);
+        chooseEngineMenuItem.Click += async (_, _) =>
         {
             using var dialog = new OpenFileDialog { Title = "Choose a UCI engine", Filter = "Programs|*.exe|All files|*.*" };
             if (dialog.ShowDialog(this) == DialogResult.OK)
@@ -343,27 +340,17 @@ public partial class MainForm : Form
                 await controller.StartEngineAsync(dialog.FileName);
             }
         };
-        output.CheckedChanged += (_, _) =>
-        {
-            showEngineOutput = output.Checked;
-            UpdateMoveList();
-        };
-        engineToolStripMenuItem.DropDownItems.Insert(0, builtIn);
-        engineToolStripMenuItem.DropDownItems.Insert(1, choose);
-        engineToolStripMenuItem.DropDownItems.Insert(2, output);
+        showEngineOutputMenuItem.CheckedChanged += (_, _) => UpdateMoveList();
+        engineToolStripMenuItem.DropDownItems.Insert(0, builtInEngineMenuItem);
+        engineToolStripMenuItem.DropDownItems.Insert(1, chooseEngineMenuItem);
+        engineToolStripMenuItem.DropDownItems.Insert(2, showEngineOutputMenuItem);
         engineToolStripMenuItem.DropDownItems.Insert(3, new ToolStripSeparator());
     }
 
     private void UpdateEngineMenu()
     {
-        if (engineToolStripMenuItem.DropDownItems["builtInEngineMenuItem"] is ToolStripMenuItem builtIn)
-        {
-            builtIn.Checked = controller.EnginePath is null;
-        }
-        if (engineToolStripMenuItem.DropDownItems["chooseEngineMenuItem"] is ToolStripMenuItem choose)
-        {
-            choose.Checked = controller.EnginePath is not null;
-        }
+        builtInEngineMenuItem.Checked = controller.EnginePath is null;
+        chooseEngineMenuItem.Checked = controller.EnginePath is not null;
     }
 
     private void BuildSideToMoveMenu()

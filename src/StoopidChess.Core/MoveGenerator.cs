@@ -6,10 +6,8 @@ namespace StoopidChess.Core;
 /// </summary>
 public static class MoveGenerator
 {
-    private const int Up = 0x10;
-
     private static readonly int[] KnightDeltas = [0x21, 0x1F, 0x12, 0x0E, -0x0E, -0x12, -0x1F, -0x21];
-    private static readonly int[] BishopDeltas = [0x11, 0x0F, -0x0F, -0x11];
+    private static readonly int[] BishopDeltaTable = [0x11, 0x0F, -0x0F, -0x11];
     private static readonly int[] RookDeltas = [0x10, 0x01, -0x01, -0x10];
     private static readonly int[] KingDeltas = [0x10, 0x01, -0x01, -0x10, 0x11, 0x0F, -0x0F, -0x11];
 
@@ -20,30 +18,24 @@ public static class MoveGenerator
     private static readonly bool[] KingReach = BuildReachTable(KingDeltas);
 
     /// <summary>
+    /// The four diagonal directions, shared with the evaluator's bishop mobility.
+    /// </summary>
+    internal static ReadOnlySpan<int> BishopDeltas => BishopDeltaTable;
+
+    /// <summary>
     /// All legal moves for the side to move.
     /// </summary>
     public static List<Move> GenerateLegalMoves(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
         var moves = new List<Move>(64);
-        GeneratePseudoLegalMoves(board, moves);
-        RemoveIllegalMoves(board, moves);
-        return moves;
-    }
-
-    /// <summary>
-    /// Remove the moves that would leave the mover's own king in check.
-    /// </summary>
-    public static void RemoveIllegalMoves(Board board, List<Move> moves)
-    {
-        ArgumentNullException.ThrowIfNull(board);
-        ArgumentNullException.ThrowIfNull(moves);
+        Generate(board, moves, capturesOnly: false);
         Colour us = board.SideToMove;
         int kept = 0;
-        for (int i = 0; i < moves.Count; i++)
+        for (int i = 0; i < moves.Count; i++)     // Compacted in place, so no foreach
         {
             board.MakeMove(moves[i]);
-            bool legal = !IsAttacked(board, board.KingSquare(us), us.Opponent());
+            bool legal = !IsKingAttacked(board, us);
             board.UnmakeMove();
             if (legal)
             {
@@ -51,83 +43,50 @@ public static class MoveGenerator
             }
         }
         moves.RemoveRange(kept, moves.Count - kept);
-    }
-
-    /// <summary>
-    /// True if the move leaves the mover's king safe. The move must be pseudo-legal.
-    /// </summary>
-    public static bool IsLegal(Board board, Move move)
-    {
-        ArgumentNullException.ThrowIfNull(board);
-        Colour us = board.SideToMove;
-        board.MakeMove(move);
-        bool legal = !IsAttacked(board, board.KingSquare(us), us.Opponent());
-        board.UnmakeMove();
-        return legal;
+        return moves;
     }
 
     /// <summary>
     /// All moves for the side to move that follow the movement rules of the pieces. Some may leave
     /// the mover's own king in check. Castling moves are only generated when actually legal.
     /// </summary>
-    public static void GeneratePseudoLegalMoves(Board board, List<Move> moves)
-    {
-        ArgumentNullException.ThrowIfNull(board);
-        ArgumentNullException.ThrowIfNull(moves);
-        Colour us = board.SideToMove;
-        foreach (int from in board.SquaresOf(us, PieceType.Pawn))
-        {
-            GeneratePawnMoves(board, us, from, moves, capturesOnly: false);
-        }
-        foreach (int from in board.SquaresOf(us, PieceType.Knight))
-        {
-            GenerateLeaperMoves(board, us, from, PieceType.Knight, KnightDeltas, moves, capturesOnly: false);
-        }
-        foreach (int from in board.SquaresOf(us, PieceType.Bishop))
-        {
-            GenerateSliderMoves(board, us, from, PieceType.Bishop, BishopDeltas, moves, capturesOnly: false);
-        }
-        foreach (int from in board.SquaresOf(us, PieceType.Rook))
-        {
-            GenerateSliderMoves(board, us, from, PieceType.Rook, RookDeltas, moves, capturesOnly: false);
-        }
-        foreach (int from in board.SquaresOf(us, PieceType.Queen))
-        {
-            GenerateSliderMoves(board, us, from, PieceType.Queen, KingDeltas, moves, capturesOnly: false);
-        }
-        GenerateLeaperMoves(board, us, board.KingSquare(us), PieceType.King, KingDeltas, moves, capturesOnly: false);
-        GenerateCastlingMoves(board, us, moves);
-    }
+    public static void GeneratePseudoLegalMoves(Board board, List<Move> moves) => Generate(board, moves, capturesOnly: false);
 
     /// <summary>
     /// Captures and promotions only, for quiescence search. Some may leave the mover's king in check.
     /// </summary>
-    public static void GenerateCaptures(Board board, List<Move> moves)
+    public static void GenerateCaptures(Board board, List<Move> moves) => Generate(board, moves, capturesOnly: true);
+
+    private static void Generate(Board board, List<Move> moves, bool capturesOnly)
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(moves);
         Colour us = board.SideToMove;
         foreach (int from in board.SquaresOf(us, PieceType.Pawn))
         {
-            GeneratePawnMoves(board, us, from, moves, capturesOnly: true);
+            GeneratePawnMoves(board, us, from, moves, capturesOnly);
         }
         foreach (int from in board.SquaresOf(us, PieceType.Knight))
         {
-            GenerateLeaperMoves(board, us, from, PieceType.Knight, KnightDeltas, moves, capturesOnly: true);
+            GenerateLeaperMoves(board, us, from, PieceType.Knight, KnightDeltas, moves, capturesOnly);
         }
         foreach (int from in board.SquaresOf(us, PieceType.Bishop))
         {
-            GenerateSliderMoves(board, us, from, PieceType.Bishop, BishopDeltas, moves, capturesOnly: true);
+            GenerateSliderMoves(board, us, from, PieceType.Bishop, BishopDeltaTable, moves, capturesOnly);
         }
         foreach (int from in board.SquaresOf(us, PieceType.Rook))
         {
-            GenerateSliderMoves(board, us, from, PieceType.Rook, RookDeltas, moves, capturesOnly: true);
+            GenerateSliderMoves(board, us, from, PieceType.Rook, RookDeltas, moves, capturesOnly);
         }
         foreach (int from in board.SquaresOf(us, PieceType.Queen))
         {
-            GenerateSliderMoves(board, us, from, PieceType.Queen, KingDeltas, moves, capturesOnly: true);
+            GenerateSliderMoves(board, us, from, PieceType.Queen, KingDeltas, moves, capturesOnly);
         }
-        GenerateLeaperMoves(board, us, board.KingSquare(us), PieceType.King, KingDeltas, moves, capturesOnly: true);
+        GenerateLeaperMoves(board, us, board.KingSquare(us), PieceType.King, KingDeltas, moves, capturesOnly);
+        if (!capturesOnly)
+        {
+            GenerateCastlingMoves(board, us, moves);
+        }
     }
 
     /// <summary>
@@ -136,22 +95,27 @@ public static class MoveGenerator
     public static bool IsInCheck(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        return IsAttacked(board, board.KingSquare(board.SideToMove), board.SideToMove.Opponent());
+        return IsKingAttacked(board, board.SideToMove);
     }
 
     /// <summary>
-    /// Can play proceed from this position? Each side must have exactly one king and the side that has
-    /// just moved must not have left its king in check (which also rules out adjacent kings).
+    /// Is the given side's king attacked by the other side?
+    /// </summary>
+    public static bool IsKingAttacked(Board board, Colour side)
+    {
+        ArgumentNullException.ThrowIfNull(board);
+        return IsAttacked(board, board.KingSquare(side), side.Opponent());
+    }
+
+    /// <summary>
+    /// Can play proceed from this position? Each side must have exactly one king, no pawn may stand
+    /// on the first or last rank, and the side that has just moved must not have left its king in
+    /// check (which also rules out adjacent kings).
     /// </summary>
     public static bool IsPositionLegal(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        if (!board.HasValidKings || HasPawnsOnBackRanks(board))
-        {
-            return false;
-        }
-        Colour justMoved = board.SideToMove.Opponent();
-        return !IsAttacked(board, board.KingSquare(justMoved), board.SideToMove);
+        return board.HasValidKings && !HasPawnsOnBackRanks(board) && !IsKingAttacked(board, board.SideToMove.Opponent());
     }
 
     /// <summary>
@@ -161,7 +125,7 @@ public static class MoveGenerator
     public static bool HasPawnsOnBackRanks(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        foreach (Colour colour in stackalloc[] { Colour.White, Colour.Black })
+        foreach (Colour colour in ColourExtensions.Sides)
         {
             foreach (int square in board.SquaresOf(colour, PieceType.Pawn))
             {
@@ -180,17 +144,10 @@ public static class MoveGenerator
     public static bool IsAttacked(Board board, int square, Colour by)
     {
         ArgumentNullException.ThrowIfNull(board);
-
-        // Pawns: look at the two squares a pawn of the attacking colour would attack from.
-        int pawnDirection = by == Colour.White ? Up : -Up;
-        Piece pawn = new(by, PieceType.Pawn);
-        int left = square - pawnDirection - 1;
-        int right = square - pawnDirection + 1;
-        if ((Squares.IsOnBoard(left) && board.At(left) == pawn) || (Squares.IsOnBoard(right) && board.At(right) == pawn))
+        if (board.IsAttackedByPawn(square, by))
         {
             return true;
         }
-
         foreach (int knight in board.SquaresOf(by, PieceType.Knight))
         {
             if (KnightReach[knight - square + DeltaOffset])
@@ -198,23 +155,15 @@ public static class MoveGenerator
                 return true;
             }
         }
-
         bool hasQueen = board.Count(by, PieceType.Queen) != 0;
-        if (hasQueen || board.Count(by, PieceType.Rook) != 0)
+        if ((hasQueen || board.Count(by, PieceType.Rook) != 0) && IsAttackedAlong(board, square, by, RookDeltas, PieceType.Rook))
         {
-            if (IsAttackedAlong(board, square, by, RookDeltas, PieceType.Rook))
-            {
-                return true;
-            }
+            return true;
         }
-        if (hasQueen || board.Count(by, PieceType.Bishop) != 0)
+        if ((hasQueen || board.Count(by, PieceType.Bishop) != 0) && IsAttackedAlong(board, square, by, BishopDeltaTable, PieceType.Bishop))
         {
-            if (IsAttackedAlong(board, square, by, BishopDeltas, PieceType.Bishop))
-            {
-                return true;
-            }
+            return true;
         }
-
         foreach (int king in board.SquaresOf(by, PieceType.King))
         {
             if (KingReach[king - square + DeltaOffset])
@@ -248,7 +197,7 @@ public static class MoveGenerator
 
     private static void GeneratePawnMoves(Board board, Colour us, int from, List<Move> moves, bool capturesOnly)
     {
-        int direction = us == Colour.White ? Up : -Up;
+        int direction = Board.PawnDirection(us);
         int startRank = us == Colour.White ? 1 : 6;
         int promotionRank = us == Colour.White ? 7 : 0;
         Colour them = us.Opponent();
