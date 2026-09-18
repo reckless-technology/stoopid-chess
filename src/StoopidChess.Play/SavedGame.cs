@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using StoopidChess.Core;
 
-namespace StoopidChess.Gui;
+namespace StoopidChess.Play;
 
 /// <summary>
 /// The contents of a Stoopid Chess saved game file: JSON holding the starting position as FEN, the

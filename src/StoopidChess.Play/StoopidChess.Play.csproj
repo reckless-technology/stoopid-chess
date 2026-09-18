@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>StoopidChess.Play</RootNamespace>
+    <Description>Playing a game against a UCI engine: the state machine behind the GUI, without any UI.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StoopidChess.Core\StoopidChess.Core.csproj" />
+    <ProjectReference Include="..\StoopidChess.Engine\StoopidChess.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StoopidChess.Tests" />
+  </ItemGroup>
+
+</Project>

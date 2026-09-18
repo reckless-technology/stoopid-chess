@@ -1,6 +1,6 @@
 using StoopidChess.Engine;
 
-namespace StoopidChess.Gui;
+namespace StoopidChess.Play;
 
 /// <summary>
 /// Playing strength, expressed as the limits given to the engine for each move.

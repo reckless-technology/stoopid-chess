@@ -86,7 +86,7 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
    plus pseudo-legality of the stored move (the table move is already only sorted first, never
    played blind). The secondary Zobrist key then goes, saving hashing work in `MakeMove`. About 200
    lines across Core, Engine and tests; medium risk; do after the search features.
-8. **`GameController` in a cross-platform `StoopidChess.Play` project.** `MainForm.cs` (860 lines)
+8. **`GameController` in a cross-platform `StoopidChess.Play` project** (done: `MainForm` is now ~470 lines of drawing, mouse and menus; 13 controller tests run on the Linux CI job). `MainForm.cs` (860 lines)
    mixes engine lifecycle, the game state machine, editing, drawing, mouse and menus, and every GUI
    bug the adversarial passes found lived in the untested state machine. A controller owning
    `Game`, the engine client, `humanColour`, `level`, the thinking state and generation counter,
@@ -131,7 +131,7 @@ nightly fastchess job is worth it only once opponent binaries are checked in or 
 | 3 | `PositionBuilder`; strip editing from `Board` and `Game` | simplification | neutral | low | done |
 | 4 | Merge result records, trim statistics, dialogs to `MessageBox`, Designer names | simplification | about -300 | low | done |
 | 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | done |
-| 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | later |
+| 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | done |
 | 7 | `TimeManager` | simplification | ~50 | low | with soft/hard limits |
 | 8 | Bitboards | capability | ~1000 | high | not now |
 | 9 | Separate client project, in-process interface, replace pipes | – | – | – | no |

@@ -16,7 +16,7 @@ recommended analyzers to every project. Read [README.md](README.md) for the arch
 ```bash
 dotnet build StoopidChess.slnx -c Release                         # everything (Windows; the GUI targets net10.0-windows)
 dotnet build src/StoopidChess.Uci -c Release                      # engine only, works on Linux/macOS
-dotnet test tests/StoopidChess.Tests -c Release                   # ~290 xunit tests, a few seconds
+dotnet test tests/StoopidChess.Tests -c Release                   # ~310 xunit tests, a few seconds
 dotnet run --project src/StoopidChess.Uci -c Release -- bench     # fixed-depth node signature + nps (depth 6 default)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Gui                         # the GUI
@@ -70,10 +70,16 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   a `Task` so `stop`/`isready` work while thinking; `UciEngineClient` is the GUI side, with
   `StartInProcess()` (anonymous pipes to a `UciSession` on a background thread) and
   `StartProcess(path)` for external engines. The GUI only ever uses the client.
-- **GUI.** `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for
-  `*.Designer.cs` via `.editorconfig`); event handler names there must stay in sync with
-  `MainForm.cs`. Non-designer UI (engine menu, promotion dialog) is built in code. Save games are
-  JSON with FEN + UCI moves (`SavedGame`).
+- **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the engine client,
+  whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
+  position editing via `PositionBuilder`, clocks and save/load, and raises `Changed`,
+  `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
+  caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. `Level` maps
+  difficulty to `SearchLimits`; `SavedGame` is JSON with FEN + UCI moves.
+- **GUI.** `MainForm` is drawing, mouse and menus over the controller and redraws on `Changed`.
+  `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for `*.Designer.cs`
+  via `.editorconfig`); event handler names (`OnXxx`) there must stay in sync with `MainForm.cs`.
+  The engine menu and promotion dialog are built in code.
 
 ## Conventions
 

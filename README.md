@@ -13,8 +13,9 @@ restructured in 2026.
 |---|---|
 | `src/StoopidChess.Core` | The rules of chess: `Board` (0x88 with piece lists and incremental Zobrist keys), `Move`, `Piece`, FEN, move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
+| `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
-| `src/StoopidChess.Gui` | Windows Forms GUI. Uses Core for the rules and talks to the engine only through UCI. |
+| `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
 The GUI is Windows only; everything else builds and runs on Linux and macOS too.

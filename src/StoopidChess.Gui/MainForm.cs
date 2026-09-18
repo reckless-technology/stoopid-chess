@@ -1,75 +1,49 @@
-using System.ComponentModel;
 using System.Globalization;
 using System.Text;
 using StoopidChess.Core;
-using StoopidChess.Engine.Uci;
+using StoopidChess.Play;
 using Timer = System.Windows.Forms.Timer;
 
 namespace StoopidChess.Gui;
 
 /// <summary>
-/// The main window. The rules of the game come from <see cref="Game"/>; the computer's moves come
-/// from a UCI engine (the built-in one by default) through <see cref="UciEngineClient"/>, so the form
-/// knows nothing about how the engine works.
+/// The main window: drawing, mouse input and menus. All game and engine logic lives in
+/// <see cref="GameController"/>; the form redraws whenever it raises <see cref="GameController.Changed"/>.
 /// </summary>
 public partial class MainForm : Form
 {
     private static readonly Pen LastMovePen = new(Color.DarkGoldenrod, 2.5f);
-    private static readonly TimeSpan EngineStartTimeout = TimeSpan.FromSeconds(10);
 
+    private readonly GameController controller = new();
     private readonly PieceImages images = new();
     private readonly Timer clockTimer = new() { Interval = 100 };
-
-    private Game game = new();
-    private PositionBuilder? editing;           // Set while the user is editing a position that is not yet legal
-    private Colour humanColour = Colour.White;  // Colour.None when the engine plays itself
-    private bool isBoardFlipped;
-    private Level level = Level.Easy;
-    private TimeSpan whiteClock;
-    private TimeSpan blackClock;
-    private (int From, int To)? lastMove;
 
     private int dragFrom = Squares.None;        // Square of the piece being dragged, or None
     private Point dragPosition;
     private Point contextMenuPosition;
-
-    private UciEngineClient? engine;
-    private string? enginePath;                 // Null for the built-in engine
-    private bool startingEngine;
-    private CancellationTokenSource? thinking;  // Non-null while the engine is searching
-    private int searchGeneration;               // Bumped whenever a pending search result must be discarded
-    private string lastEngineInfo = "";
     private bool showEngineOutput;
 
     public MainForm()
     {
         InitializeComponent();
         moveListTextBox.SelectionTabs = [40, 80, 120, 160, 200];
+        controller.Changed += (_, _) => RefreshAll();
+        controller.EngineFailed += (_, message) => MessageBox.Show(this, message + "\n\nChoose an engine from the Engine menu to continue.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        controller.EngineIllegalMove += (_, move) => MessageBox.Show(this, $"The engine played an illegal move: {move}", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Error);
         clockTimer.Tick += OnClockTick;
         BuildEngineMenu();
         BuildSideToMoveMenu();
-        SetLevel(Level.Easy);
         stopThinkingButton.Enabled = false;
-        UpdateStatus();
+        RefreshAll();
         clockTimer.Start();
     }
-
-    private bool IsEditing => editing is not null;
-
-    private bool IsEngineTurn => !IsEditing && !game.IsOver && (humanColour == Colour.None || game.SideToMove != humanColour);
-
-    private bool IsHumanTurn => !IsEditing && !game.IsOver && game.SideToMove == humanColour;
-
-    private Piece PieceAt(int square) => editing is null ? game.Board[square] : editing[square];
-
-    private Colour DisplayedSideToMove => editing?.SideToMove ?? game.SideToMove;
 
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
         try
         {
-            await StartEngineAsync();
+            await controller.StartEngineAsync(null);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -81,252 +55,40 @@ public partial class MainForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         clockTimer.Dispose();
-        engine?.Dispose();
-        thinking?.Dispose();
+        controller.Dispose();
         base.OnFormClosed(e);
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Engine
+    // Display
     // ---------------------------------------------------------------------------------------------
-
-    private async Task StartEngineAsync()
-    {
-        if (startingEngine)
-        {
-            return;     // A start is already in progress
-        }
-        startingEngine = true;
-        try
-        {
-            CancelThinking(discardResult: true);
-            engine?.Dispose();
-            engine = null;
-            Text = "Stoopid Chess";
-            UciEngineClient? client = null;
-            try
-            {
-                client = enginePath is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(enginePath);
-                client.InfoReceived += OnEngineInfo;
-                using var timeout = new CancellationTokenSource(EngineStartTimeout);
-                await client.InitialiseAsync(timeout.Token);
-                engine = client;
-                Text = $"Stoopid Chess - {client.Name ?? Path.GetFileName(enginePath)}";
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
-            {
-                client?.Dispose();      // Otherwise a half-started external process would live on
-                if (IsDisposed)
-                {
-                    return;
-                }
-                MessageBox.Show(this, $"The engine could not be started:\n{ex.Message}\n\nThe built-in engine will be used instead.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                if (enginePath is not null)
-                {
-                    enginePath = null;
-                    UpdateEngineMenu();
-                    startingEngine = false;
-                    await StartEngineAsync();
-                    return;
-                }
-            }
-        }
-        finally
-        {
-            startingEngine = false;
-        }
-        if (!IsDisposed && IsEngineTurn)
-        {
-            StartThinking();
-        }
-    }
-
-    private void OnEngineInfo(object? sender, string line)
-    {
-        // Raised on the engine reader thread
-        if (!line.Contains(" pv ", StringComparison.Ordinal) || IsDisposed || !IsHandleCreated)
-        {
-            return;
-        }
-        try
-        {
-            BeginInvoke(() => lastEngineInfo = line);
-        }
-        catch (InvalidOperationException)
-        {
-            // The window was closed between the check and the call
-        }
-    }
-
-    private void StartThinking()
-    {
-        if (engine is null || thinking is not null || !IsEngineTurn)
-        {
-            return;
-        }
-        UciEngineClient client = engine;
-        if (!TryEngine(() => client.SetPosition(game.StartFen, game.UciMoves)))
-        {
-            return;
-        }
-        thinking = new CancellationTokenSource();
-        stopThinkingButton.Enabled = true;
-        _ = ThinkAsync(client, thinking, searchGeneration);
-    }
-
-    private async Task ThinkAsync(UciEngineClient client, CancellationTokenSource cancellation, int generation)
-    {
-        string bestMove = "0000";
-        string? failure = null;
-        try
-        {
-            bestMove = await client.GoAsync(level.Limits(), cancellation.Token);
-        }
-        catch (InvalidOperationException ex)
-        {
-            failure = ex.Message;
-        }
-        finally
-        {
-            if (ReferenceEquals(thinking, cancellation))
-            {
-                thinking.Dispose();
-                thinking = null;
-                if (!IsDisposed)
-                {
-                    stopThinkingButton.Enabled = false;
-                }
-            }
-        }
-        if (IsDisposed)
-        {
-            return;     // The window was closed while the engine was thinking
-        }
-        if (failure is not null)
-        {
-            if (ReferenceEquals(engine, client))
-            {
-                OnEngineLost(failure);      // Otherwise the engine was replaced deliberately
-            }
-            return;
-        }
-        if (generation != searchGeneration)
-        {
-            // The game changed while the engine was thinking; its answer is for an old position
-            if (IsEngineTurn)
-            {
-                StartThinking();
-            }
-            return;
-        }
-        Move? move = game.FindMove(bestMove);
-        if (move is null)
-        {
-            if (bestMove != "0000")
-            {
-                MessageBox.Show(this, $"The engine played an illegal move: {bestMove}", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-            return;
-        }
-        if (showEngineOutput && lastEngineInfo.Length != 0)
-        {
-            moveListTextBox.AppendText(Environment.NewLine + lastEngineInfo);
-        }
-        MakeMove(move.Value);
-    }
-
-    /// <summary>
-    /// Stop the engine. With <paramref name="discardResult"/> the move it returns is ignored;
-    /// otherwise it is played (the "Move now!" button).
-    /// </summary>
-    private void CancelThinking(bool discardResult)
-    {
-        if (discardResult)
-        {
-            searchGeneration++;
-        }
-        thinking?.Cancel();
-    }
-
-    /// <summary>
-    /// Run an engine command, reporting a dead engine once and forgetting it.
-    /// </summary>
-    private bool TryEngine(Action command)
-    {
-        try
-        {
-            command();
-            return true;
-        }
-        catch (InvalidOperationException ex)
-        {
-            OnEngineLost(ex.Message);
-            return false;
-        }
-    }
-
-    private void OnEngineLost(string message)
-    {
-        engine?.Dispose();
-        engine = null;
-        Text = "Stoopid Chess";
-        MessageBox.Show(this, $"The engine stopped responding:\n{message}\n\nChoose an engine from the Engine menu to continue.", "Engine", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Game flow
-    // ---------------------------------------------------------------------------------------------
-
-    private void NewGame(Colour human)
-    {
-        CancelThinking(discardResult: true);
-        game = new Game();
-        editing = null;
-        humanColour = human;
-        isBoardFlipped = human == Colour.Black;
-        lastMove = null;
-        dragFrom = Squares.None;
-        ResetClocks();
-        TryEngine(() => engine?.NewGame());
-        RefreshAll();
-        if (IsEngineTurn)
-        {
-            StartThinking();
-        }
-    }
-
-    private void MakeMove(Move move)
-    {
-        game.MakeMove(move);
-        lastMove = (move.From, move.To);
-        dragFrom = Squares.None;
-        RefreshAll();
-        Activate();
-        if (game.IsOver)
-        {
-            clockTimer.Stop();
-        }
-        else if (IsEngineTurn)
-        {
-            StartThinking();
-        }
-    }
 
     private void RefreshAll()
     {
+        if (IsDisposed)
+        {
+            return;
+        }
+        Text = controller.EngineName is null ? "Stoopid Chess" : $"Stoopid Chess - {controller.EngineName}";
+        stopThinkingButton.Enabled = controller.IsThinking;
         UpdateMoveList();
-        UpdateStatus();
+        colourToMoveLabel.Text = controller.SideToMove.ToString();
+        humanColourLabel.Text = controller.HumanColour == Colour.None ? "Nobody (engine vs engine)" : controller.HumanColour.ToString();
+        difficultyLabel.Text = controller.Level.ToString();
+        UpdateClockLabels();
+        UpdateEngineMenu();
         chessBoardPictureBox.Invalidate();
         captureBinPictureBox.Invalidate();
     }
 
     private void UpdateMoveList()
     {
-        if (IsEditing)
+        if (controller.IsEditing)
         {
             moveListTextBox.Text = "Position edited by user: place both kings to continue";
             return;
         }
+        Game game = controller.Game;
         var text = new StringBuilder();
         Board start = Board.FromFen(game.StartFen);
         Colour mover = start.SideToMove;
@@ -361,6 +123,10 @@ public partial class MainForm : Form
         {
             text.AppendLine();
         }
+        if (game.Moves.Count == 0 && game.StartFen != Board.StartFen)
+        {
+            text.AppendLine("Position edited by user");
+        }
         switch (game.Status)
         {
             case GameStatus.Checkmate:
@@ -385,59 +151,29 @@ public partial class MainForm : Form
                 }
                 break;
         }
+        if (showEngineOutput && controller.LastEngineInfo.Length != 0)
+        {
+            text.AppendLine().Append(controller.LastEngineInfo);
+        }
         moveListTextBox.Text = text.ToString();
         moveListTextBox.SelectionStart = moveListTextBox.Text.Length;
         moveListTextBox.ScrollToCaret();
     }
 
-    private void UpdateStatus()
-    {
-        colourToMoveLabel.Text = DisplayedSideToMove.ToString();
-        humanColourLabel.Text = humanColour == Colour.None ? "Nobody (engine vs engine)" : humanColour.ToString();
-        difficultyLabel.Text = level.ToString();
-        UpdateClockLabels();
-    }
-
-    private void ResetClocks()
-    {
-        whiteClock = TimeSpan.Zero;
-        blackClock = TimeSpan.Zero;
-        UpdateClockLabels();
-        clockTimer.Start();
-    }
-
     private void UpdateClockLabels()
     {
-        whiteClockLabel.Text = whiteClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
-        blackClockLabel.Text = blackClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        whiteClockLabel.Text = controller.WhiteClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        blackClockLabel.Text = controller.BlackClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
     }
 
     private void OnClockTick(object? sender, EventArgs e)
     {
-        if (IsEditing || game.IsOver)
-        {
-            return;
-        }
-        TimeSpan tick = TimeSpan.FromMilliseconds(clockTimer.Interval);
-        if (game.SideToMove == Colour.White)
-        {
-            whiteClock += tick;
-        }
-        else
-        {
-            blackClock += tick;
-        }
+        controller.Tick(TimeSpan.FromMilliseconds(clockTimer.Interval));
         UpdateClockLabels();
     }
 
-    private void SetLevel(Level newLevel)
-    {
-        level = newLevel;
-        difficultyLabel.Text = newLevel.ToString();
-    }
-
     // ---------------------------------------------------------------------------------------------
-    // Board display and mouse input
+    // Board drawing and mouse input
     // ---------------------------------------------------------------------------------------------
 
     private int SquareSize => Math.Min(chessBoardPictureBox.Width, chessBoardPictureBox.Height) / 8;
@@ -446,8 +182,8 @@ public partial class MainForm : Form
     {
         int file = Squares.FileOf(square);
         int rank = Squares.RankOf(square);
-        int x = isBoardFlipped ? 7 - file : file;
-        int y = isBoardFlipped ? rank : 7 - rank;
+        int x = controller.IsBoardFlipped ? 7 - file : file;
+        int y = controller.IsBoardFlipped ? rank : 7 - rank;
         return new Point(x * SquareSize, y * SquareSize);
     }
 
@@ -456,8 +192,8 @@ public partial class MainForm : Form
         int size = SquareSize;
         int x = Math.Clamp(location.X / size, 0, 7);
         int y = Math.Clamp(location.Y / size, 0, 7);
-        int file = isBoardFlipped ? 7 - x : x;
-        int rank = isBoardFlipped ? y : 7 - y;
+        int file = controller.IsBoardFlipped ? 7 - x : x;
+        int rank = controller.IsBoardFlipped ? y : 7 - y;
         return Squares.Index(file, rank);
     }
 
@@ -472,29 +208,29 @@ public partial class MainForm : Form
         }
         foreach (int square in Squares.All)
         {
-            Piece piece = PieceAt(square);
+            Piece piece = controller.PieceAt(square);
             if (!piece.IsNone && square != dragFrom)
             {
                 Point origin = SquareOrigin(square);
                 graphics.DrawImage(images[piece], origin.X, origin.Y, size, size);
             }
         }
-        if (lastMove is (int from, int to))
+        if (!controller.IsEditing && controller.Game.Board.LastMove is Move last && !last.IsNone)
         {
-            Point fromOrigin = SquareOrigin(from);
-            Point toOrigin = SquareOrigin(to);
+            Point fromOrigin = SquareOrigin(last.From);
+            Point toOrigin = SquareOrigin(last.To);
             graphics.DrawRectangle(LastMovePen, fromOrigin.X, fromOrigin.Y, size, size);
             graphics.DrawRectangle(LastMovePen, toOrigin.X, toOrigin.Y, size, size);
         }
-        if (dragFrom != Squares.None && !PieceAt(dragFrom).IsNone)
+        if (dragFrom != Squares.None && !controller.PieceAt(dragFrom).IsNone)
         {
-            graphics.DrawImage(images[PieceAt(dragFrom)], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
+            graphics.DrawImage(images[controller.PieceAt(dragFrom)], dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
         }
     }
 
     private void OnCaptureBinPaint(object? sender, PaintEventArgs e)
     {
-        if (IsEditing)
+        if (controller.IsEditing)
         {
             return;
         }
@@ -503,7 +239,7 @@ public partial class MainForm : Form
         {
             int y = colour == Colour.White ? 0 : size;
             int x = 0;
-            foreach (Piece piece in game.CapturedPieces(colour))
+            foreach (Piece piece in controller.Game.CapturedPieces(colour))
             {
                 e.Graphics.DrawImage(images[piece], x, y, size, size);
                 x += size;
@@ -517,17 +253,17 @@ public partial class MainForm : Form
         {
             return;
         }
-        if (IsEditing)
+        if (controller.IsEditing)
         {
             MessageBox.Show(this, "The position is not legal yet. Each side needs exactly one king, no pawns on the first or last rank, and the side that is not to move may not be in check.", "Editing position", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        if (!IsHumanTurn || thinking is not null)
+        if (!controller.IsHumanTurn)
         {
             return;
         }
         int square = SquareAt(e.Location);
-        if (game.Board[square].Colour == humanColour)
+        if (controller.PieceAt(square).Colour == controller.HumanColour)
         {
             dragFrom = square;
             dragPosition = e.Location;
@@ -554,29 +290,32 @@ public partial class MainForm : Form
         int to = SquareAt(e.Location);
         dragFrom = Squares.None;
         chessBoardPictureBox.Invalidate();
-        if (to == from || !IsHumanTurn)
+        if (to == from)
         {
             return;
         }
-        List<Move> candidates = game.LegalMovesBetween(from, to).ToList();
+        IReadOnlyList<Move> candidates = controller.HumanMoveCandidates(from, to);
         if (candidates.Count == 0)
         {
-            MessageBox.Show(this, "That move is not permitted.", "Illegal move", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (controller.IsHumanTurn)
+            {
+                MessageBox.Show(this, "That move is not permitted.", "Illegal move", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
             return;
         }
-        Move move = candidates[0];
+        PieceType promotion = PieceType.None;
         if (candidates.Count > 1)
         {
-            using var promotion = new PawnPromotionForm(humanColour, images);
-            promotion.ShowDialog(this);
-            move = candidates.Single(m => m.Promotion == promotion.Choice);
+            using var dialog = new PawnPromotionForm(controller.HumanColour, images);
+            dialog.ShowDialog(this);
+            promotion = dialog.Choice;
         }
-        MakeMove(move);
+        controller.TryHumanMove(from, to, promotion);
     }
 
     private void OnBoardMouseClick(object? sender, MouseEventArgs e)
     {
-        if (e.Button != MouseButtons.Right || thinking is not null || (IsEngineTurn && humanColour != Colour.None))
+        if (e.Button != MouseButtons.Right || controller.IsThinking || (controller.IsEngineTurn && controller.HumanColour != Colour.None))
         {
             return;
         }
@@ -584,50 +323,46 @@ public partial class MainForm : Form
         contextMenuStrip.Show(chessBoardPictureBox, e.Location);
     }
 
-    private void OnBoardSizeChanged(object? sender, EventArgs e)
-    {
-        chessBoardPictureBox.Invalidate();
-    }
+    private void OnBoardSizeChanged(object? sender, EventArgs e) => chessBoardPictureBox.Invalidate();
 
     // ---------------------------------------------------------------------------------------------
-    // Position editing
+    // Menus
     // ---------------------------------------------------------------------------------------------
 
-    private PositionBuilder BeginEdit() => editing ?? PositionBuilder.From(game.Board);
-
-    private void EditSquare(Piece piece)
+    private void BuildEngineMenu()
     {
-        PositionBuilder builder = BeginEdit();
-        builder[SquareAt(contextMenuPosition)] = piece;
-        ApplyEdit(builder);
+        var builtIn = new ToolStripMenuItem("Use &built-in engine") { Name = "builtInEngineMenuItem", Checked = true };
+        var choose = new ToolStripMenuItem("&Choose UCI engine...") { Name = "chooseEngineMenuItem" };
+        var output = new ToolStripMenuItem("Show engine &output in move list") { CheckOnClick = true };
+        builtIn.Click += async (_, _) => await controller.StartEngineAsync(null);
+        choose.Click += async (_, _) =>
+        {
+            using var dialog = new OpenFileDialog { Title = "Choose a UCI engine", Filter = "Programs|*.exe|All files|*.*" };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                await controller.StartEngineAsync(dialog.FileName);
+            }
+        };
+        output.CheckedChanged += (_, _) =>
+        {
+            showEngineOutput = output.Checked;
+            UpdateMoveList();
+        };
+        engineToolStripMenuItem.DropDownItems.Insert(0, builtIn);
+        engineToolStripMenuItem.DropDownItems.Insert(1, choose);
+        engineToolStripMenuItem.DropDownItems.Insert(2, output);
+        engineToolStripMenuItem.DropDownItems.Insert(3, new ToolStripSeparator());
     }
 
-    private void ApplyEdit(PositionBuilder builder)
+    private void UpdateEngineMenu()
     {
-        CancelThinking(discardResult: true);
-        if (builder.TryBuild(out Board board))
+        if (engineToolStripMenuItem.DropDownItems["builtInEngineMenuItem"] is ToolStripMenuItem builtIn)
         {
-            game = new Game(board);
-            editing = null;
+            builtIn.Checked = controller.EnginePath is null;
         }
-        else
+        if (engineToolStripMenuItem.DropDownItems["chooseEngineMenuItem"] is ToolStripMenuItem choose)
         {
-            editing = builder;
-        }
-        lastMove = null;
-        dragFrom = Squares.None;
-        RefreshAll();
-        if (!IsEditing)
-        {
-            moveListTextBox.Text = "Position edited by user";
-            if (!game.IsOver)
-            {
-                clockTimer.Start();     // The clocks stop at the end of a game; an edit may revive it
-            }
-            if (IsEngineTurn)
-            {
-                StartThinking();
-            }
+            choose.Checked = controller.EnginePath is not null;
         }
     }
 
@@ -635,23 +370,14 @@ public partial class MainForm : Form
     {
         var whiteToMove = new ToolStripMenuItem("&White to move");
         var blackToMove = new ToolStripMenuItem("&Black to move");
-        whiteToMove.Click += (_, _) => SetSideToMove(Colour.White);
-        blackToMove.Click += (_, _) => SetSideToMove(Colour.Black);
+        whiteToMove.Click += (_, _) => controller.SetSideToMove(Colour.White);
+        blackToMove.Click += (_, _) => controller.SetSideToMove(Colour.Black);
         contextMenuStrip.Items.Add(new ToolStripSeparator());
         contextMenuStrip.Items.Add(whiteToMove);
         contextMenuStrip.Items.Add(blackToMove);
     }
 
-    private void SetSideToMove(Colour colour)
-    {
-        if (DisplayedSideToMove == colour)
-        {
-            return;
-        }
-        PositionBuilder builder = BeginEdit();
-        builder.SideToMove = colour;
-        ApplyEdit(builder);
-    }
+    private void EditSquare(Piece piece) => controller.EditSquare(SquareAt(contextMenuPosition), piece);
 
     private void OnSetWhitePawn(object? sender, EventArgs e) => EditSquare(Piece.WhitePawn);
     private void OnSetWhiteKnight(object? sender, EventArgs e) => EditSquare(Piece.WhiteKnight);
@@ -666,60 +392,12 @@ public partial class MainForm : Form
     private void OnSetBlackQueen(object? sender, EventArgs e) => EditSquare(Piece.BlackQueen);
     private void OnSetBlackKing(object? sender, EventArgs e) => EditSquare(Piece.BlackKing);
     private void OnClearSquare(object? sender, EventArgs e) => EditSquare(Piece.None);
-
-    private void OnClearBoard(object? sender, EventArgs e)
-    {
-        ApplyEdit(new PositionBuilder { SideToMove = DisplayedSideToMove });
-    }
-
-    // ---------------------------------------------------------------------------------------------
-    // Menus
-    // ---------------------------------------------------------------------------------------------
-
-    private void BuildEngineMenu()
-    {
-        var builtIn = new ToolStripMenuItem("Use &built-in engine") { Name = "builtInEngineMenuItem", Checked = true };
-        var choose = new ToolStripMenuItem("&Choose UCI engine...") { Name = "chooseEngineMenuItem" };
-        var output = new ToolStripMenuItem("Show engine &output in move list") { CheckOnClick = true };
-        builtIn.Click += async (_, _) =>
-        {
-            enginePath = null;
-            UpdateEngineMenu();
-            await StartEngineAsync();
-        };
-        choose.Click += async (_, _) =>
-        {
-            using var dialog = new OpenFileDialog { Title = "Choose a UCI engine", Filter = "Programs|*.exe|All files|*.*" };
-            if (dialog.ShowDialog(this) != DialogResult.OK)
-            {
-                return;
-            }
-            enginePath = dialog.FileName;
-            UpdateEngineMenu();
-            await StartEngineAsync();
-        };
-        output.CheckedChanged += (_, _) => showEngineOutput = output.Checked;
-        engineToolStripMenuItem.DropDownItems.Insert(0, builtIn);
-        engineToolStripMenuItem.DropDownItems.Insert(1, choose);
-        engineToolStripMenuItem.DropDownItems.Insert(2, output);
-        engineToolStripMenuItem.DropDownItems.Insert(3, new ToolStripSeparator());
-    }
-
-    private void UpdateEngineMenu()
-    {
-        if (engineToolStripMenuItem.DropDownItems["builtInEngineMenuItem"] is ToolStripMenuItem builtIn)
-        {
-            builtIn.Checked = enginePath is null;
-        }
-        if (engineToolStripMenuItem.DropDownItems["chooseEngineMenuItem"] is ToolStripMenuItem choose)
-        {
-            choose.Checked = enginePath is not null;
-        }
-    }
+    private void OnClearBoard(object? sender, EventArgs e) => controller.ClearBoard();
 
     private void OnSaveGame(object? sender, EventArgs e)
     {
-        if (IsEditing)
+        SavedGame? saved = controller.Save();
+        if (saved is null)
         {
             MessageBox.Show(this, "Finish editing the position before saving.", "Save game", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
@@ -731,7 +409,7 @@ public partial class MainForm : Form
         try
         {
             using Stream stream = saveFileDialog.OpenFile();
-            SavedGame.FromGame(game, humanColour, isBoardFlipped, level).Save(stream);
+            saved.Save(stream);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -756,95 +434,36 @@ public partial class MainForm : Form
             MessageBox.Show(this, $"Unable to load the game:\n{ex.Message}", "Load game", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
-        Game? loaded = saved?.ToGame();
-        if (saved is null || loaded is null)
+        if (saved is null || !controller.Load(saved))
         {
             MessageBox.Show(this, "This file does not contain a game in Stoopid Chess format.", "Load game", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-        CancelThinking(discardResult: true);
-        game = loaded;
-        editing = null;
-        humanColour = saved.HumanColour;
-        isBoardFlipped = saved.IsBoardFlipped;
-        SetLevel(saved.Level);
-        lastMove = game.Board.LastMove is Move last ? (last.From, last.To) : null;
-        dragFrom = Squares.None;
-        ResetClocks();
-        TryEngine(() => engine?.NewGame());
-        RefreshAll();
-        if (IsEngineTurn)
-        {
-            StartThinking();
         }
     }
 
     private void OnExit(object? sender, EventArgs e) => Close();
-
-    private void OnNewGameWhite(object? sender, EventArgs e) => NewGame(Colour.White);
-
-    private void OnNewGameBlack(object? sender, EventArgs e) => NewGame(Colour.Black);
-
-    private void OnEngineVersusEngine(object? sender, EventArgs e) => NewGame(Colour.None);
-
-    private void OnUndoMove(object? sender, EventArgs e)
-    {
-        if (IsEditing)
-        {
-            return;
-        }
-        CancelThinking(discardResult: true);
-        game.UndoMove();
-        if (humanColour != Colour.None && game.SideToMove != humanColour)
-        {
-            game.UndoMove();    // Take back the engine's reply as well so that it is the human's turn
-        }
-        lastMove = game.Board.LastMove is Move last ? (last.From, last.To) : null;
-        dragFrom = Squares.None;
-        RefreshAll();
-        clockTimer.Start();
-        if (IsEngineTurn)
-        {
-            StartThinking();
-        }
-    }
-
-    private void OnSwitchSides(object? sender, EventArgs e)
-    {
-        if (humanColour == Colour.None)
-        {
-            return;
-        }
-        humanColour = humanColour.Opponent();
-        isBoardFlipped = humanColour == Colour.Black;
-        UpdateStatus();
-        chessBoardPictureBox.Invalidate();
-        if (IsEngineTurn)
-        {
-            StartThinking();
-        }
-        else
-        {
-            CancelThinking(discardResult: true);
-        }
-    }
+    private void OnNewGameWhite(object? sender, EventArgs e) => controller.NewGame(Colour.White);
+    private void OnNewGameBlack(object? sender, EventArgs e) => controller.NewGame(Colour.Black);
+    private void OnEngineVersusEngine(object? sender, EventArgs e) => controller.NewGame(Colour.None);
+    private void OnUndoMove(object? sender, EventArgs e) => controller.Undo();
+    private void OnSwitchSides(object? sender, EventArgs e) => controller.SwitchSides();
+    private void OnMoveNow(object? sender, EventArgs e) => controller.MoveNow();
 
     private void OnFlipBoard(object? sender, EventArgs e)
     {
-        isBoardFlipped = !isBoardFlipped;
+        controller.IsBoardFlipped = !controller.IsBoardFlipped;
         chessBoardPictureBox.Invalidate();
     }
 
-    private void OnMoveNow(object? sender, EventArgs e) => CancelThinking(discardResult: false);
+    private void SetLevel(Level level)
+    {
+        controller.Level = level;
+        difficultyLabel.Text = level.ToString();
+    }
 
     private void OnLevelBeginner(object? sender, EventArgs e) => SetLevel(Level.Beginner);
-
     private void OnLevelEasy(object? sender, EventArgs e) => SetLevel(Level.Easy);
-
     private void OnLevelMedium(object? sender, EventArgs e) => SetLevel(Level.Medium);
-
     private void OnLevelHard(object? sender, EventArgs e) => SetLevel(Level.Hard);
-
     private void OnLevelBest(object? sender, EventArgs e) => SetLevel(Level.Best);
 
     private void OnHelp(object? sender, EventArgs e)
