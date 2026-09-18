@@ -22,6 +22,8 @@ public sealed class Searcher
     private const int NullMoveReduction = 2;
     private const int LmrMinimumDepth = 3;
     private const int LmrFullDepthMoves = 3;
+    private const int AspirationMinimumDepth = 4;
+    private const int AspirationWindow = 40;
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
@@ -102,7 +104,7 @@ public sealed class Searcher
 
         for (int depth = 1; depth <= maxDepth; depth++)
         {
-            int score = SearchRoot(rootMoves, depth, out Move move);
+            int score = SearchWithAspiration(rootMoves, depth, bestScore, completedDepth, out Move move);
             if (stopped)
             {
                 // The iteration was cut short so its score cannot be trusted and the previous
@@ -139,12 +141,48 @@ public sealed class Searcher
     /// The root is searched separately so that the best move is always known even if the iteration
     /// is stopped part way through, and so that the previous best move is searched first.
     /// </summary>
-    private int SearchRoot(List<Move> rootMoves, int depth, out Move bestMove)
+    /// <summary>
+    /// Aspiration windows: once a few iterations have settled the score, search the next one in a
+    /// narrow window around it, which cuts off far more, and widen and repeat if the score escapes.
+    /// </summary>
+    private int SearchWithAspiration(List<Move> rootMoves, int depth, int previousScore, int completedDepth, out Move bestMove)
+    {
+        if (completedDepth < AspirationMinimumDepth || IsMateScore(previousScore))
+        {
+            return SearchRoot(rootMoves, depth, -Infinity, Infinity, out bestMove);
+        }
+        int window = AspirationWindow;
+        int alpha = previousScore - window;
+        int beta = previousScore + window;
+        while (true)
+        {
+            int score = SearchRoot(rootMoves, depth, alpha, beta, out bestMove);
+            if (stopped || (score > alpha && score < beta))
+            {
+                return score;
+            }
+            window *= 2;
+            if (score <= alpha)
+            {
+                alpha = Math.Max(previousScore - window, -Infinity);
+            }
+            else
+            {
+                beta = Math.Min(previousScore + window, Infinity);
+            }
+            if (window > AspirationWindow * 16)
+            {
+                alpha = -Infinity;
+                beta = Infinity;
+            }
+        }
+    }
+
+    private int SearchRoot(List<Move> rootMoves, int depth, int alpha, int beta, out Move bestMove)
     {
         OrderMoves(rootMoves, 0, GetTableMove());
         bestMove = rootMoves[0];
-        int alpha = -Infinity;
-        const int beta = Infinity;
+        int originalAlpha = alpha;
         bool first = true;
         foreach (Move move in rootMoves)
         {
@@ -172,9 +210,14 @@ public sealed class Searcher
             {
                 alpha = score;
                 bestMove = move;
+                if (alpha >= beta)
+                {
+                    break;      // Fail high: the caller widens the window and searches again
+                }
             }
         }
-        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(alpha, 0), depth, NodeType.Exact);
+        NodeType type = alpha >= beta ? NodeType.LowerBound : alpha <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
+        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(alpha, 0), depth, type);
         return alpha;
     }
 

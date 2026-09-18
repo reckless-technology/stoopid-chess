@@ -99,12 +99,10 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
    (the half-budget iteration rule, the node interval between clock checks) is in `Searcher`. Merge
    when adding soft and hard limits.
 
-## Tried and not kept
+## Tried, then kept with PVS
 
-- **Aspiration windows** (±40 cp around the previous score from depth 4, doubling on failure):
-  -35 ± 76 Elo in 60 self-play games against the build without them. With a plain alpha-beta
-  search (no principal variation search) and depths of 6-9, the re-searches cost more than the
-  narrower windows save. Worth revisiting together with PVS.
+- **Aspiration windows** alone measured -35 ± 76 Elo; after principal variation search was added
+  they measured +64 ± 75 and are now in.
 
 ## Not recommended
 

@@ -32,7 +32,7 @@
         "additional_lines_rgx": [],
         "event_name": "Fastchess Tournament",
         "site": "?",
-        "file": "C:\\Users\\jonny\\AppData\\Local\\Temp/selfplay-pvs.pgn",
+        "file": "C:\\Users\\jonny\\AppData\\Local\\Temp/selfplay-asp2.pgn",
         "notation": 0,
         "append_file": true,
         "track_nodes": false,
@@ -60,7 +60,7 @@
     },
     "config_name": "config.json",
     "output": 0,
-    "seed": 2534909974699997122,
+    "seed": 15194224356419968287,
     "variant": 0,
     "type": 0,
     "gauntlet_seeds": 1,
@@ -131,15 +131,15 @@
     ],
     "stats": {
         "StoopidChess vs stoopid-chess": {
-            "wins": 30,
-            "losses": 20,
-            "draws": 10,
+            "wins": 29,
+            "losses": 18,
+            "draws": 13,
             "penta_WW": 6,
             "penta_WD": 7,
-            "penta_WL": 11,
-            "penta_DD": 0,
-            "penta_LD": 3,
-            "penta_LL": 3
+            "penta_WL": 10,
+            "penta_DD": 1,
+            "penta_LD": 4,
+            "penta_LL": 2
         }
     }
 }
