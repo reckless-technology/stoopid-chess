@@ -30,7 +30,7 @@ public class PositionBuilderTests
         Assert.Equal(Board.StartFen, original.ToFen());
         Assert.Equal(Piece.WhiteKing, edited[Squares.Parse("d4")]);
         Assert.True(edited[Squares.E1].IsNone);
-        (ulong key, _, _) = edited.ComputeKeys();
+        (ulong key, _) = edited.ComputeKeys();
         Assert.Equal(key, edited.Key);
     }
 

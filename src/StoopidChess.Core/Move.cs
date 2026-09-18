@@ -14,23 +14,57 @@ public enum MoveKind : byte
 }
 
 /// <summary>
-/// A move, including enough information about the position it was made in to unmake it.
-/// The default value is <see cref="None"/>.
+/// A move, including enough information about the position it was made in to unmake it, packed
+/// into 32 bits so that move lists and transposition table entries stay small. The default value is
+/// <see cref="None"/>.
 /// </summary>
-/// <param name="From">Source square (0x88).</param>
-/// <param name="To">Destination square (0x88). For castling this is the king's destination.</param>
-/// <param name="Piece">The moving piece type; never <see cref="PieceType.None"/> for a real move.</param>
-/// <param name="Captured">The captured piece type, or <see cref="PieceType.None"/>. A pawn for en passant.</param>
-/// <param name="Kind">Special-move classification.</param>
-/// <param name="Promotion">The piece a pawn promotes to, or <see cref="PieceType.None"/>.</param>
-public readonly record struct Move(int From, int To, PieceType Piece, PieceType Captured, MoveKind Kind, PieceType Promotion)
+public readonly record struct Move
 {
-    public Move(int from, int to, PieceType piece, PieceType captured = PieceType.None, MoveKind kind = MoveKind.Normal)
-        : this(from, to, piece, captured, kind, PieceType.None)
+    // Bit layout: from 0-6, to 7-13, piece 14-16, captured 17-19, kind 20-22, promotion 23-25
+    private const int ToShift = 7;
+    private const int PieceShift = 14;
+    private const int CapturedShift = 17;
+    private const int KindShift = 20;
+    private const int PromotionShift = 23;
+    private const uint SquareMask = 0x7F;
+    private const uint ThreeBits = 0x7;
+
+    private readonly uint bits;
+
+    /// <param name="from">Source square (0x88).</param>
+    /// <param name="to">Destination square (0x88). For castling this is the king's destination.</param>
+    /// <param name="piece">The moving piece type; never <see cref="PieceType.None"/> for a real move.</param>
+    /// <param name="captured">The captured piece type, or <see cref="PieceType.None"/>. A pawn for en passant.</param>
+    /// <param name="kind">Special-move classification.</param>
+    /// <param name="promotion">The piece a pawn promotes to, or <see cref="PieceType.None"/>.</param>
+    public Move(int from, int to, PieceType piece, PieceType captured = PieceType.None, MoveKind kind = MoveKind.Normal, PieceType promotion = PieceType.None)
     {
+        bits = ((uint)from & SquareMask)
+             | (((uint)to & SquareMask) << ToShift)
+             | (((uint)piece & ThreeBits) << PieceShift)
+             | (((uint)captured & ThreeBits) << CapturedShift)
+             | (((uint)kind & ThreeBits) << KindShift)
+             | (((uint)promotion & ThreeBits) << PromotionShift);
+    }
+
+    private Move(uint bits)
+    {
+        this.bits = bits;
     }
 
     public static readonly Move None;
+
+    public int From => (int)(bits & SquareMask);
+
+    public int To => (int)((bits >> ToShift) & SquareMask);
+
+    public PieceType Piece => (PieceType)((bits >> PieceShift) & ThreeBits);
+
+    public PieceType Captured => (PieceType)((bits >> CapturedShift) & ThreeBits);
+
+    public MoveKind Kind => (MoveKind)((bits >> KindShift) & ThreeBits);
+
+    public PieceType Promotion => (PieceType)((bits >> PromotionShift) & ThreeBits);
 
     public bool IsNone => Piece == PieceType.None;
 
@@ -39,6 +73,13 @@ public readonly record struct Move(int From, int To, PieceType Piece, PieceType 
     public bool IsCastling => Kind is MoveKind.CastleKingSide or MoveKind.CastleQueenSide;
 
     public bool IsPromotion => Kind == MoveKind.Promotion;
+
+    /// <summary>
+    /// The packed representation, for storing moves compactly.
+    /// </summary>
+    public uint ToBits() => bits;
+
+    public static Move FromBits(uint bits) => new(bits);
 
     /// <summary>
     /// UCI long algebraic notation: "e2e4", "e7e8q". Castling is written as the king move ("e1g1").

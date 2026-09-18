@@ -10,8 +10,8 @@ namespace StoopidChess.Core;
 /// squares it maintains, incrementally as moves are made and unmade:
 /// <list type="bullet">
 /// <item>lists of the squares occupied by each piece type of each colour, for fast iteration;</item>
-/// <item>primary and secondary Zobrist keys of the whole position (pieces, side to move, castling
-/// rights and en passant square) and a key of the pawn structure alone;</item>
+/// <item>a Zobrist key of the whole position (pieces, side to move, castling rights and en passant
+/// square) and a key of the pawn structure alone;</item>
 /// <item>the castling rights, en passant square, half-move clock and move number;</item>
 /// <item>a history of made moves so that they can be unmade in strict last-in first-out order, and
 /// so that repetitions can be detected.</item>
@@ -64,11 +64,6 @@ public sealed partial class Board
     /// Primary Zobrist key of the position, suitable for indexing a hash table.
     /// </summary>
     public ulong Key { get; private set; }
-
-    /// <summary>
-    /// Independent secondary Zobrist key, for verifying hash table hits.
-    /// </summary>
-    public ulong SecondaryKey { get; private set; }
 
     /// <summary>
     /// Zobrist key of the pawns alone (both colours), for caching pawn structure evaluation.
@@ -160,7 +155,6 @@ public sealed partial class Board
         copy.HalfMoveClock = HalfMoveClock;
         copy.FullMoveNumber = FullMoveNumber;
         copy.Key = Key;
-        copy.SecondaryKey = SecondaryKey;
         copy.PawnKey = PawnKey;
         copy.PieceCount = PieceCount;
         return copy;
@@ -244,7 +238,6 @@ public sealed partial class Board
         pieceSquares[ListIndex(piece.Colour, piece.Type)].Add(square);
         PieceCount++;
         Key ^= Zobrist.Primary.Piece(piece, square);
-        SecondaryKey ^= Zobrist.Secondary.Piece(piece, square);
         if (piece.Type == PieceType.Pawn)
         {
             PawnKey ^= Zobrist.Primary.Piece(piece, square);
@@ -259,7 +252,6 @@ public sealed partial class Board
         pieceSquares[ListIndex(piece.Colour, piece.Type)].Remove(square);
         PieceCount--;
         Key ^= Zobrist.Primary.Piece(piece, square);
-        SecondaryKey ^= Zobrist.Secondary.Piece(piece, square);
         if (piece.Type == PieceType.Pawn)
         {
             PawnKey ^= Zobrist.Primary.Piece(piece, square);
@@ -294,7 +286,6 @@ public sealed partial class Board
         if (colour != SideToMove)
         {
             Key ^= Zobrist.Primary.SideToMove;
-            SecondaryKey ^= Zobrist.Secondary.SideToMove;
             SideToMove = colour;
         }
     }
@@ -302,14 +293,12 @@ public sealed partial class Board
     internal void SetCastlingRights(CastlingRights rights)
     {
         Key ^= Zobrist.Primary.Castling(CastlingRights) ^ Zobrist.Primary.Castling(rights);
-        SecondaryKey ^= Zobrist.Secondary.Castling(CastlingRights) ^ Zobrist.Secondary.Castling(rights);
         CastlingRights = rights;
     }
 
     internal void SetEnPassantSquare(int square)
     {
         Key ^= Zobrist.Primary.EnPassant(EnPassantSquare) ^ Zobrist.Primary.EnPassant(square);
-        SecondaryKey ^= Zobrist.Secondary.EnPassant(EnPassantSquare) ^ Zobrist.Secondary.EnPassant(square);
         EnPassantSquare = square;
     }
 
@@ -335,16 +324,15 @@ public sealed partial class Board
     /// <summary>
     /// Recompute the keys from scratch. Used by tests to verify the incremental updates.
     /// </summary>
-    internal (ulong Key, ulong SecondaryKey, ulong PawnKey) ComputeKeys()
+    internal (ulong Key, ulong PawnKey) ComputeKeys()
     {
-        ulong key = 0, secondary = 0, pawn = 0;
+        ulong key = 0, pawn = 0;
         foreach (int square in Squares.All)
         {
             Piece piece = squares[square];
             if (!piece.IsNone)
             {
                 key ^= Zobrist.Primary.Piece(piece, square);
-                secondary ^= Zobrist.Secondary.Piece(piece, square);
                 if (piece.Type == PieceType.Pawn)
                 {
                     pawn ^= Zobrist.Primary.Piece(piece, square);
@@ -354,11 +342,9 @@ public sealed partial class Board
         if (SideToMove == Colour.Black)
         {
             key ^= Zobrist.Primary.SideToMove;
-            secondary ^= Zobrist.Secondary.SideToMove;
         }
         key ^= Zobrist.Primary.Castling(CastlingRights) ^ Zobrist.Primary.EnPassant(EnPassantSquare);
-        secondary ^= Zobrist.Secondary.Castling(CastlingRights) ^ Zobrist.Secondary.EnPassant(EnPassantSquare);
-        return (key, secondary, pawn);
+        return (key, pawn);
     }
 
     /// <summary>
@@ -370,6 +356,5 @@ public sealed partial class Board
         int EnPassantSquare,
         int HalfMoveClock,
         ulong Key,
-        ulong SecondaryKey,
         ulong PawnKey);
 }

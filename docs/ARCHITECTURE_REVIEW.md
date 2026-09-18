@@ -79,7 +79,7 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
 
 ## Capabilities for later
 
-7. **Compact `Move` and a 16-byte transposition entry.** `Move` carries the moving and captured
+7. **Compact `Move` and a 16-byte transposition entry** (done: `Move` is 4 bytes, the entry 16, the secondary key removed; self-play neutral at 10+0.1, perft 16 -> 20 Mnps). `Move` carries the moving and captured
    piece (derivable from the board) and `TranspositionEntry` is 40-48 bytes, so 64 MB holds about
    1.4M positions where 16-byte entries would hold 4M, and concurrent stores tear, which blocks
    Lazy SMP. Pack the move into 16-32 bits and the entry into 16 bytes verified by a partial key
@@ -130,7 +130,7 @@ nightly fastchess job is worth it only once opponent binaries are checked in or 
 | 2 | Span piece lists, unchecked indexer (done; incremental PST score not done, it would couple Core to the evaluator) | capability | ~60 | low | done |
 | 3 | `PositionBuilder`; strip editing from `Board` and `Game` | simplification | neutral | low | done |
 | 4 | Merge result records, trim statistics, dialogs to `MessageBox`, Designer names | simplification | about -300 | low | done |
-| 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | later |
+| 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | done |
 | 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | later |
 | 7 | `TimeManager` | simplification | ~50 | low | with soft/hard limits |
 | 8 | Bitboards | capability | ~1000 | high | not now |

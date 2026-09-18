@@ -19,9 +19,8 @@ public class BoardTests
                     break;
                 }
                 board.MakeMove(moves[random.Next(moves.Count)]);
-                (ulong key, ulong secondary, ulong pawn) = board.ComputeKeys();
+                (ulong key, ulong pawn) = board.ComputeKeys();
                 Assert.Equal(key, board.Key);
-                Assert.Equal(secondary, board.SecondaryKey);
                 Assert.Equal(pawn, board.PawnKey);
                 Assert.Equal(board.ToFen(), Board.FromFen(board.ToFen()).ToFen());
                 Assert.Equal(key, Board.FromFen(board.ToFen()).Key);
@@ -182,7 +181,7 @@ public class BoardTests
         Assert.Equal(Colour.White, board.SideToMove);
         Assert.Equal(Squares.None, board.EnPassantSquare);
         Assert.NotEqual(key, board.Key);
-        (ulong computed, _, _) = board.ComputeKeys();
+        (ulong computed, _) = board.ComputeKeys();
         Assert.Equal(computed, board.Key);
         Assert.Equal(board.FullMoveNumber, Board.FromFen(fen).FullMoveNumber);
         board.UnmakeMove();

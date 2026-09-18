@@ -17,7 +17,7 @@ public sealed partial class Board
         Debug.Assert(!move.IsNone, "cannot make the null move");
         Debug.Assert(squares[move.From] == new Piece(SideToMove, move.Piece), "moving piece mismatch");
 
-        history.Add(new UndoInfo(move, CastlingRights, EnPassantSquare, HalfMoveClock, Key, SecondaryKey, PawnKey));
+        history.Add(new UndoInfo(move, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey));
 
         Colour us = SideToMove;
         Colour them = us.Opponent();
@@ -96,7 +96,7 @@ public sealed partial class Board
     /// </summary>
     public void MakeNullMove()
     {
-        history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, SecondaryKey, PawnKey));
+        history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey));
         SetEnPassantSquare(Squares.None);
         HalfMoveClock = Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
         SwitchSideToMove(SideToMove.Opponent());
@@ -193,7 +193,6 @@ public sealed partial class Board
         EnPassantSquare = undo.EnPassantSquare;
         HalfMoveClock = undo.HalfMoveClock;
         Key = undo.Key;
-        SecondaryKey = undo.SecondaryKey;
         PawnKey = undo.PawnKey;
     }
 

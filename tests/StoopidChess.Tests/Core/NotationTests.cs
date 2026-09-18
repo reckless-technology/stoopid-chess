@@ -45,6 +45,28 @@ public class NotationTests
     }
 
     [Fact]
+    public void MovesPackAndUnpackWithoutLoss()
+    {
+        foreach (int from in Squares.All)
+        {
+            foreach (PieceType promotion in new[] { PieceType.None, PieceType.Queen, PieceType.Knight })
+            {
+                var move = new Move(from, Squares.H8 - from + Squares.A1, PieceType.Pawn, PieceType.Rook, MoveKind.Promotion, promotion);
+                Move unpacked = Move.FromBits(move.ToBits());
+                Assert.Equal(move, unpacked);
+                Assert.Equal(from, unpacked.From);
+                Assert.Equal(Squares.H8 - from, unpacked.To);
+                Assert.Equal(PieceType.Pawn, unpacked.Piece);
+                Assert.Equal(PieceType.Rook, unpacked.Captured);
+                Assert.Equal(MoveKind.Promotion, unpacked.Kind);
+                Assert.Equal(promotion, unpacked.Promotion);
+            }
+        }
+        Assert.Equal(0u, Move.None.ToBits());
+        Assert.True(Move.FromBits(0).IsNone);
+    }
+
+    [Fact]
     public void SquareNamesRoundTrip()
     {
         foreach (int square in Squares.All)

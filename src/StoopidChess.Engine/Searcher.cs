@@ -217,7 +217,7 @@ public sealed class Searcher
             }
         }
         NodeType type = alpha >= beta ? NodeType.LowerBound : alpha <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(alpha, 0), depth, type);
+        table.Store(board.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
         return alpha;
     }
 
@@ -266,7 +266,7 @@ public sealed class Searcher
         }
 
         Move tableMove = Move.None;
-        if (table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry))
+        if (table.TryGet(board.Key, out TranspositionEntry entry))
         {
             tableMove = entry.BestMove;
             if (entry.Depth >= depth)
@@ -369,7 +369,7 @@ public sealed class Searcher
                     RecordKiller(ply, move);
                     RecordHistory(move, depth);
                 }
-                table.Store(board.Key, board.SecondaryKey, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
+                table.Store(board.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
             }
             if (score > alpha)
@@ -384,7 +384,7 @@ public sealed class Searcher
         }
 
         NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(bestScore, ply), depth, type);
+        table.Store(board.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
         return bestScore;
     }
 
@@ -415,7 +415,7 @@ public sealed class Searcher
 
         // Entries from the main search (and from earlier quiescence searches) settle many nodes here
         Move tableMove = Move.None;
-        if (table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry))
+        if (table.TryGet(board.Key, out TranspositionEntry entry))
         {
             tableMove = entry.BestMove;
             int tableScore = ScoreFromTable(entry.Score, ply);
@@ -484,7 +484,7 @@ public sealed class Searcher
             if (score >= beta)
             {
                 statistics.BetaCutoffs++;
-                table.Store(board.Key, board.SecondaryKey, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
+                table.Store(board.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
@@ -494,7 +494,7 @@ public sealed class Searcher
         {
             return -MateScore + ply;
         }
-        table.Store(board.Key, board.SecondaryKey, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
+        table.Store(board.Key, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
         return bestScore;
     }
 
@@ -525,7 +525,7 @@ public sealed class Searcher
 
     private Move GetTableMove()
     {
-        return table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry) ? entry.BestMove : Move.None;
+        return table.TryGet(board.Key, out TranspositionEntry entry) ? entry.BestMove : Move.None;
     }
 
     /// <summary>
@@ -671,7 +671,7 @@ public sealed class Searcher
         var line = new List<Move> { bestMove };
         board.MakeMove(bestMove);
         while (line.Count < maxLength && board.RepetitionCount() == 0
-            && table.TryGet(board.Key, board.SecondaryKey, out TranspositionEntry entry) && !entry.BestMove.IsNone)
+            && table.TryGet(board.Key, out TranspositionEntry entry) && !entry.BestMove.IsNone)
         {
             Move move = entry.BestMove;
             if (!MoveGenerator.GenerateLegalMoves(board).Contains(move))

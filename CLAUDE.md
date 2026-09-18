@@ -33,7 +33,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
    perft count changes, the move generator is wrong, not the reference.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (241,835 nodes; depth 6 is 582,478). Any change to search
+   `BenchTests.Depth5Signature` (241,437 nodes; depth 6 is 579,880). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -55,7 +55,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 ## Architecture notes
 
 - **Core has no engine knowledge.** `Board` is a mutable 0x88 position with `MakeMove`/`UnmakeMove`
-  (strict LIFO), piece square lists, primary/secondary/pawn Zobrist keys, side to move, castling
+  (strict LIFO), piece square lists, Zobrist and pawn keys, side to move, castling
   rights (lost by any move from or to a king or rook home square, see
   `CastlingRightsExtensions.LostBySquare`), en passant square and clocks. `Move` and `Piece` are
   readonly record structs. `MoveGenerator` is static and deterministic; legal move generation is
@@ -65,7 +65,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
   mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two
-  tier and verifies entries with both keys. `Evaluator` is an instance (it owns the pawn hash).
+  tier with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (it owns the pawn hash).
 - **UCI.** `UciSession` handles the protocol over any `TextReader`/`TextWriter`, running searches on
   a `Task` so `stop`/`isready` work while thinking; `UciEngineClient` is the GUI side, with
   `StartInProcess()` (anonymous pipes to a `UciSession` on a background thread) and

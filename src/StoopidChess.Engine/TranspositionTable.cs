@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using StoopidChess.Core;
 
 namespace StoopidChess.Engine;
@@ -13,16 +14,45 @@ public enum NodeType : byte
     UpperBound = 3,     // The search failed low: the true score is at most this (no move improved alpha)
 }
 
-public readonly record struct TranspositionEntry(ulong Key, ulong SecondaryKey, Move BestMove, int Score, int Depth, NodeType Type)
+/// <summary>
+/// One transposition table entry: 16 bytes, so that a 64 MB table holds four million positions and
+/// an entry is small enough to be read and written in two aligned words.
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
+public readonly struct TranspositionEntry
 {
-    public bool IsEmpty => Type == NodeType.None;
+    private readonly uint move;
+    private readonly short score;
+    private readonly byte depth;
+    private readonly NodeType type;
+
+    public TranspositionEntry(ulong key, Move bestMove, int score, int depth, NodeType type)
+    {
+        Key = key;
+        move = bestMove.ToBits();
+        this.score = (short)Math.Clamp(score, short.MinValue, short.MaxValue);
+        this.depth = (byte)Math.Clamp(depth, 0, byte.MaxValue);
+        this.type = type;
+    }
+
+    public ulong Key { get; }
+
+    public Move BestMove => Move.FromBits(move);
+
+    public int Score => score;
+
+    public int Depth => depth;
+
+    public NodeType Type => type;
+
+    public bool IsEmpty => type == NodeType.None;
 }
 
 /// <summary>
 /// A two-tier transposition table (https://www.chessprogramming.org/Transposition_Table). Each
 /// index has a depth-preferred slot, which keeps the deepest search result seen, and an
 /// always-replace slot, so that recent shallow results are not lost behind old deep ones.
-/// Entries are verified with both Zobrist keys so that false hits are negligible.
+/// Entries are verified with the full 64-bit Zobrist key.
 /// </summary>
 public sealed class TranspositionTable
 {
@@ -30,7 +60,7 @@ public sealed class TranspositionTable
     public const int MinimumSizeInMegabytes = 1;
     public const int MaximumSizeInMegabytes = 1024;
 
-    private const int EntrySize = 48;   // Approximate managed size of a TranspositionEntry
+    private const int EntrySize = 16;
 
     private TranspositionEntry[] depthPreferred;
     private TranspositionEntry[] alwaysReplace;
@@ -71,22 +101,22 @@ public sealed class TranspositionTable
         Array.Clear(alwaysReplace);
     }
 
-    public bool TryGet(ulong key, ulong secondaryKey, out TranspositionEntry entry)
+    public bool TryGet(ulong key, out TranspositionEntry entry)
     {
         int index = (int)(key >> shift);
         entry = depthPreferred[index];
-        if (Matches(entry, key, secondaryKey))
+        if (Matches(entry, key))
         {
             return true;
         }
         entry = alwaysReplace[index];
-        return Matches(entry, key, secondaryKey);
+        return Matches(entry, key);
     }
 
-    public void Store(ulong key, ulong secondaryKey, Move bestMove, int score, int depth, NodeType type)
+    public void Store(ulong key, Move bestMove, int score, int depth, NodeType type)
     {
         int index = (int)(key >> shift);
-        var entry = new TranspositionEntry(key, secondaryKey, bestMove, score, depth, type);
+        var entry = new TranspositionEntry(key, bestMove, score, depth, type);
         ref TranspositionEntry preferred = ref depthPreferred[index];
         if (preferred.IsEmpty || preferred.Depth <= depth || preferred.Key == key)
         {
@@ -98,8 +128,8 @@ public sealed class TranspositionTable
         }
     }
 
-    private static bool Matches(in TranspositionEntry entry, ulong key, ulong secondaryKey)
+    private static bool Matches(in TranspositionEntry entry, ulong key)
     {
-        return !entry.IsEmpty && entry.Key == key && entry.SecondaryKey == secondaryKey;
+        return !entry.IsEmpty && entry.Key == key;
     }
 }
