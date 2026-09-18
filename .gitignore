@@ -8,3 +8,4 @@ TestResults/
 *.pfx
 match.pgn
 selfplay.pgn
+config.json

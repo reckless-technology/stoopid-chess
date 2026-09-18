@@ -1,13 +1,14 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is
 
-Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search, speaking
-UCI through the `StoopidChess.Uci` console) and a Windows Forms GUI (`StoopidChess.Gui`) that plays
-against any UCI engine. .NET 10, `Directory.Build.props` applies nullable, warnings-as-errors and the
-recommended analyzers to every project. Read [README.md](README.md) for the architecture and
+Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
+protocol, wrapped by the `StoopidChess.Uci` console) and a Windows Forms GUI (`StoopidChess.Gui`) that
+plays against any UCI engine through the cross-platform `StoopidChess.Play` controller. .NET 10;
+`Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
+project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is, and
 [docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements.
 
@@ -16,14 +17,25 @@ recommended analyzers to every project. Read [README.md](README.md) for the arch
 ```bash
 dotnet build StoopidChess.slnx -c Release                         # everything (Windows; the GUI targets net10.0-windows)
 dotnet build src/StoopidChess.Uci -c Release                      # engine only, works on Linux/macOS
-dotnet test tests/StoopidChess.Tests -c Release                   # ~310 xunit tests, a few seconds
+dotnet test tests/StoopidChess.Tests -c Release                   # ~312 xunit tests, a few seconds
+dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
+dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
+dotnet test tests/StoopidChess.Tests -c Debug                     # same tests with Debug.Assert enabled (slower)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench     # fixed-depth node signature + nps (depth 6 default)
+dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # the depth the test asserts
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Gui                         # the GUI
 ```
 
-`.vscode/tasks.json` wraps the same commands (build, build release, test, run gui, run uci, bench,
-perft, publish, clean); `.vscode/launch.json` debugs the GUI and the engine.
+Tests live in `tests/StoopidChess.Tests/{Core,Engine,Play}`, mirroring the projects. Release is the
+configuration that matters for search work (bench timings, matches); Debug turns on the
+`Debug.Assert` checks in `Board` and `Searcher`. `.vscode/tasks.json` wraps the same commands (build,
+build release, test, test debug, match vs pawnstar, run gui, run uci, bench, perft, publish, clean);
+`.vscode/launch.json` debugs the GUI and the engine. CI (`.github/workflows/ci.yml`) runs engine
+build + tests + perft 3 + bench on Linux and the full solution + single-file publishes on Windows.
+
+`config.json` at the repository root is fastchess's autosaved tournament config from the last
+self-play run, not project configuration; leave it alone.
 
 ## The testing discipline
 
@@ -54,22 +66,28 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 ## Architecture notes
 
-- **Core has no engine knowledge.** `Board` is a mutable 0x88 position with `MakeMove`/`UnmakeMove`
-  (strict LIFO), piece square lists, Zobrist and pawn keys, side to move, castling
-  rights (lost by any move from or to a king or rook home square, see
-  `CastlingRightsExtensions.LostBySquare`), en passant square and clocks. `Move` and `Piece` are
-  readonly record structs. `MoveGenerator` is static and deterministic; legal move generation is
-  pseudo-legal generation plus make/test/unmake. `Game` layers a legal-moves-only API, move history
-  and `GameStatus` on top and is what the GUI uses. `Fen` and `MoveNotation` do text.
-- **Engine.** `Searcher` owns per-search state (killers, per-ply move lists, statistics) and searches
-  a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
+- **Dependencies point one way:** Core ← Engine ← Play ← Gui, and Uci ← Engine. Core has no engine
+  knowledge; Core, Engine, Play and Uci have no Windows-only APIs so the Linux CI job keeps passing.
+- **Core.** `Board` is a mutable 0x88 position with `MakeMove`/`UnmakeMove` (strict LIFO), piece
+  square lists, Zobrist and pawn keys, side to move, castling rights (lost by any move from or to a
+  king or rook home square, see `CastlingRightsExtensions.LostBySquare`), en passant square and
+  clocks. `Move` and `Piece` are readonly record structs (`Move` packs into 32 bits). `MoveGenerator`
+  is static and deterministic; legal move generation is pseudo-legal generation plus
+  make/test/unmake. `Game` layers a legal-moves-only API, move history and `GameStatus` on top and is
+  what the controller uses. `Fen` and `MoveNotation` do text; `PositionBuilder` edits positions.
+- **Engine.** `Searcher` owns per-search state (killers, history, per-ply move lists, statistics) and
+  searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
-  mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two
-  tier with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (it owns the pawn hash).
-- **UCI.** `UciSession` handles the protocol over any `TextReader`/`TextWriter`, running searches on
-  a `Task` so `stop`/`isready` work while thinking; `UciEngineClient` is the GUI side, with
-  `StartInProcess()` (anonymous pipes to a `UciSession` on a background thread) and
-  `StartProcess(path)` for external engines. The GUI only ever uses the client.
+  mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
+  with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (it owns the pawn
+  hash). `Bench` is the fixed position set behind the signature.
+- **UCI lives in Engine, not in the Uci project.** `src/StoopidChess.Engine/Uci/UciSession` handles
+  the protocol over any `TextReader`/`TextWriter`, running searches on a `Task` so `stop`/`isready`
+  work while thinking; `UciEngineClient` is the GUI side, with `StartInProcess()` (anonymous pipes to
+  a `UciSession` on a background thread) and `StartProcess(path)` for external engines. The GUI only
+  ever uses the client, so the built-in and external engines share one code path.
+  `src/StoopidChess.Uci/Program.cs` is an 80-line entry point that dispatches to the session, `bench`
+  or `perft`.
 - **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the engine client,
   whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
   position editing via `PositionBuilder`, clocks and save/load, and raises `Changed`,
@@ -83,8 +101,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 ## Conventions
 
-- .NET naming and idioms: PascalCase members, file-scoped namespaces, records for data, `ArgumentNullException.ThrowIfNull`
-  on public entry points, `CancellationToken` last. No static mutable state; counters live in
-  `SearchStatistics`.
-- Keep `Core` and `Engine` free of Windows-only APIs so the Linux CI job keeps passing.
+- .NET naming and idioms: PascalCase members, file-scoped namespaces, records for data,
+  `ArgumentNullException.ThrowIfNull` on public entry points, `CancellationToken` last, nullable
+  returns rather than `Try`/`out` pairs. No static mutable state; counters live in `SearchStatistics`.
+- `.editorconfig` style: Allman braces, braces on every block, `var` only when the type is apparent,
+  no `this.` qualification, `System` usings first, 4-space indent (2 for json/yml/csproj/props), LF
+  line endings.
+- Keep `Core`, `Engine`, `Play` and `Uci` free of Windows-only APIs so the Linux CI job keeps passing.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
