@@ -40,3 +40,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Safe major-piece mobility: rooks skip squares attacked by enemy minors, queens also those attacked by enemy rooks (about 10% slower) | -53 ± 58 (31 W, 46 L, 23 D) | no |
 | Weak king zone square penalty raised from 15 to 25 cp | -14 ± 57 (33 W, 37 L, 30 D) | no |
 | King zone extended one rank forward: the three squares beyond the king's neighbours count for the attack and weak square penalties too | +53 ± 63 (44 W, 29 L, 27 D) | yes |
+| Mobility area includes squares holding own pieces other than pawns and the king (defending a piece counts as a square) | -14 ± 50 (31 W, 35 L, 34 D) | no |
