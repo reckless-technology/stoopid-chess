@@ -34,3 +34,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Safe mobility: squares attacked by enemy pawns no longer count | +38 ± 55 (41 W, 30 L, 29 D) | yes |
 | King danger by attack units (N 2, B 2, R 3, Q 5 per attacked zone square) through the classic convex table, replacing the linear penalty | -14 ± 52 (35 W, 39 L, 26 D) | no |
 | King zone attack penalty halved when the attacker has no queen | -14 ± 49 (32 W, 36 L, 32 D) | no |
+| Mobility by per-piece tables with diminishing returns instead of a linear rate (knight -32..26 over 0-8 squares, bishop -30..36, rook -20..22, queen -15..15) | -3 ± 58 (38 W, 39 L, 23 D) | no |
