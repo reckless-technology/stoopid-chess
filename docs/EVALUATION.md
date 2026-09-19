@@ -33,3 +33,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Pawn threats: 15 cp per enemy piece (not pawn or king) attacked by an own pawn | -17 ± 49 (34 W, 39 L, 27 D) | no |
 | Safe mobility: squares attacked by enemy pawns no longer count | +38 ± 55 (41 W, 30 L, 29 D) | yes |
 | King danger by attack units (N 2, B 2, R 3, Q 5 per attacked zone square) through the classic convex table, replacing the linear penalty | -14 ± 52 (35 W, 39 L, 26 D) | no |
+| King zone attack penalty halved when the attacker has no queen | -14 ± 49 (32 W, 36 L, 32 D) | no |
