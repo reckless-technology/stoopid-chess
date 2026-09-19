@@ -98,7 +98,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    60 cp per ply instead of 80 +38 ± 49 (40 W, 29 L, 31 D), 45 cp 0 ± 52 (not kept), late move pruning to depth 6
    instead of 4 -42 ± 58 (not kept), reverse futility pruning to depth 9 instead of 7 0 ± 49 (not kept), late move
    reductions from the third move instead of the fourth -38 ± 47 (not kept), from the fifth -7 ± 48 (not kept), null move
-   pruning from depth 2 instead of 3 +45 ± 51 (39 W, 26 L, 35 D). A
+   pruning from depth 2 instead of 3 +45 ± 51 (39 W, 26 L, 35 D), late move reductions from depth 2 +14 ± 52 then +14 ± 50,
+   +14 ± 36 over the 200 (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
