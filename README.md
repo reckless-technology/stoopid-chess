@@ -58,7 +58,7 @@ the above and launch configurations for debugging the GUI and the engine.
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 82,464 nodes, depth 6 = 171,184 nodes. A test asserts the depth-5
+Current values: depth 5 = 62,493 nodes, depth 6 = 165,232 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing
@@ -75,7 +75,8 @@ Modelled on the sibling engines pawnstar and zenith:
 - **Make/unmake invariants**: random games check that the incremental keys match a recomputation
   after every move, that the bitboards and square array agree, and that unwinding restores the
   start position exactly.
-- **Evaluation regression**: the scores of eighteen positions recorded before the move to bitboards.
+- **Evaluation regression**: the scores of eighteen positions, re-frozen whenever an evaluation
+  term is accepted, so that refactoring can prove it changed nothing.
 - **Rules**: checkmate, stalemate, repetition, the fifty-move rule, insufficient material,
   castling rights, en passant, promotions, FEN round trips.
 - **Search**: mates in one and two, being mated, draw recognition, determinism, limits and

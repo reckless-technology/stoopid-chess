@@ -19,6 +19,12 @@ public sealed class Evaluator
     public const int RookValue = 500;
     public const int QueenValue = 900;
 
+    // Mobility: centipawns per square a piece can move to or capture on
+    public const int KnightMobility = 4;
+    public const int BishopMobility = 3;
+    public const int RookMobility = 2;
+    public const int QueenMobility = 1;
+
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram.
     private static readonly int[] PawnTable =
@@ -134,8 +140,36 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
+            score += colour == Colour.White ? Mobility(board, colour) : -Mobility(board, colour);
         }
         return board.SideToMove == Colour.White ? score : -score;
+    }
+
+    /// <summary>
+    /// How many squares the colour's pieces can move to or capture on, weighted by piece type.
+    /// </summary>
+    private static int Mobility(Board board, Colour colour)
+    {
+        Bitboard occupied = board.Occupied;
+        Bitboard targets = ~board.Pieces(colour);
+        int mobility = 0;
+        foreach (Square square in board.Pieces(colour, PieceType.Knight))
+        {
+            mobility += KnightMobility * (Attacks.Knight(square) & targets).Count;
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Bishop))
+        {
+            mobility += BishopMobility * (Attacks.Bishop(occupied, square) & targets).Count;
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Rook))
+        {
+            mobility += RookMobility * (Attacks.Rook(occupied, square) & targets).Count;
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Queen))
+        {
+            mobility += QueenMobility * (Attacks.Queen(occupied, square) & targets).Count;
+        }
+        return mobility;
     }
 
     /// <summary>

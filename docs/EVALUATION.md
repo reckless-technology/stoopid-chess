@@ -17,3 +17,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Change | Self-play vs previous | Kept |
 |---|---|---|
 | Reset to the Simplified Evaluation Function (baseline) | +13 ± 68 against the previous evaluation (pawn structure, bishop mobility, 330/370 minors): those terms were worth nothing | baseline |
+| Mobility: squares each knight, bishop, rook and queen can move to or capture on, at 4, 3, 2 and 1 cp per square | +108 ± 63 (41 W, 17 L, 22 D) | yes |
