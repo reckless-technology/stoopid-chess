@@ -28,9 +28,9 @@ public sealed class Searcher
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
-    private readonly List<Move>[] moveLists = new List<Move>[MaxPly + 1];
+    private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
-    private readonly int[,,] history = new int[3, Squares.Count, Squares.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
+    private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
     private Board board = Board.StartPosition();
@@ -44,10 +44,6 @@ public sealed class Searcher
     {
         ArgumentNullException.ThrowIfNull(table);
         this.table = table;
-        for (int i = 0; i < moveLists.Length; i++)
-        {
-            moveLists[i] = new List<Move>(64);
-        }
     }
 
     /// <summary>
@@ -89,7 +85,7 @@ public sealed class Searcher
         Array.Clear(history);
         stopwatch.Restart();
 
-        List<Move> rootMoves = MoveGenerator.GenerateLegalMoves(board);
+        MoveList rootMoves = MoveGenerator.GenerateLegalMoves(board);
         if (rootMoves.Count == 0)
         {
             return new SearchResult(0, MoveGenerator.IsInCheck(board) ? -MateScore : DrawScore, 0, stopwatch.Elapsed, []);
@@ -103,7 +99,7 @@ public sealed class Searcher
 
         for (int depth = 1; depth <= maxDepth; depth++)
         {
-            (int score, Move move) = SearchWithAspiration(rootMoves, depth, bestScore, completedDepth);
+            (int score, Move move) = SearchWithAspiration(ref rootMoves, depth, bestScore, completedDepth);
             if (stopped)
             {
                 // The iteration was cut short so its score cannot be trusted and the previous
@@ -140,18 +136,18 @@ public sealed class Searcher
     /// Aspiration windows: once a few iterations have settled the score, search the next one in a
     /// narrow window around it, which cuts off far more, and widen and repeat if the score escapes.
     /// </summary>
-    private (int Score, Move BestMove) SearchWithAspiration(List<Move> rootMoves, int depth, int previousScore, int completedDepth)
+    private (int Score, Move BestMove) SearchWithAspiration(ref MoveList rootMoves, int depth, int previousScore, int completedDepth)
     {
         if (completedDepth < AspirationMinimumDepth || IsMateScore(previousScore))
         {
-            return SearchRoot(rootMoves, depth, -Infinity, Infinity);
+            return SearchRoot(ref rootMoves, depth, -Infinity, Infinity);
         }
         int window = AspirationWindow;
         int alpha = previousScore - window;
         int beta = previousScore + window;
         while (true)
         {
-            (int score, Move bestMove) = SearchRoot(rootMoves, depth, alpha, beta);
+            (int score, Move bestMove) = SearchRoot(ref rootMoves, depth, alpha, beta);
             if (stopped || (score > alpha && score < beta))
             {
                 return (score, bestMove);
@@ -177,9 +173,9 @@ public sealed class Searcher
     /// The root is searched separately so that the best move is always known even if the iteration
     /// is stopped part way through, and so that the previous best move is searched first.
     /// </summary>
-    private (int Score, Move BestMove) SearchRoot(List<Move> rootMoves, int depth, int alpha, int beta)
+    private (int Score, Move BestMove) SearchRoot(ref MoveList rootMoves, int depth, int alpha, int beta)
     {
-        OrderMoves(rootMoves, 0, GetTableMove());
+        OrderMoves(ref rootMoves, 0, GetTableMove());
         Move bestMove = rootMoves[0];
         int originalAlpha = alpha;
         bool first = true;
@@ -301,9 +297,9 @@ public sealed class Searcher
             }
         }
 
-        List<Move> moves = moveLists[ply];
+        ref MoveList moves = ref moveLists[ply];
         moves.Clear();
-        MoveGenerator.GenerateLegalMoves(board, moves);
+        MoveGenerator.GenerateLegalMoves(board, ref moves);
         if (moves.Count == 0)
         {
             return inCheck ? -MateScore + ply : DrawScore;
@@ -312,7 +308,7 @@ public sealed class Searcher
         {
             return DrawScore;   // In check but not mated: the fifty-move rule stands
         }
-        OrderMoves(moves, ply, tableMove);
+        OrderMoves(ref moves, ply, tableMove);
 
         int originalAlpha = alpha;
         int bestScore = -Infinity;
@@ -402,11 +398,11 @@ public sealed class Searcher
             alpha = Math.Max(alpha, bestScore);
         }
 
-        List<Move> moves = moveLists[ply];
+        ref MoveList moves = ref moveLists[ply];
         moves.Clear();
         if (inCheck)
         {
-            MoveGenerator.GenerateLegalMoves(board, moves);
+            MoveGenerator.GenerateLegalMoves(board, ref moves);
             if (moves.Count == 0)
             {
                 return -MateScore + ply;
@@ -418,9 +414,9 @@ public sealed class Searcher
         }
         else
         {
-            MoveGenerator.GenerateLegalCaptures(board, moves);
+            MoveGenerator.GenerateLegalCaptures(board, ref moves);
         }
-        OrderMoves(moves, ply, tableMove);
+        OrderMoves(ref moves, ply, tableMove);
 
         foreach (Move move in moves)
         {
@@ -513,14 +509,15 @@ public sealed class Searcher
     /// killer moves for this ply, then quiet moves by history. The sort is stable so that the search
     /// is deterministic.
     /// </summary>
-    private void OrderMoves(List<Move> moves, int ply, Move tableMove)
+    private void OrderMoves(ref MoveList list, int ply, Move tableMove)
     {
-        int count = moves.Count;
+        Span<Move> moves = list.AsSpan();
+        int count = moves.Length;
         if (count < 2)
         {
             return;
         }
-        Span<int> scores = count <= 256 ? stackalloc int[count] : new int[count];
+        Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
         {
             scores[i] = ScoreMove(moves[i], ply, tableMove);

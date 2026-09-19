@@ -1,16 +1,15 @@
 using System.Diagnostics;
-using System.Numerics;
 
 namespace StoopidChess.Core;
 
 /// <summary>
 /// A chess position with make/unmake move support.
 ///
-/// The pieces are held as bitboards (see <see cref="Bitboards"/>): one set of squares per piece
+/// The pieces are held as bitboards (see <see cref="Bitboard"/>): one set of squares per piece
 /// type and one per colour, plus the set of all occupied squares, so that attack detection and
-/// move generation are a few word-sized operations. A 64-square array beside them answers "what is
-/// on this square". Alongside the pieces the board maintains, incrementally as moves are made and
-/// unmade:
+/// move generation are a few word-sized operations. A 64-square array of piece types beside them
+/// answers "what is on this square"; the colour of a piece is read from the colour bitboards.
+/// Alongside the pieces the board maintains, incrementally as moves are made and unmade:
 /// <list type="bullet">
 /// <item>a Zobrist key of the whole position (pieces, side to move, castling rights and en passant
 /// square) and a key of the pawn structure alone;</item>
@@ -36,17 +35,16 @@ public sealed partial class Board
     private const int Colours = 3;
     private const int PieceTypes = 7;
 
-    private readonly ulong[] byType = new ulong[PieceTypes];
-    private readonly ulong[] byColour = new ulong[Colours];
-    private readonly Piece[] squares = new Piece[Squares.Count];
+    private readonly Bitboard[] byType = new Bitboard[PieceTypes];
+    private readonly Bitboard[] byColour = new Bitboard[Colours];
+    private readonly PieceType[] squares = new PieceType[Square.Count];
     private readonly List<UndoInfo> history = new(256);
-    private ulong occupied;
-    private ulong checkers;
+    private Bitboard occupied;
+    private Bitboard checkers;
     private bool checkersKnown;
 
     internal Board()
     {
-        Array.Fill(squares, Piece.None);
     }
 
     public static Board StartPosition() => Fen.Parse(StartFen);
@@ -58,9 +56,9 @@ public sealed partial class Board
     public CastlingRights CastlingRights { get; private set; }
 
     /// <summary>
-    /// The square a pawn may capture on en passant, or <see cref="Squares.None"/>.
+    /// The square a pawn may capture on en passant, or <see cref="Square.None"/>.
     /// </summary>
-    public int EnPassantSquare { get; private set; } = Squares.None;
+    public Square EnPassantSquare { get; private set; } = Square.None;
 
     /// <summary>
     /// Plies since the last capture or pawn move (for the fifty-move rule).
@@ -79,7 +77,7 @@ public sealed partial class Board
     /// </summary>
     public ulong PawnKey { get; private set; }
 
-    public int PieceCount => BitOperations.PopCount(occupied);
+    public int PieceCount => occupied.Count;
 
     /// <summary>
     /// Number of moves made on this board since it was created (and not unmade).
@@ -88,82 +86,76 @@ public sealed partial class Board
 
     public Move? LastMove => history.Count == 0 ? null : history[^1].Move;
 
-    public Piece this[int square]
+    /// <summary>
+    /// The piece on a square as its colour and type; (<see cref="Colour.None"/>,
+    /// <see cref="PieceType.None"/>) for an empty square.
+    /// </summary>
+    public (Colour Colour, PieceType Type) this[Square square]
     {
         get
         {
-            if (!Squares.IsOnBoard(square))
+            if (!square.IsValid)
             {
                 throw new ArgumentOutOfRangeException(nameof(square));
             }
-            return squares[square];
+            return (ColourAt(square), squares[square]);
         }
     }
 
-    public Piece this[int file, int rank]
-    {
-        get
-        {
-            if (file is < 0 or > 7 || rank is < 0 or > 7)
-            {
-                throw new ArgumentOutOfRangeException(file is < 0 or > 7 ? nameof(file) : nameof(rank));
-            }
-            return squares[Squares.Index(file, rank)];
-        }
-    }
+    public (Colour Colour, PieceType Type) this[int file, int rank] => this[Square.At(file, rank)];
 
     /// <summary>
     /// All occupied squares.
     /// </summary>
-    public ulong Occupied => occupied;
+    public Bitboard Occupied => occupied;
 
     /// <summary>
     /// The squares occupied by pieces of the colour.
     /// </summary>
-    public ulong Pieces(Colour colour) => byColour[(int)colour];
+    public Bitboard Pieces(Colour colour) => byColour[(int)colour];
 
     /// <summary>
     /// The squares occupied by pieces of the type, of both colours.
     /// </summary>
-    public ulong Pieces(PieceType type) => byType[(int)type];
+    public Bitboard Pieces(PieceType type) => byType[(int)type];
 
     /// <summary>
     /// The squares occupied by pieces of the given colour and type.
     /// </summary>
-    public ulong Pieces(Colour colour, PieceType type) => byType[(int)type] & byColour[(int)colour];
+    public Bitboard Pieces(Colour colour, PieceType type) => byType[(int)type] & byColour[(int)colour];
 
-    public int Count(Colour colour, PieceType type) => BitOperations.PopCount(Pieces(colour, type));
+    public int Count(Colour colour, PieceType type) => Pieces(colour, type).Count;
 
     /// <summary>
-    /// The piece on a square, without the range check of the indexer; for the move generator and
-    /// evaluator, which only ever ask about squares they have already checked are on the board.
+    /// The type of the piece on a square, without the validity check of the indexer; for the move
+    /// generator, which only ever asks about squares it has already checked are on the board.
     /// </summary>
-    internal Piece At(int square) => squares[square];
+    internal PieceType At(Square square) => squares[square];
 
     /// <summary>
     /// True when each side has exactly one king, which every rule of chess assumes.
     /// A position that has been edited may violate this.
     /// </summary>
-    public bool HasValidKings => Count(Colour.White, PieceType.King) == 1 && Count(Colour.Black, PieceType.King) == 1;
+    public bool HasValidKings => Pieces(Colour.White, PieceType.King).IsSingle && Pieces(Colour.Black, PieceType.King).IsSingle;
 
-    public int KingSquare(Colour colour)
+    public Square KingSquare(Colour colour)
     {
-        ulong kings = Pieces(colour, PieceType.King);
-        return Bitboards.IsSingle(kings) ? BitOperations.TrailingZeroCount(kings) : throw new InvalidOperationException($"{colour} does not have exactly one king");
+        Bitboard kings = Pieces(colour, PieceType.King);
+        return kings.IsSingle ? kings.First : throw new InvalidOperationException($"{colour} does not have exactly one king");
     }
 
     /// <summary>
     /// The enemy pieces attacking the side to move's king; empty when not in check. Computed on
     /// first use after a move and cached until the next one.
     /// </summary>
-    public ulong Checkers
+    public Bitboard Checkers
     {
         get
         {
             if (!checkersKnown)
             {
-                ulong king = Pieces(SideToMove, PieceType.King);
-                checkers = king == 0 ? 0 : AttackersTo(BitOperations.TrailingZeroCount(king), SideToMove.Opponent());
+                Bitboard king = Pieces(SideToMove, PieceType.King);
+                checkers = king.IsEmpty ? Bitboard.Empty : AttackersTo(king.First, SideToMove.Opponent());
                 checkersKnown = true;
             }
             return checkers;
@@ -173,16 +165,16 @@ public sealed partial class Board
     /// <summary>
     /// Is the side to move in check?
     /// </summary>
-    public bool IsInCheck => Checkers != 0;
+    public bool IsInCheck => Checkers.IsNotEmpty;
 
     /// <summary>
     /// The pieces of the given colour that attack the square.
     /// </summary>
-    public ulong AttackersTo(int square, Colour by)
+    public Bitboard AttackersTo(Square square, Colour by)
     {
         // The squares from which a pawn of the attacking colour reaches the square are the squares
         // a pawn of the other colour standing on it would attack
-        ulong attackers = (Attacks.Pawn(by.Opponent(), square) & byType[(int)PieceType.Pawn])
+        Bitboard attackers = (Attacks.Pawn(by.Opponent(), square) & byType[(int)PieceType.Pawn])
             | (Attacks.Knight(square) & byType[(int)PieceType.Knight])
             | (Attacks.King(square) & byType[(int)PieceType.King])
             | (Attacks.Bishop(occupied, square) & (byType[(int)PieceType.Bishop] | byType[(int)PieceType.Queen]))
@@ -193,7 +185,7 @@ public sealed partial class Board
     /// <summary>
     /// Is the square attacked by any piece of the given colour?
     /// </summary>
-    public bool IsAttacked(int square, Colour by) => AttackersTo(square, by) != 0;
+    public bool IsAttacked(Square square, Colour by) => AttackersTo(square, by).IsNotEmpty;
 
     public string ToFen() => Fen.Write(this);
 
@@ -252,17 +244,15 @@ public sealed partial class Board
             case 2:
                 return true;
             case 3:
-                return (byType[(int)PieceType.Bishop] | byType[(int)PieceType.Knight]) != 0;
+                return (byType[(int)PieceType.Bishop] | byType[(int)PieceType.Knight]).IsNotEmpty;
             case 4:
-                ulong white = Pieces(Colour.White, PieceType.Bishop);
-                ulong black = Pieces(Colour.Black, PieceType.Bishop);
-                return white != 0 && black != 0 && ((white & Bitboards.LightSquares) != 0) == ((black & Bitboards.LightSquares) != 0);
+                Bitboard white = Pieces(Colour.White, PieceType.Bishop);
+                Bitboard black = Pieces(Colour.Black, PieceType.Bishop);
+                return white.IsNotEmpty && black.IsNotEmpty && (white & Bitboard.LightSquares).IsNotEmpty == (black & Bitboard.LightSquares).IsNotEmpty;
             default:
                 return false;
         }
     }
-
-    public static bool IsLightSquare(int square) => Bitboards.Contains(Bitboards.LightSquares, square);
 
     /// <summary>
     /// Does the side have any piece other than pawns and the king? Null-move pruning is unsafe
@@ -270,7 +260,7 @@ public sealed partial class Board
     /// </summary>
     public bool HasNonPawnMaterial(Colour colour)
     {
-        return (byColour[(int)colour] & ~(byType[(int)PieceType.Pawn] | byType[(int)PieceType.King])) != 0;
+        return (byColour[(int)colour] & ~(byType[(int)PieceType.Pawn] | byType[(int)PieceType.King])).IsNotEmpty;
     }
 
     /// <summary>
@@ -284,7 +274,8 @@ public sealed partial class Board
             text.Append(rank + 1).Append(' ');
             for (int file = 0; file < 8; file++)
             {
-                text.Append(this[file, rank].ToChar());
+                (Colour colour, PieceType type) = this[file, rank];
+                text.Append(type.ToChar(colour));
             }
             text.AppendLine();
         }
@@ -292,60 +283,68 @@ public sealed partial class Board
         return text.ToString();
     }
 
-    internal void PutPiece(int square, Piece piece)
-    {
-        Debug.Assert(squares[square].IsNone, "square must be empty");
-        Debug.Assert(!piece.IsNone, "cannot put an empty piece");
-        ulong bit = Bitboards.Of(square);
-        byType[(int)piece.Type] |= bit;
-        byColour[(int)piece.Colour] |= bit;
-        occupied |= bit;
-        squares[square] = piece;
-        checkersKnown = false;
-        ToggleKeys(piece, square);
-    }
-
-    internal void RemovePiece(int square)
-    {
-        Piece piece = squares[square];
-        Debug.Assert(!piece.IsNone, "square must be occupied");
-        ulong bit = Bitboards.Of(square);
-        byType[(int)piece.Type] &= ~bit;
-        byColour[(int)piece.Colour] &= ~bit;
-        occupied &= ~bit;
-        squares[square] = Piece.None;
-        checkersKnown = false;
-        ToggleKeys(piece, square);
-    }
-
     /// <summary>
-    /// Adding and removing a piece make the same change to the keys.
+    /// The colour of the piece on a valid square, or <see cref="Colour.None"/> if it is empty.
     /// </summary>
-    private void ToggleKeys(Piece piece, int square)
+    private Colour ColourAt(Square square)
     {
-        ulong key = Zobrist.Piece(piece, square);
+        return byColour[(int)Colour.White].Contains(square) ? Colour.White
+            : byColour[(int)Colour.Black].Contains(square) ? Colour.Black
+            : Colour.None;
+    }
+
+    internal void PutPiece(Square square, Colour colour, PieceType type)
+    {
+        Debug.Assert(squares[square] == PieceType.None, "square must be empty");
+        Debug.Assert(type != PieceType.None && colour != Colour.None, "cannot put an empty piece");
+        Bitboard bit = Bitboard.Of(square);
+        byType[(int)type] |= bit;
+        byColour[(int)colour] |= bit;
+        occupied |= bit;
+        squares[square] = type;
+        checkersKnown = false;
+        ToggleKeys(colour, type, square);
+    }
+
+    internal void RemovePiece(Square square, Colour colour, PieceType type)
+    {
+        Debug.Assert(squares[square] == type && byColour[(int)colour].Contains(square), "the piece is not there");
+        Bitboard bit = Bitboard.Of(square);
+        byType[(int)type] &= ~bit;
+        byColour[(int)colour] &= ~bit;
+        occupied &= ~bit;
+        squares[square] = PieceType.None;
+        checkersKnown = false;
+        ToggleKeys(colour, type, square);
+    }
+
+    private void MovePiece(Square from, Square to, Colour colour, PieceType type)
+    {
+        Debug.Assert(squares[from] == type && byColour[(int)colour].Contains(from), "the piece is not there");
+        Debug.Assert(squares[to] == PieceType.None, "destination square must be empty");
+        Bitboard fromTo = Bitboard.Of(from) | Bitboard.Of(to);
+        byType[(int)type] ^= fromTo;
+        byColour[(int)colour] ^= fromTo;
+        occupied ^= fromTo;
+        squares[from] = PieceType.None;
+        squares[to] = type;
+        checkersKnown = false;
+        ulong key = Zobrist.Piece(colour, type, from) ^ Zobrist.Piece(colour, type, to);
         Key ^= key;
-        if (piece.Type == PieceType.Pawn)
+        if (type == PieceType.Pawn)
         {
             PawnKey ^= key;
         }
     }
 
-    private void MovePiece(int from, int to)
+    /// <summary>
+    /// Adding and removing a piece make the same change to the keys.
+    /// </summary>
+    private void ToggleKeys(Colour colour, PieceType type, Square square)
     {
-        Piece piece = squares[from];
-        Debug.Assert(!piece.IsNone, "source square must be occupied");
-        Debug.Assert(squares[to].IsNone, "destination square must be empty");
-        ulong fromTo = Bitboards.Of(from) | Bitboards.Of(to);
-        byType[(int)piece.Type] ^= fromTo;
-        byColour[(int)piece.Colour] ^= fromTo;
-        occupied ^= fromTo;
-        squares[from] = Piece.None;
-        squares[to] = piece;
-        checkersKnown = false;
-        ulong key = Zobrist.Piece(piece, from) ^ Zobrist.Piece(piece, to);
+        ulong key = Zobrist.Piece(colour, type, square);
         Key ^= key;
-        if (piece.Type == PieceType.Pawn)
+        if (type == PieceType.Pawn)
         {
             PawnKey ^= key;
         }
@@ -370,7 +369,7 @@ public sealed partial class Board
         CastlingRights = rights;
     }
 
-    internal void SetEnPassantSquare(int square)
+    internal void SetEnPassantSquare(Square square)
     {
         Key ^= Zobrist.EnPassant(EnPassantSquare) ^ Zobrist.EnPassant(square);
         EnPassantSquare = square;
@@ -392,7 +391,7 @@ public sealed partial class Board
     /// is worth recording: only if a pawn could actually capture there, so that positions that are
     /// identical under the rules have identical keys.
     /// </summary>
-    internal bool IsAttackedByPawn(int square, Colour by) => (Attacks.Pawn(by.Opponent(), square) & Pieces(by, PieceType.Pawn)) != 0;
+    internal bool IsAttackedByPawn(Square square, Colour by) => (Attacks.Pawn(by.Opponent(), square) & Pieces(by, PieceType.Pawn)).IsNotEmpty;
 
     /// <summary>
     /// Recompute the keys from scratch. Used by tests to verify the incremental updates.
@@ -400,15 +399,15 @@ public sealed partial class Board
     internal (ulong Key, ulong PawnKey) ComputeKeys()
     {
         ulong key = 0, pawn = 0;
-        for (int square = 0; square < Squares.Count; square++)
+        foreach (Colour colour in ColourExtensions.Sides)
         {
-            Piece piece = squares[square];
-            if (!piece.IsNone)
+            foreach (Square square in byColour[(int)colour])
             {
-                key ^= Zobrist.Piece(piece, square);
-                if (piece.Type == PieceType.Pawn)
+                PieceType type = squares[square];
+                key ^= Zobrist.Piece(colour, type, square);
+                if (type == PieceType.Pawn)
                 {
-                    pawn ^= Zobrist.Piece(piece, square);
+                    pawn ^= Zobrist.Piece(colour, type, square);
                 }
             }
         }
@@ -425,32 +424,34 @@ public sealed partial class Board
     /// </summary>
     internal bool IsConsistent()
     {
-        ulong all = 0;
-        for (int square = 0; square < Squares.Count; square++)
+        Bitboard all = Bitboard.Empty;
+        foreach (Square square in Square.All)
         {
-            Piece piece = squares[square];
-            ulong bit = Bitboards.Of(square);
-            if (piece.IsNone)
+            PieceType type = squares[square];
+            Bitboard bit = Bitboard.Of(square);
+            bool white = byColour[(int)Colour.White].Contains(square);
+            bool black = byColour[(int)Colour.Black].Contains(square);
+            if (type == PieceType.None)
             {
-                if ((occupied & bit) != 0)
+                if ((occupied & bit).IsNotEmpty || white || black)
                 {
                     return false;
                 }
                 continue;
             }
             all |= bit;
-            if ((byType[(int)piece.Type] & bit) == 0 || (byColour[(int)piece.Colour] & bit) == 0)
+            if ((byType[(int)type] & bit).IsEmpty || white == black)
             {
                 return false;
             }
         }
-        ulong typeUnion = 0;
+        Bitboard typeUnion = Bitboard.Empty;
         for (int type = 1; type < PieceTypes; type++)
         {
             typeUnion |= byType[type];
         }
         return all == occupied && typeUnion == occupied && (byColour[(int)Colour.White] | byColour[(int)Colour.Black]) == occupied
-            && (byColour[(int)Colour.White] & byColour[(int)Colour.Black]) == 0 && byColour[(int)Colour.None] == 0 && byType[(int)PieceType.None] == 0;
+            && byColour[(int)Colour.None].IsEmpty && byType[(int)PieceType.None].IsEmpty;
     }
 
     /// <summary>
@@ -459,7 +460,7 @@ public sealed partial class Board
     private readonly record struct UndoInfo(
         Move Move,
         CastlingRights CastlingRights,
-        int EnPassantSquare,
+        Square EnPassantSquare,
         int HalfMoveClock,
         ulong Key,
         ulong PawnKey);

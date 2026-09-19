@@ -39,7 +39,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
    perft count changes, the move generator is wrong, not the reference. `MoveGeneratorTests` also
    cross-checks the legal generator against a naive reference generator and pins the en passant,
-   pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking.
+   pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
+   and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
    `BenchTests.Depth5Signature` (242,733 nodes; depth 6 is 585,859). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
@@ -67,20 +68,37 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 - **Dependencies point one way:** Core ← Engine ← Play ← Gui (Gui also references Core directly),
   and Uci ← Engine.
-- **Core.** Squares are `int` 0..63 (a1 = 0, h8 = 63, so a square is its bit number; `Squares` has
-  the helpers). `Board` is a mutable position held as bitboards (`ulong` sets per piece type and per
-  colour plus the occupancy, see `Bitboards`) and a 64-entry `Piece` array, with
-  `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist and pawn keys, side to move, castling rights (lost
-  by any move from or to a king or rook home square, see `CastlingRightsExtensions.LostBySquare`),
-  en passant square, clocks, and `Checkers` (the pieces giving check, computed lazily and cached
-  until the next move). `Attacks` holds the knight/king/pawn tables, `Between`/`Line` and the magic
-  bitboard slider tables (pawnstar's magic numbers; built at startup and verified). `Move` and
-  `Piece` are readonly record structs (`Move` packs into 32 bits). `MoveGenerator` is static,
-  deterministic and generates only legal moves (pins, check masks, en passant and castling resolved
-  during generation, following pawnstar); `GenerateLegalCaptures` serves quiescence. Bit iteration
-  is `for (ulong b = set; b != 0;) { int sq = Bitboards.PopFirst(ref b); }`. `Game` layers a
-  legal-moves-only API, move history and `GameStatus` on top and is what the controller uses. `Fen`
-  and `MoveNotation` do text; `PositionBuilder` edits positions.
+- **Core value types** (zero-cost wrappers, like pawnstar's C++ classes; the bench signature and
+  nps prove it): `Square` is a one-byte readonly record struct, a1 = 0 .. h8 = 63 so a square is its
+  bit number, with `Square.None` (index 64, `IsValid` false), `File`/`Rank`/`Name`, `Square.At`,
+  `Square.Parse`, the `A1`..`H8` constants, `square + 8` arithmetic, an implicit conversion to `int`
+  for table lookups and only an explicit one back (`new Square(i)`), so an `int` can never be
+  mistaken for a square; `Square.Unchecked` is the internal no-validation constructor for hot
+  paths. `Bitboard` is a readonly record struct over `ulong` with `& | ^ ~`, `Count`, `IsEmpty`,
+  `IsSingle`, `First`, `Contains`, the shifts (`North()`, `NorthEast()`, `Forward(colour)`), the
+  file/rank/light-square constants, `Bitboard.Of(square)` and `foreach (Square s in set)` (a struct
+  enumerator the JIT inlines; `Bitboard.PopFirst(ref set)` is the explicit form). `MoveList` is a
+  fixed-capacity (256) struct holding its moves inline (an `[InlineArray]`), so generation
+  allocates nothing: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`), order
+  it through `AsSpan()`; it also implements `IEnumerable<Move>` for LINQ in tests. `Move` is a
+  readonly record struct (32 bits, `From`/`To` are `Square`s). There is no coloured-piece type: the
+  engine only ever needs `Colour` and `PieceType` separately, so where a caller wants both at once
+  (`Board[square]`, `PositionBuilder[square]`, `GameController.PieceAt`/`EditSquare`) it is a
+  `(Colour Colour, PieceType Type)` tuple whose default is an empty square, and
+  `PieceType.ToChar(colour)` gives the FEN letter. No `int` squares or raw `ulong` sets appear in
+  any public API, including Play and the GUI.
+- **Core.** `Board` is a mutable position held as `Bitboard`s (per piece type and per colour plus
+  the occupancy) and a 64-entry `PieceType` array (a piece's colour comes from the colour
+  bitboards; make/unmake pass colour and type explicitly), with `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist
+  and pawn keys, side to move, castling rights (lost by any move from or to a king or rook home
+  square, see `CastlingRightsExtensions.LostBySquare`), en passant square, clocks, and `Checkers`
+  (the pieces giving check, computed lazily and cached until the next move). `Attacks` holds the
+  knight/king/pawn tables, `Between`/`Line` and the magic bitboard slider tables (pawnstar's magic
+  numbers; built at startup and verified). `MoveGenerator` is static, deterministic and generates
+  only legal moves into a `ref MoveList` (pins, check masks, en passant and castling resolved
+  during generation, following pawnstar); `GenerateLegalCaptures` serves quiescence. `Game` layers
+  a legal-moves-only API, move history and `GameStatus` on top and is what the controller uses.
+  `Fen` and `MoveNotation` do text; `PositionBuilder` edits positions.
 - **Engine.** `Searcher` owns per-search state (killers, history, per-ply move lists, statistics) and
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`

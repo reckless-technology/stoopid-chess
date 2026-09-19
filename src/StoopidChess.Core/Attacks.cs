@@ -4,10 +4,10 @@ using System.Runtime.CompilerServices;
 namespace StoopidChess.Core;
 
 /// <summary>
-/// Attack sets for every piece as bitboards. Knights, kings and pawns come from 64-entry tables.
-/// Sliding pieces use magic bitboards: the occupancy along the piece's rays is hashed by a
-/// multiply and shift into a table of attack sets, so a bishop, rook or queen's attacks for any
-/// occupancy are one multiply and two loads, with no loops or branches.
+/// Attack sets for every piece. Knights, kings and pawns come from 64-entry tables. Sliding pieces
+/// use magic bitboards: the occupancy along the piece's rays is hashed by a multiply and shift into
+/// a table of attack sets, so a bishop, rook or queen's attacks for any occupancy are one multiply
+/// and two loads, with no loops or branches.
 /// See https://www.chessprogramming.org/Magic_Bitboards
 ///
 /// The magic multipliers are pawnstar's. They only need a plain 64-bit multiply, so they are
@@ -65,14 +65,14 @@ public static class Attacks
     ];
 
     // The tables. Field initialisers run in this order, and each depends only on the ones above it.
-    private static readonly ulong[] KnightTable = BuildTable(square => Leaps(square, KnightSteps));
-    private static readonly ulong[] KingTable = BuildTable(square => Leaps(square, KingSteps));
-    private static readonly ulong[] WhitePawnTable = BuildTable(square => Bitboards.NorthWest(Bitboards.Of(square)) | Bitboards.NorthEast(Bitboards.Of(square)));
-    private static readonly ulong[] BlackPawnTable = BuildTable(square => Bitboards.SouthWest(Bitboards.Of(square)) | Bitboards.SouthEast(Bitboards.Of(square)));
-    private static readonly ulong[] BishopRayTable = BuildTable(square => SlowBishop(0, square));
-    private static readonly ulong[] RookRayTable = BuildTable(square => SlowRook(0, square));
-    private static readonly ulong[] BetweenTable = BuildPairTable(betweenOnly: true);
-    private static readonly ulong[] LineTable = BuildPairTable(betweenOnly: false);
+    private static readonly Bitboard[] KnightTable = BuildTable(square => Leaps(square, KnightSteps));
+    private static readonly Bitboard[] KingTable = BuildTable(square => Leaps(square, KingSteps));
+    private static readonly Bitboard[] WhitePawnTable = BuildTable(square => Bitboard.Of(square).NorthWest() | Bitboard.Of(square).NorthEast());
+    private static readonly Bitboard[] BlackPawnTable = BuildTable(square => Bitboard.Of(square).SouthWest() | Bitboard.Of(square).SouthEast());
+    private static readonly Bitboard[] BishopRayTable = BuildTable(square => SlowBishop(Bitboard.Empty, square));
+    private static readonly Bitboard[] RookRayTable = BuildTable(square => SlowRook(Bitboard.Empty, square));
+    private static readonly Bitboard[] BetweenTable = BuildPairTable(betweenOnly: true);
+    private static readonly Bitboard[] LineTable = BuildPairTable(betweenOnly: false);
     private static readonly SliderAttacks BishopAttacks = new(DiagonalDirections, SlowBishop, BishopMagicNumbers);
     private static readonly SliderAttacks RookAttacks = new(OrthogonalDirections, SlowRook, RookMagicNumbers);
 
@@ -80,13 +80,13 @@ public static class Attacks
     /// The squares a knight on the square attacks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Knight(int square) => KnightTable[square];
+    public static Bitboard Knight(Square square) => KnightTable[square];
 
     /// <summary>
     /// The squares a king on the square attacks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong King(int square) => KingTable[square];
+    public static Bitboard King(Square square) => KingTable[square];
 
     /// <summary>
     /// The squares a pawn of the colour on the square attacks (the two diagonally forward squares).
@@ -94,17 +94,15 @@ public static class Attacks
     /// attacks the square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Pawn(Colour colour, int square) => (colour == Colour.White ? WhitePawnTable : BlackPawnTable)[square];
+    public static Bitboard Pawn(Colour colour, Square square) => (colour == Colour.White ? WhitePawnTable : BlackPawnTable)[square];
 
     /// <summary>
     /// The squares attacked by a whole set of pawns of the colour.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Pawns(Colour colour, ulong pawns)
+    public static Bitboard Pawns(Colour colour, Bitboard pawns)
     {
-        return colour == Colour.White
-            ? Bitboards.NorthWest(pawns) | Bitboards.NorthEast(pawns)
-            : Bitboards.SouthWest(pawns) | Bitboards.SouthEast(pawns);
+        return colour == Colour.White ? pawns.NorthWest() | pawns.NorthEast() : pawns.SouthWest() | pawns.SouthEast();
     }
 
     /// <summary>
@@ -112,35 +110,35 @@ public static class Attacks
     /// and including the first occupied square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Bishop(ulong occupied, int square) => BishopAttacks.Lookup(occupied, square);
+    public static Bitboard Bishop(Bitboard occupied, Square square) => BishopAttacks.Lookup(occupied, square);
 
     /// <summary>
     /// The squares a rook on the square attacks given the occupied squares.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Rook(ulong occupied, int square) => RookAttacks.Lookup(occupied, square);
+    public static Bitboard Rook(Bitboard occupied, Square square) => RookAttacks.Lookup(occupied, square);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Queen(ulong occupied, int square) => BishopAttacks.Lookup(occupied, square) | RookAttacks.Lookup(occupied, square);
+    public static Bitboard Queen(Bitboard occupied, Square square) => BishopAttacks.Lookup(occupied, square) | RookAttacks.Lookup(occupied, square);
 
     /// <summary>
     /// The diagonals through the square on an empty board (excluding the square itself).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong BishopRays(int square) => BishopRayTable[square];
+    public static Bitboard BishopRays(Square square) => BishopRayTable[square];
 
     /// <summary>
     /// The rank and file through the square on an empty board (excluding the square itself).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong RookRays(int square) => RookRayTable[square];
+    public static Bitboard RookRays(Square square) => RookRayTable[square];
 
     /// <summary>
     /// The squares strictly between two squares on the same rank, file or diagonal; empty if they
     /// are not aligned or are adjacent.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Between(int from, int to) => BetweenTable[(from << 6) | to];
+    public static Bitboard Between(Square from, Square to) => BetweenTable[(from.Index << 6) | to.Index];
 
     /// <summary>
     /// The whole rank, file or diagonal through two aligned squares, from edge to edge and
@@ -148,28 +146,28 @@ public static class Attacks
     /// only move within the line through the two of them.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ulong Line(int from, int to) => LineTable[(from << 6) | to];
+    public static Bitboard Line(Square from, Square to) => LineTable[(from.Index << 6) | to.Index];
 
     /// <summary>
     /// Bishop attacks by walking the diagonals. The reference the magic tables are built from and
     /// checked against.
     /// </summary>
-    internal static ulong SlowBishop(ulong occupied, int square) => Slide(occupied, square, DiagonalDirections);
+    internal static Bitboard SlowBishop(Bitboard occupied, Square square) => Slide(occupied, square, DiagonalDirections);
 
-    internal static ulong SlowRook(ulong occupied, int square) => Slide(occupied, square, OrthogonalDirections);
+    internal static Bitboard SlowRook(Bitboard occupied, Square square) => Slide(occupied, square, OrthogonalDirections);
 
-    private static ulong Slide(ulong occupied, int square, (int File, int Rank)[] directions)
+    private static Bitboard Slide(Bitboard occupied, Square square, (int File, int Rank)[] directions)
     {
-        ulong attacks = 0;
+        Bitboard attacks = Bitboard.Empty;
         foreach ((int fileStep, int rankStep) in directions)
         {
-            int file = Squares.FileOf(square) + fileStep;
-            int rank = Squares.RankOf(square) + rankStep;
+            int file = square.File + fileStep;
+            int rank = square.Rank + rankStep;
             while (IsOnBoard(file, rank))
             {
-                int to = Squares.Index(file, rank);
-                attacks |= Bitboards.Of(to);
-                if (Bitboards.Contains(occupied, to))
+                Square to = Square.At(file, rank);
+                attacks |= Bitboard.Of(to);
+                if (occupied.Contains(to))
                 {
                     break;
                 }
@@ -184,16 +182,16 @@ public static class Attacks
     /// The squares whose occupancy affects a slider's attacks from the square: its rays without the
     /// edge squares, which block nothing beyond them.
     /// </summary>
-    private static ulong RelevantOccupancy(int square, (int File, int Rank)[] directions)
+    private static Bitboard RelevantOccupancy(Square square, (int File, int Rank)[] directions)
     {
-        ulong mask = 0;
+        Bitboard mask = Bitboard.Empty;
         foreach ((int fileStep, int rankStep) in directions)
         {
-            int file = Squares.FileOf(square) + fileStep;
-            int rank = Squares.RankOf(square) + rankStep;
+            int file = square.File + fileStep;
+            int rank = square.Rank + rankStep;
             while (IsOnBoard(file + fileStep, rank + rankStep))
             {
-                mask |= Bitboards.Of(Squares.Index(file, rank));
+                mask |= Bitboard.Of(Square.At(file, rank));
                 file += fileStep;
                 rank += rankStep;
             }
@@ -201,16 +199,16 @@ public static class Attacks
         return mask;
     }
 
-    private static ulong Leaps(int square, (int File, int Rank)[] steps)
+    private static Bitboard Leaps(Square square, (int File, int Rank)[] steps)
     {
-        ulong attacks = 0;
+        Bitboard attacks = Bitboard.Empty;
         foreach ((int fileStep, int rankStep) in steps)
         {
-            int file = Squares.FileOf(square) + fileStep;
-            int rank = Squares.RankOf(square) + rankStep;
+            int file = square.File + fileStep;
+            int rank = square.Rank + rankStep;
             if (IsOnBoard(file, rank))
             {
-                attacks |= Bitboards.Of(Squares.Index(file, rank));
+                attacks |= Bitboard.Of(Square.At(file, rank));
             }
         }
         return attacks;
@@ -218,35 +216,35 @@ public static class Attacks
 
     private static bool IsOnBoard(int file, int rank) => file is >= 0 and <= 7 && rank is >= 0 and <= 7;
 
-    private static ulong[] BuildTable(Func<int, ulong> attacksFrom)
+    private static Bitboard[] BuildTable(Func<Square, Bitboard> attacksFrom)
     {
-        var table = new ulong[Squares.Count];
-        for (int square = 0; square < Squares.Count; square++)
+        var table = new Bitboard[Square.Count];
+        foreach (Square square in Square.All)
         {
             table[square] = attacksFrom(square);
         }
         return table;
     }
 
-    private static ulong[] BuildPairTable(bool betweenOnly)
+    private static Bitboard[] BuildPairTable(bool betweenOnly)
     {
-        var table = new ulong[Squares.Count * Squares.Count];
-        for (int from = 0; from < Squares.Count; from++)
+        var table = new Bitboard[Square.Count * Square.Count];
+        foreach (Square from in Square.All)
         {
-            for (int to = 0; to < Squares.Count; to++)
+            foreach (Square to in Square.All)
             {
-                int fileStep = Math.Sign(Squares.FileOf(to) - Squares.FileOf(from));
-                int rankStep = Math.Sign(Squares.RankOf(to) - Squares.RankOf(from));
-                int fileDistance = Math.Abs(Squares.FileOf(to) - Squares.FileOf(from));
-                int rankDistance = Math.Abs(Squares.RankOf(to) - Squares.RankOf(from));
+                int fileStep = Math.Sign(to.File - from.File);
+                int rankStep = Math.Sign(to.Rank - from.Rank);
+                int fileDistance = Math.Abs(to.File - from.File);
+                int rankDistance = Math.Abs(to.Rank - from.Rank);
                 bool aligned = from != to && (fileDistance == 0 || rankDistance == 0 || fileDistance == rankDistance);
                 if (!aligned)
                 {
                     continue;
                 }
-                table[(from << 6) | to] = betweenOnly
+                table[(from.Index << 6) | to.Index] = betweenOnly
                     ? Walk(from, fileStep, rankStep, stopAt: to)
-                    : Bitboards.Of(from) | Walk(from, fileStep, rankStep, stopAt: Squares.None) | Walk(from, -fileStep, -rankStep, stopAt: Squares.None);
+                    : Bitboard.Of(from) | Walk(from, fileStep, rankStep, stopAt: Square.None) | Walk(from, -fileStep, -rankStep, stopAt: Square.None);
             }
         }
         return table;
@@ -256,14 +254,14 @@ public static class Attacks
     /// The squares from (but excluding) the start square in the given direction, up to the edge or
     /// up to (and excluding) the stop square.
     /// </summary>
-    private static ulong Walk(int from, int fileStep, int rankStep, int stopAt)
+    private static Bitboard Walk(Square from, int fileStep, int rankStep, Square stopAt)
     {
-        ulong squares = 0;
-        int file = Squares.FileOf(from) + fileStep;
-        int rank = Squares.RankOf(from) + rankStep;
-        while (IsOnBoard(file, rank) && Squares.Index(file, rank) != stopAt)
+        Bitboard squares = Bitboard.Empty;
+        int file = from.File + fileStep;
+        int rank = from.Rank + rankStep;
+        while (IsOnBoard(file, rank) && Square.At(file, rank) != stopAt)
         {
-            squares |= Bitboards.Of(Squares.Index(file, rank));
+            squares |= Bitboard.Of(Square.At(file, rank));
             file += fileStep;
             rank += rankStep;
         }
@@ -281,21 +279,21 @@ public static class Attacks
     /// </summary>
     private sealed class SliderAttacks
     {
-        private readonly Magic[] magics = new Magic[Squares.Count];
-        private readonly ulong[] table;
+        private readonly Magic[] magics = new Magic[Square.Count];
+        private readonly Bitboard[] table;
 
-        public SliderAttacks((int File, int Rank)[] directions, Func<ulong, int, ulong> slowAttacks, ulong[] multipliers)
+        public SliderAttacks((int File, int Rank)[] directions, Func<Bitboard, Square, Bitboard> slowAttacks, ulong[] multipliers)
         {
             int size = 0;
-            for (int square = 0; square < Squares.Count; square++)
+            foreach (Square square in Square.All)
             {
-                ulong mask = RelevantOccupancy(square, directions);
-                int bits = BitOperations.PopCount(mask);
-                magics[square] = new Magic(mask, multipliers[square], 64 - bits, size);
+                Bitboard mask = RelevantOccupancy(square, directions);
+                int bits = mask.Count;
+                magics[square] = new Magic(mask.Value, multipliers[square], 64 - bits, size);
                 size += 1 << bits;
             }
-            table = new ulong[size];
-            for (int square = 0; square < Squares.Count; square++)
+            table = new Bitboard[size];
+            foreach (Square square in Square.All)
             {
                 Magic magic = magics[square];
                 // Every subset of the mask, by the carry-rippler trick; it ends where it started, at 0
@@ -303,10 +301,10 @@ public static class Attacks
                 do
                 {
                     int index = magic.Offset + (int)((occupancy * magic.Multiplier) >> magic.Shift);
-                    ulong attacks = slowAttacks(occupancy, square);
-                    if (table[index] != 0 && table[index] != attacks)
+                    Bitboard attacks = slowAttacks(new Bitboard(occupancy), square);
+                    if (table[index].IsNotEmpty && table[index] != attacks)
                     {
-                        throw new InvalidOperationException($"magic multiplier for square {Squares.Name(square)} collides");
+                        throw new InvalidOperationException($"magic multiplier for square {square} collides");
                     }
                     table[index] = attacks;
                     occupancy = (occupancy - magic.Mask) & magic.Mask;
@@ -316,10 +314,10 @@ public static class Attacks
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ulong Lookup(ulong occupied, int square)
+        public Bitboard Lookup(Bitboard occupied, Square square)
         {
             ref readonly Magic magic = ref magics[square];
-            return table[magic.Offset + (int)(((occupied & magic.Mask) * magic.Multiplier) >> magic.Shift)];
+            return table[magic.Offset + (int)(((occupied.Value & magic.Mask) * magic.Multiplier) >> magic.Shift)];
         }
     }
 }

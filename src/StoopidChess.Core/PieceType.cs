@@ -33,6 +33,15 @@ public static class PieceTypeExtensions
     }
 
     /// <summary>
+    /// The FEN letter for a coloured piece: upper case for white, lower case for black, '.' for none.
+    /// </summary>
+    public static char ToChar(this PieceType type, Colour colour)
+    {
+        char letter = type.ToChar();
+        return colour == Colour.Black ? char.ToLowerInvariant(letter) : letter;
+    }
+
+    /// <summary>
     /// The piece types a pawn may promote to.
     /// </summary>
     public static ReadOnlySpan<PieceType> PromotionTypes => [PieceType.Queen, PieceType.Rook, PieceType.Bishop, PieceType.Knight];

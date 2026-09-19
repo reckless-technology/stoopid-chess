@@ -17,7 +17,7 @@ public enum GameStatus
 public sealed class Game
 {
     private readonly List<Move> moves = [];
-    private List<Move>? legalMoves;
+    private Move[]? legalMoves;
     private (ulong Key, int Ply) legalMovesFor;
 
     /// <summary>
@@ -77,7 +77,7 @@ public sealed class Game
             (ulong, int) current = (Board.Key, Board.Ply);
             if (legalMoves is null || legalMovesFor != current)
             {
-                legalMoves = MoveGenerator.GenerateLegalMoves(Board);
+                legalMoves = MoveGenerator.GenerateLegalMoves(Board).ToArray();
                 legalMovesFor = current;
             }
             return legalMoves;
@@ -122,12 +122,12 @@ public sealed class Game
     /// <summary>
     /// The legal moves from one square to another. There is more than one only for a promotion.
     /// </summary>
-    public IEnumerable<Move> LegalMovesBetween(int from, int to) => LegalMoves.Where(move => move.From == from && move.To == to);
+    public IEnumerable<Move> LegalMovesBetween(Square from, Square to) => LegalMoves.Where(move => move.From == from && move.To == to);
 
     /// <summary>
     /// Find the legal move between two squares, promoting to the given piece if it is a promotion.
     /// </summary>
-    public Move? FindMove(int from, int to, PieceType promotion = PieceType.None)
+    public Move? FindMove(Square from, Square to, PieceType promotion = PieceType.None)
     {
         foreach (Move move in LegalMoves)
         {
@@ -144,7 +144,7 @@ public sealed class Game
     /// </summary>
     public Move? FindMove(string uci)
     {
-        return MoveNotation.ParseUci(uci) is (int from, int to, PieceType promotion) ? FindMove(from, to, promotion) : null;
+        return MoveNotation.ParseUci(uci) is (Square from, Square to, PieceType promotion) ? FindMove(from, to, promotion) : null;
     }
 
     /// <summary>
@@ -194,15 +194,15 @@ public sealed class Game
     /// <summary>
     /// The pieces of the given colour that have been captured during the game, in order of capture.
     /// </summary>
-    public IReadOnlyList<Piece> CapturedPieces(Colour colour)
+    public IReadOnlyList<PieceType> CapturedPieces(Colour colour)
     {
-        var captured = new List<Piece>();
+        var captured = new List<PieceType>();
         Colour mover = StartSideToMove;
         foreach (Move move in moves)
         {
             if (move.IsCapture && mover.Opponent() == colour)
             {
-                captured.Add(new Piece(colour, move.Captured));
+                captured.Add(move.Captured);
             }
             mover = mover.Opponent();
         }

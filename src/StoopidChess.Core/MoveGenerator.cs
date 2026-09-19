@@ -16,33 +16,31 @@ public static class MoveGenerator
     /// <summary>
     /// All legal moves for the side to move.
     /// </summary>
-    public static List<Move> GenerateLegalMoves(Board board)
+    public static MoveList GenerateLegalMoves(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        var moves = new List<Move>(64);
-        Generate(board, moves, quietMoves: true);
+        MoveList moves = default;
+        Generate(board, ref moves, quietMoves: true);
         return moves;
     }
 
     /// <summary>
     /// Append all legal moves for the side to move to the list.
     /// </summary>
-    public static void GenerateLegalMoves(Board board, List<Move> moves)
+    public static void GenerateLegalMoves(Board board, ref MoveList moves)
     {
         ArgumentNullException.ThrowIfNull(board);
-        ArgumentNullException.ThrowIfNull(moves);
-        Generate(board, moves, quietMoves: true);
+        Generate(board, ref moves, quietMoves: true);
     }
 
     /// <summary>
     /// Append the legal captures and promotions for the side to move to the list, for quiescence
     /// search.
     /// </summary>
-    public static void GenerateLegalCaptures(Board board, List<Move> moves)
+    public static void GenerateLegalCaptures(Board board, ref MoveList moves)
     {
         ArgumentNullException.ThrowIfNull(board);
-        ArgumentNullException.ThrowIfNull(moves);
-        Generate(board, moves, quietMoves: false);
+        Generate(board, ref moves, quietMoves: false);
     }
 
     /// <summary>
@@ -66,7 +64,7 @@ public static class MoveGenerator
     /// <summary>
     /// Is the square attacked by any piece of the given colour?
     /// </summary>
-    public static bool IsAttacked(Board board, int square, Colour by)
+    public static bool IsAttacked(Board board, Square square, Colour by)
     {
         ArgumentNullException.ThrowIfNull(board);
         return board.IsAttacked(square, by);
@@ -90,136 +88,130 @@ public static class MoveGenerator
     public static bool HasPawnsOnBackRanks(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
-        return (board.Pieces(PieceType.Pawn) & (Bitboards.Rank1 | Bitboards.Rank8)) != 0;
+        return (board.Pieces(PieceType.Pawn) & (Bitboard.Rank1 | Bitboard.Rank8)).IsNotEmpty;
     }
 
-    private static void Generate(Board board, List<Move> moves, bool quietMoves)
+    private static void Generate(Board board, ref MoveList moves, bool quietMoves)
     {
         Colour us = board.SideToMove;
         Colour them = us.Opponent();
-        ulong occupied = board.Occupied;
-        ulong ours = board.Pieces(us);
-        ulong theirs = board.Pieces(them);
-        int king = board.KingSquare(us);
-        ulong checkers = board.Checkers;
+        Bitboard occupied = board.Occupied;
+        Bitboard ours = board.Pieces(us);
+        Bitboard theirs = board.Pieces(them);
+        Square king = board.KingSquare(us);
+        Bitboard checkers = board.Checkers;
 
         // Squares the king may not step onto: everything the enemy attacks once the king has left
         // its square (a slider that is blocked only by the king still controls the squares behind it)
-        ulong forbidden = AttackedBy(board, them, occupied ^ Bitboards.Of(king));
+        Bitboard forbidden = AttackedBy(board, them, occupied ^ Bitboard.Of(king));
 
-        if (checkers != 0 && !Bitboards.IsSingle(checkers))
+        if (checkers.IsNotEmpty && !checkers.IsSingle)
         {
             // Double check: only the king can move
-            GenerateKingMoves(board, moves, king, forbidden, occupied, theirs, quietMoves);
+            GenerateKingMoves(board, ref moves, king, forbidden, occupied, theirs, quietMoves);
             return;
         }
 
         // In check, the other pieces may only capture the checker or step between it and the king
-        ulong captureMask = theirs;
-        ulong pushMask = ~occupied;
-        if (checkers != 0)
+        Bitboard captureMask = theirs;
+        Bitboard pushMask = ~occupied;
+        if (checkers.IsNotEmpty)
         {
             captureMask = checkers;
-            pushMask = Attacks.Between(king, Bitboards.First(checkers));
+            pushMask = Attacks.Between(king, checkers.First);
         }
-        ulong quietMask = quietMoves ? pushMask : 0;
+        Bitboard quietMask = quietMoves ? pushMask : Bitboard.Empty;
 
         // Pieces pinned to the king by an enemy slider: exactly one piece of ours between the two
-        ulong pinned = 0;
-        ulong theirQueens = board.Pieces(them, PieceType.Queen);
-        ulong snipers = (Attacks.BishopRays(king) & (board.Pieces(them, PieceType.Bishop) | theirQueens))
-                      | (Attacks.RookRays(king) & (board.Pieces(them, PieceType.Rook) | theirQueens));
-        for (ulong bits = snipers; bits != 0;)
+        Bitboard pinned = Bitboard.Empty;
+        Bitboard theirQueens = board.Pieces(them, PieceType.Queen);
+        Bitboard snipers = (Attacks.BishopRays(king) & (board.Pieces(them, PieceType.Bishop) | theirQueens))
+                         | (Attacks.RookRays(king) & (board.Pieces(them, PieceType.Rook) | theirQueens));
+        foreach (Square sniper in snipers)
         {
-            ulong between = Attacks.Between(king, Bitboards.PopFirst(ref bits)) & occupied;
-            if (Bitboards.IsSingle(between) && (between & ours) != 0)
+            Bitboard between = Attacks.Between(king, sniper) & occupied;
+            if (between.IsSingle && (between & ours).IsNotEmpty)
             {
                 pinned |= between;
             }
         }
 
-        GeneratePawnMoves(board, moves, us, them, occupied, theirs, king, pinned, captureMask, pushMask, quietMoves);
+        GeneratePawnMoves(board, ref moves, us, them, occupied, theirs, king, pinned, captureMask, pushMask, quietMoves);
 
-        for (ulong bits = board.Pieces(us, PieceType.Knight); bits != 0;)
+        foreach (Square from in board.Pieces(us, PieceType.Knight))
         {
-            int from = Bitboards.PopFirst(ref bits);
-            AddPieceMoves(board, moves, from, PieceType.Knight, Attacks.Knight(from), king, pinned, captureMask, quietMask);
+            AddPieceMoves(board, ref moves, from, PieceType.Knight, Attacks.Knight(from), king, pinned, captureMask, quietMask);
         }
-        for (ulong bits = board.Pieces(us, PieceType.Bishop); bits != 0;)
+        foreach (Square from in board.Pieces(us, PieceType.Bishop))
         {
-            int from = Bitboards.PopFirst(ref bits);
-            AddPieceMoves(board, moves, from, PieceType.Bishop, Attacks.Bishop(occupied, from), king, pinned, captureMask, quietMask);
+            AddPieceMoves(board, ref moves, from, PieceType.Bishop, Attacks.Bishop(occupied, from), king, pinned, captureMask, quietMask);
         }
-        for (ulong bits = board.Pieces(us, PieceType.Rook); bits != 0;)
+        foreach (Square from in board.Pieces(us, PieceType.Rook))
         {
-            int from = Bitboards.PopFirst(ref bits);
-            AddPieceMoves(board, moves, from, PieceType.Rook, Attacks.Rook(occupied, from), king, pinned, captureMask, quietMask);
+            AddPieceMoves(board, ref moves, from, PieceType.Rook, Attacks.Rook(occupied, from), king, pinned, captureMask, quietMask);
         }
-        for (ulong bits = board.Pieces(us, PieceType.Queen); bits != 0;)
+        foreach (Square from in board.Pieces(us, PieceType.Queen))
         {
-            int from = Bitboards.PopFirst(ref bits);
-            AddPieceMoves(board, moves, from, PieceType.Queen, Attacks.Queen(occupied, from), king, pinned, captureMask, quietMask);
+            AddPieceMoves(board, ref moves, from, PieceType.Queen, Attacks.Queen(occupied, from), king, pinned, captureMask, quietMask);
         }
 
-        GenerateKingMoves(board, moves, king, forbidden, occupied, theirs, quietMoves);
-        if (quietMoves && checkers == 0)
+        GenerateKingMoves(board, ref moves, king, forbidden, occupied, theirs, quietMoves);
+        if (quietMoves && checkers.IsEmpty)
         {
-            GenerateCastlingMoves(board, moves, us, king, occupied, forbidden);
+            GenerateCastlingMoves(board, ref moves, us, king, occupied, forbidden);
         }
     }
 
     /// <summary>
     /// Every square attacked by the colour, for the given occupancy.
     /// </summary>
-    private static ulong AttackedBy(Board board, Colour by, ulong occupied)
+    private static Bitboard AttackedBy(Board board, Colour by, Bitboard occupied)
     {
-        ulong attacks = Attacks.Pawns(by, board.Pieces(by, PieceType.Pawn)) | Attacks.King(board.KingSquare(by));
-        for (ulong bits = board.Pieces(by, PieceType.Knight); bits != 0;)
+        Bitboard attacks = Attacks.Pawns(by, board.Pieces(by, PieceType.Pawn)) | Attacks.King(board.KingSquare(by));
+        foreach (Square knight in board.Pieces(by, PieceType.Knight))
         {
-            attacks |= Attacks.Knight(Bitboards.PopFirst(ref bits));
+            attacks |= Attacks.Knight(knight);
         }
-        ulong queens = board.Pieces(by, PieceType.Queen);
-        for (ulong bits = board.Pieces(by, PieceType.Bishop) | queens; bits != 0;)
+        Bitboard queens = board.Pieces(by, PieceType.Queen);
+        foreach (Square bishop in board.Pieces(by, PieceType.Bishop) | queens)
         {
-            attacks |= Attacks.Bishop(occupied, Bitboards.PopFirst(ref bits));
+            attacks |= Attacks.Bishop(occupied, bishop);
         }
-        for (ulong bits = board.Pieces(by, PieceType.Rook) | queens; bits != 0;)
+        foreach (Square rook in board.Pieces(by, PieceType.Rook) | queens)
         {
-            attacks |= Attacks.Rook(occupied, Bitboards.PopFirst(ref bits));
+            attacks |= Attacks.Rook(occupied, rook);
         }
         return attacks;
     }
 
-    private static void AddPieceMoves(Board board, List<Move> moves, int from, PieceType piece, ulong attacks, int king, ulong pinned, ulong captureMask, ulong quietMask)
+    private static void AddPieceMoves(Board board, ref MoveList moves, Square from, PieceType piece, Bitboard attacks, Square king, Bitboard pinned, Bitboard captureMask, Bitboard quietMask)
     {
-        if (Bitboards.Contains(pinned, from))
+        if (pinned.Contains(from))
         {
             attacks &= Attacks.Line(king, from);
         }
-        for (ulong targets = attacks & captureMask; targets != 0;)
+        foreach (Square to in attacks & captureMask)
         {
-            int to = Bitboards.PopFirst(ref targets);
-            moves.Add(new Move(from, to, piece, board.At(to).Type));
+            moves.Add(new Move(from, to, piece, board.At(to)));
         }
-        for (ulong targets = attacks & quietMask; targets != 0;)
+        foreach (Square to in attacks & quietMask)
         {
-            moves.Add(new Move(from, Bitboards.PopFirst(ref targets), piece));
+            moves.Add(new Move(from, to, piece));
         }
     }
 
-    private static void GenerateKingMoves(Board board, List<Move> moves, int king, ulong forbidden, ulong occupied, ulong theirs, bool quietMoves)
+    private static void GenerateKingMoves(Board board, ref MoveList moves, Square king, Bitboard forbidden, Bitboard occupied, Bitboard theirs, bool quietMoves)
     {
-        ulong targets = Attacks.King(king) & ~forbidden;
-        for (ulong captures = targets & theirs; captures != 0;)
+        Bitboard targets = Attacks.King(king) & ~forbidden;
+        foreach (Square to in targets & theirs)
         {
-            int to = Bitboards.PopFirst(ref captures);
-            moves.Add(new Move(king, to, PieceType.King, board.At(to).Type));
+            moves.Add(new Move(king, to, PieceType.King, board.At(to)));
         }
         if (quietMoves)
         {
-            for (ulong quiets = targets & ~occupied; quiets != 0;)
+            foreach (Square to in targets & ~occupied)
             {
-                moves.Add(new Move(king, Bitboards.PopFirst(ref quiets), PieceType.King));
+                moves.Add(new Move(king, to, PieceType.King));
             }
         }
     }
@@ -230,26 +222,26 @@ public static class MoveGenerator
     /// squares it passes over are attacked. The caller has already established the king is not in
     /// check, so the attack set computed without the king is exact for the squares it crosses.
     /// </summary>
-    private static void GenerateCastlingMoves(Board board, List<Move> moves, Colour us, int king, ulong occupied, ulong forbidden)
+    private static void GenerateCastlingMoves(Board board, ref MoveList moves, Colour us, Square king, Bitboard occupied, Bitboard forbidden)
     {
         CastlingRights kingSide = us == Colour.White ? CastlingRights.WhiteKingSide : CastlingRights.BlackKingSide;
         CastlingRights queenSide = us == Colour.White ? CastlingRights.WhiteQueenSide : CastlingRights.BlackQueenSide;
-        int home = us == Colour.White ? Squares.E1 : Squares.E8;
+        Square home = us == Colour.White ? Square.E1 : Square.E8;
         if ((board.CastlingRights & (kingSide | queenSide)) == CastlingRights.None || king != home)
         {
             return;
         }
-        Piece rook = new(us, PieceType.Rook);
-        ulong kingSidePath = Bitboards.Of(home + 1) | Bitboards.Of(home + 2);              // f and g
-        ulong queenSideEmpty = Bitboards.Of(home - 1) | Bitboards.Of(home - 2) | Bitboards.Of(home - 3);   // d, c and b
-        ulong queenSidePath = Bitboards.Of(home - 1) | Bitboards.Of(home - 2);             // d and c
+        Bitboard rooks = board.Pieces(us, PieceType.Rook);
+        Bitboard kingSidePath = Bitboard.Of(home + 1) | Bitboard.Of(home + 2);              // f and g
+        Bitboard queenSideEmpty = Bitboard.Of(home - 1) | Bitboard.Of(home - 2) | Bitboard.Of(home - 3);   // d, c and b
+        Bitboard queenSidePath = Bitboard.Of(home - 1) | Bitboard.Of(home - 2);             // d and c
         if ((board.CastlingRights & kingSide) != CastlingRights.None
-            && board.At(home + 3) == rook && (occupied & kingSidePath) == 0 && (forbidden & kingSidePath) == 0)
+            && rooks.Contains(home + 3) && (occupied & kingSidePath).IsEmpty && (forbidden & kingSidePath).IsEmpty)
         {
             moves.Add(new Move(home, home + 2, PieceType.King, PieceType.None, MoveKind.CastleKingSide));
         }
         if ((board.CastlingRights & queenSide) != CastlingRights.None
-            && board.At(home - 4) == rook && (occupied & queenSideEmpty) == 0 && (forbidden & queenSidePath) == 0)
+            && rooks.Contains(home - 4) && (occupied & queenSideEmpty).IsEmpty && (forbidden & queenSidePath).IsEmpty)
         {
             moves.Add(new Move(home, home - 2, PieceType.King, PieceType.None, MoveKind.CastleQueenSide));
         }
@@ -259,61 +251,59 @@ public static class MoveGenerator
     /// Pawn moves for the whole pawn set at once: the set is shifted forward for pushes and
     /// diagonally for captures, masked by what is legal, and each target is mapped back to its source.
     /// </summary>
-    private static void GeneratePawnMoves(Board board, List<Move> moves, Colour us, Colour them, ulong occupied, ulong theirs, int king, ulong pinned, ulong captureMask, ulong pushMask, bool quietMoves)
+    private static void GeneratePawnMoves(Board board, ref MoveList moves, Colour us, Colour them, Bitboard occupied, Bitboard theirs, Square king, Bitboard pinned, Bitboard captureMask, Bitboard pushMask, bool quietMoves)
     {
-        ulong pawns = board.Pieces(us, PieceType.Pawn);
-        if (pawns == 0)
+        Bitboard pawns = board.Pieces(us, PieceType.Pawn);
+        if (pawns.IsEmpty)
         {
             return;
         }
-        ulong empty = ~occupied;
-        ulong promotionRank;
-        ulong pushes, doublePushes, capturesWest, capturesEast;
+        Bitboard empty = ~occupied;
+        Bitboard promotionRank;
+        Bitboard pushes, doublePushes, capturesWest, capturesEast;
         int pushStep, westStep, eastStep;
         if (us == Colour.White)
         {
-            promotionRank = Bitboards.Rank8;
-            pushes = Bitboards.North(pawns) & empty;
-            doublePushes = Bitboards.North(pushes & Bitboards.Rank3) & empty;
-            capturesWest = Bitboards.NorthWest(pawns) & theirs;
-            capturesEast = Bitboards.NorthEast(pawns) & theirs;
+            promotionRank = Bitboard.Rank8;
+            pushes = pawns.North() & empty;
+            doublePushes = (pushes & Bitboard.Rank3).North() & empty;
+            capturesWest = pawns.NorthWest() & theirs;
+            capturesEast = pawns.NorthEast() & theirs;
             pushStep = 8;
             westStep = 7;
             eastStep = 9;
         }
         else
         {
-            promotionRank = Bitboards.Rank1;
-            pushes = Bitboards.South(pawns) & empty;
-            doublePushes = Bitboards.South(pushes & Bitboards.Rank6) & empty;
-            capturesWest = Bitboards.SouthWest(pawns) & theirs;
-            capturesEast = Bitboards.SouthEast(pawns) & theirs;
+            promotionRank = Bitboard.Rank1;
+            pushes = pawns.South() & empty;
+            doublePushes = (pushes & Bitboard.Rank6).South() & empty;
+            capturesWest = pawns.SouthWest() & theirs;
+            capturesEast = pawns.SouthEast() & theirs;
             pushStep = -8;
             westStep = -9;
             eastStep = -7;
         }
 
         // Promotions are generated even when only captures are wanted
-        AddPromotions(board, moves, pushes & promotionRank & pushMask, pushStep, king, pinned);
-        AddPromotions(board, moves, capturesWest & promotionRank & captureMask, westStep, king, pinned);
-        AddPromotions(board, moves, capturesEast & promotionRank & captureMask, eastStep, king, pinned);
-        AddPawnCaptures(board, moves, capturesWest & ~promotionRank & captureMask, westStep, king, pinned);
-        AddPawnCaptures(board, moves, capturesEast & ~promotionRank & captureMask, eastStep, king, pinned);
+        AddPromotions(board, ref moves, pushes & promotionRank & pushMask, pushStep, king, pinned);
+        AddPromotions(board, ref moves, capturesWest & promotionRank & captureMask, westStep, king, pinned);
+        AddPromotions(board, ref moves, capturesEast & promotionRank & captureMask, eastStep, king, pinned);
+        AddPawnCaptures(board, ref moves, capturesWest & ~promotionRank & captureMask, westStep, king, pinned);
+        AddPawnCaptures(board, ref moves, capturesEast & ~promotionRank & captureMask, eastStep, king, pinned);
         if (quietMoves)
         {
-            for (ulong targets = pushes & ~promotionRank & pushMask; targets != 0;)
+            foreach (Square to in pushes & ~promotionRank & pushMask)
             {
-                int to = Bitboards.PopFirst(ref targets);
-                int from = to - pushStep;
+                Square from = to - pushStep;
                 if (IsAllowedByPins(king, pinned, from, to))
                 {
                     moves.Add(new Move(from, to, PieceType.Pawn));
                 }
             }
-            for (ulong targets = doublePushes & pushMask; targets != 0;)
+            foreach (Square to in doublePushes & pushMask)
             {
-                int to = Bitboards.PopFirst(ref targets);
-                int from = to - (2 * pushStep);
+                Square from = to - (2 * pushStep);
                 if (IsAllowedByPins(king, pinned, from, to))
                 {
                     moves.Add(new Move(from, to, PieceType.Pawn, PieceType.None, MoveKind.DoublePawnPush));
@@ -325,24 +315,23 @@ public static class MoveGenerator
         // is the checker; an en passant capture can never block a check), the capturing pawn must
         // not be pinned off the line, and lifting both pawns off the king's rank must not expose
         // the king to a rook or queen along it, the one discovered attack the pin test cannot see.
-        int enPassant = board.EnPassantSquare;
-        if (enPassant != Squares.None)
+        Square enPassant = board.EnPassantSquare;
+        if (enPassant.IsValid)
         {
-            int captured = enPassant - pushStep;
-            if ((captureMask & Bitboards.Of(captured)) != 0)
+            Square captured = enPassant - pushStep;
+            if (captureMask.Contains(captured))
             {
-                ulong theirRooksAndQueens = board.Pieces(them, PieceType.Rook) | board.Pieces(them, PieceType.Queen);
-                for (ulong sources = Attacks.Pawn(them, enPassant) & pawns; sources != 0;)
+                Bitboard theirRooksAndQueens = board.Pieces(them, PieceType.Rook) | board.Pieces(them, PieceType.Queen);
+                foreach (Square from in Attacks.Pawn(them, enPassant) & pawns)
                 {
-                    int from = Bitboards.PopFirst(ref sources);
                     if (!IsAllowedByPins(king, pinned, from, enPassant))
                     {
                         continue;
                     }
-                    if (Squares.RankOf(king) == Squares.RankOf(from))
+                    if (king.Rank == from.Rank)
                     {
-                        ulong withoutPawns = occupied ^ Bitboards.Of(from) ^ Bitboards.Of(captured);
-                        if ((Attacks.Rook(withoutPawns, king) & Bitboards.Rank(Squares.RankOf(king)) & theirRooksAndQueens) != 0)
+                        Bitboard withoutPawns = occupied ^ Bitboard.Of(from) ^ Bitboard.Of(captured);
+                        if ((Attacks.Rook(withoutPawns, king) & Bitboard.OfRank(king.Rank) & theirRooksAndQueens).IsNotEmpty)
                         {
                             continue;
                         }
@@ -353,30 +342,28 @@ public static class MoveGenerator
         }
     }
 
-    private static void AddPawnCaptures(Board board, List<Move> moves, ulong targets, int step, int king, ulong pinned)
+    private static void AddPawnCaptures(Board board, ref MoveList moves, Bitboard targets, int step, Square king, Bitboard pinned)
     {
-        while (targets != 0)
+        foreach (Square to in targets)
         {
-            int to = Bitboards.PopFirst(ref targets);
-            int from = to - step;
+            Square from = to - step;
             if (IsAllowedByPins(king, pinned, from, to))
             {
-                moves.Add(new Move(from, to, PieceType.Pawn, board.At(to).Type));
+                moves.Add(new Move(from, to, PieceType.Pawn, board.At(to)));
             }
         }
     }
 
-    private static void AddPromotions(Board board, List<Move> moves, ulong targets, int step, int king, ulong pinned)
+    private static void AddPromotions(Board board, ref MoveList moves, Bitboard targets, int step, Square king, Bitboard pinned)
     {
-        while (targets != 0)
+        foreach (Square to in targets)
         {
-            int to = Bitboards.PopFirst(ref targets);
-            int from = to - step;
+            Square from = to - step;
             if (!IsAllowedByPins(king, pinned, from, to))
             {
                 continue;
             }
-            PieceType captured = board.At(to).Type;
+            PieceType captured = board.At(to);
             foreach (PieceType promotion in PieceTypeExtensions.PromotionTypes)
             {
                 moves.Add(new Move(from, to, PieceType.Pawn, captured, MoveKind.Promotion, promotion));
@@ -387,8 +374,8 @@ public static class MoveGenerator
     /// <summary>
     /// A pinned piece may only move along the line through it and the king.
     /// </summary>
-    private static bool IsAllowedByPins(int king, ulong pinned, int from, int to)
+    private static bool IsAllowedByPins(Square king, Bitboard pinned, Square from, Square to)
     {
-        return !Bitboards.Contains(pinned, from) || Bitboards.Contains(Attacks.Line(king, from), to);
+        return !pinned.Contains(from) || Attacks.Line(king, from).Contains(to);
     }
 }

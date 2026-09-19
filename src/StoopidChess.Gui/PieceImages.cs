@@ -3,25 +3,25 @@ using StoopidChess.Core;
 namespace StoopidChess.Gui;
 
 /// <summary>
-/// The piece bitmaps from the embedded resources, indexed by piece.
+/// The piece bitmaps from the embedded resources, indexed by colour and piece type.
 /// </summary>
 internal static class PieceImages
 {
-    private static readonly Dictionary<Piece, Bitmap> Images = new()
+    private static readonly Dictionary<(Colour, PieceType), Bitmap> Images = new()
     {
-        [Piece.WhitePawn] = ChessPieceImages.WhitePawn,
-        [Piece.WhiteKnight] = ChessPieceImages.WhiteKnight,
-        [Piece.WhiteBishop] = ChessPieceImages.WhiteBishop,
-        [Piece.WhiteRook] = ChessPieceImages.WhiteRook,
-        [Piece.WhiteQueen] = ChessPieceImages.WhiteQueen,
-        [Piece.WhiteKing] = ChessPieceImages.WhiteKing,
-        [Piece.BlackPawn] = ChessPieceImages.BlackPawn,
-        [Piece.BlackKnight] = ChessPieceImages.BlackKnight,
-        [Piece.BlackBishop] = ChessPieceImages.BlackBishop,
-        [Piece.BlackRook] = ChessPieceImages.BlackRook,
-        [Piece.BlackQueen] = ChessPieceImages.BlackQueen,
-        [Piece.BlackKing] = ChessPieceImages.BlackKing,
+        [(Colour.White, PieceType.Pawn)] = ChessPieceImages.WhitePawn,
+        [(Colour.White, PieceType.Knight)] = ChessPieceImages.WhiteKnight,
+        [(Colour.White, PieceType.Bishop)] = ChessPieceImages.WhiteBishop,
+        [(Colour.White, PieceType.Rook)] = ChessPieceImages.WhiteRook,
+        [(Colour.White, PieceType.Queen)] = ChessPieceImages.WhiteQueen,
+        [(Colour.White, PieceType.King)] = ChessPieceImages.WhiteKing,
+        [(Colour.Black, PieceType.Pawn)] = ChessPieceImages.BlackPawn,
+        [(Colour.Black, PieceType.Knight)] = ChessPieceImages.BlackKnight,
+        [(Colour.Black, PieceType.Bishop)] = ChessPieceImages.BlackBishop,
+        [(Colour.Black, PieceType.Rook)] = ChessPieceImages.BlackRook,
+        [(Colour.Black, PieceType.Queen)] = ChessPieceImages.BlackQueen,
+        [(Colour.Black, PieceType.King)] = ChessPieceImages.BlackKing,
     };
 
-    public static Bitmap Get(Piece piece) => Images[piece];
+    public static Bitmap Get(Colour colour, PieceType type) => Images[(colour, type)];
 }

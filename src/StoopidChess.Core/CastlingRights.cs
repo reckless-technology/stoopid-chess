@@ -18,6 +18,9 @@ public enum CastlingRights : byte
 
 public static class CastlingRightsExtensions
 {
+    // The rights lost when a move touches each square: only the six home squares carry any
+    private static readonly CastlingRights[] LostBySquareTable = BuildLostBySquare();
+
     /// <summary>
     /// The FEN castling field, e.g. "KQkq" or "-".
     /// </summary>
@@ -38,14 +41,17 @@ public static class CastlingRightsExtensions
     /// The rights that are lost whenever a piece moves from, or a capture is made on, the given square.
     /// The king's home square carries both of that side's rights; each rook's home square carries one.
     /// </summary>
-    public static CastlingRights LostBySquare(int square) => square switch
+    public static CastlingRights LostBySquare(Square square) => LostBySquareTable[square];
+
+    private static CastlingRights[] BuildLostBySquare()
     {
-        Squares.E1 => CastlingRights.White,
-        Squares.A1 => CastlingRights.WhiteQueenSide,
-        Squares.H1 => CastlingRights.WhiteKingSide,
-        Squares.E8 => CastlingRights.Black,
-        Squares.A8 => CastlingRights.BlackQueenSide,
-        Squares.H8 => CastlingRights.BlackKingSide,
-        _ => CastlingRights.None,
-    };
+        var table = new CastlingRights[Square.Count + 1];   // Square.None loses nothing
+        table[Square.E1] = CastlingRights.White;
+        table[Square.A1] = CastlingRights.WhiteQueenSide;
+        table[Square.H1] = CastlingRights.WhiteKingSide;
+        table[Square.E8] = CastlingRights.Black;
+        table[Square.A8] = CastlingRights.BlackQueenSide;
+        table[Square.H8] = CastlingRights.BlackKingSide;
+        return table;
+    }
 }

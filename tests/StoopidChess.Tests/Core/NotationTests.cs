@@ -10,7 +10,7 @@ public class NotationTests
     [InlineData("a2a1n", "a2", "a1", PieceType.Knight)]
     public void ParsesUciMoves(string text, string from, string to, PieceType promotion)
     {
-        Assert.Equal((Squares.Parse(from), Squares.Parse(to), promotion), MoveNotation.ParseUci(text));
+        Assert.Equal((Square.Parse(from), Square.Parse(to), promotion), MoveNotation.ParseUci(text));
     }
 
     [Theory]
@@ -44,15 +44,15 @@ public class NotationTests
     [Fact]
     public void MovesPackAndUnpackWithoutLoss()
     {
-        foreach (int from in Squares.All)
+        foreach (Square from in Square.All)
         {
             foreach (PieceType promotion in new[] { PieceType.None, PieceType.Queen, PieceType.Knight })
             {
-                var move = new Move(from, Squares.H8 - from + Squares.A1, PieceType.Pawn, PieceType.Rook, MoveKind.Promotion, promotion);
+                var move = new Move(from, Square.H8 - from + Square.A1, PieceType.Pawn, PieceType.Rook, MoveKind.Promotion, promotion);
                 Move unpacked = Move.FromBits(move.ToBits());
                 Assert.Equal(move, unpacked);
                 Assert.Equal(from, unpacked.From);
-                Assert.Equal(Squares.H8 - from, unpacked.To);
+                Assert.Equal(Square.H8 - from, unpacked.To);
                 Assert.Equal(PieceType.Pawn, unpacked.Piece);
                 Assert.Equal(PieceType.Rook, unpacked.Captured);
                 Assert.Equal(MoveKind.Promotion, unpacked.Kind);
@@ -66,17 +66,21 @@ public class NotationTests
     [Fact]
     public void SquareNamesRoundTrip()
     {
-        foreach (int square in Squares.All)
+        foreach (Square square in Square.All)
         {
-            Assert.True(Squares.IsOnBoard(square));
-            Assert.Equal(square, Squares.Parse(Squares.Name(square)));
+            Assert.True(square.IsValid);
+            Assert.Equal(square, Square.Parse(square.Name));
+            Assert.Equal(square, new Square(square.Index));
         }
-        Assert.Equal(64, Squares.All.Count());
-        Assert.False(Squares.IsOnBoard(Squares.None));
-        Assert.False(Squares.IsOnBoard(Squares.Count));
-        Assert.False(Squares.IsOnBoard(Squares.Count + 8));
-        Assert.False(Squares.IsOnBoard(int.MinValue));
-        Assert.Equal("-", Squares.Name(Squares.None));
+        Assert.Equal(64, Square.All.Count());
+        Assert.False(Square.None.IsValid);
+        Assert.Equal(Square.None, new Square(Square.Count));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Square(Square.Count + 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new Square(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Square.At(8, 0));
+        Assert.Equal("-", Square.None.Name);
+        Assert.Equal(4, (int)Square.E1);
+        Assert.Equal(Square.Parse("e2"), Square.E1 + 8);
     }
 
     [Fact]
@@ -84,9 +88,12 @@ public class NotationTests
     {
         foreach (char c in "PNBRQKpnbrqk")
         {
-            Assert.Equal(c, Piece.FromChar(c)?.ToChar());
+            PieceType type = PieceTypeExtensions.FromChar(c);
+            Assert.NotEqual(PieceType.None, type);
+            Assert.Equal(c, type.ToChar(char.IsUpper(c) ? Colour.White : Colour.Black));
         }
-        Assert.Null(Piece.FromChar('x'));
-        Assert.Equal('.', Piece.None.ToChar());
+        Assert.Equal(PieceType.None, PieceTypeExtensions.FromChar('x'));
+        Assert.Equal('.', PieceType.None.ToChar(Colour.None));
+        Assert.Equal('.', PieceType.None.ToChar());
     }
 }

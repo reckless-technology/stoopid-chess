@@ -31,16 +31,16 @@ public readonly record struct Move
 
     private readonly uint bits;
 
-    /// <param name="from">Source square (0..63, see <see cref="Squares"/>).</param>
+    /// <param name="from">Source square.</param>
     /// <param name="to">Destination square. For castling this is the king's destination.</param>
     /// <param name="piece">The moving piece type; never <see cref="PieceType.None"/> for a real move.</param>
     /// <param name="captured">The captured piece type, or <see cref="PieceType.None"/>. A pawn for en passant.</param>
     /// <param name="kind">Special-move classification.</param>
     /// <param name="promotion">The piece a pawn promotes to, or <see cref="PieceType.None"/>.</param>
-    public Move(int from, int to, PieceType piece, PieceType captured = PieceType.None, MoveKind kind = MoveKind.Normal, PieceType promotion = PieceType.None)
+    public Move(Square from, Square to, PieceType piece, PieceType captured = PieceType.None, MoveKind kind = MoveKind.Normal, PieceType promotion = PieceType.None)
     {
-        bits = ((uint)from & SquareMask)
-             | (((uint)to & SquareMask) << ToShift)
+        bits = ((uint)from.Index & SquareMask)
+             | (((uint)to.Index & SquareMask) << ToShift)
              | (((uint)piece & ThreeBits) << PieceShift)
              | (((uint)captured & ThreeBits) << CapturedShift)
              | (((uint)kind & ThreeBits) << KindShift)
@@ -54,9 +54,9 @@ public readonly record struct Move
 
     public static readonly Move None;
 
-    public int From => (int)(bits & SquareMask);
+    public Square From => Square.Unchecked((int)(bits & SquareMask));
 
-    public int To => (int)((bits >> ToShift) & SquareMask);
+    public Square To => Square.Unchecked((int)((bits >> ToShift) & SquareMask));
 
     public PieceType Piece => (PieceType)((bits >> PieceShift) & ThreeBits);
 
@@ -84,7 +84,7 @@ public readonly record struct Move
     /// </summary>
     public string ToUci()
     {
-        string text = Squares.Name(From) + Squares.Name(To);
+        string text = From.Name + To.Name;
         return IsPromotion ? text + char.ToLowerInvariant(Promotion.ToChar()) : text;
     }
 

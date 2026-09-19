@@ -157,6 +157,52 @@ Self-play against the pre-change build (60 games, 10+0.1, single thread, six-ply
 and search are identical, so the whole gain is the extra depth bought by speed: about one ply at
 this time control, which is what the architecture review predicted.
 
+## Value types: Square, Bitboard, MoveList
+
+A follow-up replaced the raw `int` squares, `ulong` sets and `List<Move>` with three structs, as
+pawnstar does in C++, with the constraint that they cost nothing at run time:
+
+- `Square`: one byte, a1 = 0 .. h8 = 63 plus `Square.None` (64). It converts implicitly to `int`
+  so tables index by it directly, but only explicitly from `int` (`new Square(i)`, range checked;
+  `Square.Unchecked` internally where the index is known good), so an index can never be passed
+  where a square is meant. `Move.From`/`To`, `Board.KingSquare`, `EnPassantSquare`, the attack
+  tables, `Game`, `GameController` and the GUI all take and return `Square`.
+- `Bitboard`: a readonly record struct over `ulong` with the set operators, `Count`, `IsEmpty`,
+  `IsSingle`, `First`, `Contains`, the shifts and constants, and `foreach (Square s in set)` via a
+  two-field struct enumerator. `Board.Pieces`, `Occupied`, `Checkers`, `AttackersTo` and every
+  `Attacks` method use it.
+- `MoveList`: 256 moves inline (`[InlineArray]`) plus a count, so a generated list lives on the
+  stack or in a preallocated per-ply array and never touches the heap. The generator appends to a
+  `ref MoveList`; `Searcher` keeps one per ply, `Perft` one per depth; `AsSpan()` (marked
+  `[UnscopedRef]`) gives the ordering code in-place access; `IEnumerable<Move>` is implemented for
+  LINQ in tests.
+
+Cost, measured A/B against the commit before the types (same machine, same session; the bench
+signature is identical, so the trees searched are identical):
+
+| Measure | Raw types | Value types |
+|---|---|---|
+| bench depth 6 (best of 3) | 2.16M nps | 2.13M nps |
+| perft, depths under 1M nodes | 86.6M nps | 87.2M nps |
+| perft, every listed depth (651M nodes) | 211M nps | 258M nps |
+| 3 s search nps, start position / kiwipete | 4.55M / 4.65M | 4.71M / 4.60M |
+
+The struct wrappers are free, as the JIT promotes single-field structs to registers and inlines
+the enumerator; the perft gain comes from `MoveList` replacing a heap-allocated list per node.
+
+### No coloured-piece type
+
+`Piece` (a `(Colour, PieceType)` record struct) went next. With a bitboard per colour the colour
+half of "what is on this square" is redundant, so the mailbox holds `PieceType` alone and make/unmake
+pass colour and type explicitly from the move (the mover is the side to move, a capture is the
+opponent's, a promotion is the mover's), exactly as pawnstar does. Callers that want both at once
+get a `(Colour Colour, PieceType Type)` tuple from `Board[square]`, `PositionBuilder[square]` and
+`GameController.PieceAt`, with the default tuple meaning an empty square; `Game.CapturedPieces`
+returns `PieceType`s since its argument is the colour; `PieceType.ToChar(colour)` produces the FEN
+letter. Measured against the build before the value types: bench within noise (2.0M vs 2.1M nps on
+a 280 ms run), perft 85.7M vs 81.4M nps at the 1M-node budget and 254M vs 195M nps over every
+depth, timed searches identical in nodes and within 3% in nps either way.
+
 ### What the next steps can now use
 
 - `Board.AttackersTo(square, colour)` and the `Attacks` tables make static exchange evaluation,

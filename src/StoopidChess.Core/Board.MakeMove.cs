@@ -15,14 +15,14 @@ public sealed partial class Board
     public void MakeMove(Move move)
     {
         Debug.Assert(!move.IsNone, "cannot make the null move");
-        Debug.Assert(squares[move.From] == new Piece(SideToMove, move.Piece), "moving piece mismatch");
+        Debug.Assert(squares[move.From] == move.Piece && byColour[(int)SideToMove].Contains(move.From), "moving piece mismatch");
 
         history.Add(new UndoInfo(move, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey));
 
         Colour us = SideToMove;
         Colour them = us.Opponent();
 
-        SetEnPassantSquare(Squares.None);
+        SetEnPassantSquare(Square.None);
         HalfMoveClock = move.Piece == PieceType.Pawn || move.IsCapture ? 0 : Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
 
         switch (move.Kind)
@@ -30,15 +30,15 @@ public sealed partial class Board
             case MoveKind.Normal:
                 if (move.IsCapture)
                 {
-                    RemovePiece(move.To);
+                    RemovePiece(move.To, them, move.Captured);
                 }
-                MovePiece(move.From, move.To);
+                MovePiece(move.From, move.To, us, move.Piece);
                 break;
 
             case MoveKind.DoublePawnPush:
-                MovePiece(move.From, move.To);
+                MovePiece(move.From, move.To, us, PieceType.Pawn);
                 // Record the en passant square only if an enemy pawn could actually capture there
-                int passed = (move.From + move.To) >> 1;
+                Square passed = Square.Unchecked((move.From.Index + move.To.Index) >> 1);
                 if (IsAttackedByPawn(passed, them))
                 {
                     SetEnPassantSquare(passed);
@@ -46,27 +46,27 @@ public sealed partial class Board
                 break;
 
             case MoveKind.EnPassant:
-                RemovePiece(EnPassantCaptureSquare(move));
-                MovePiece(move.From, move.To);
+                RemovePiece(EnPassantCaptureSquare(move), them, PieceType.Pawn);
+                MovePiece(move.From, move.To, us, PieceType.Pawn);
                 break;
 
             case MoveKind.Promotion:
                 if (move.IsCapture)
                 {
-                    RemovePiece(move.To);
+                    RemovePiece(move.To, them, move.Captured);
                 }
-                RemovePiece(move.From);
-                PutPiece(move.To, new Piece(us, move.Promotion));
+                RemovePiece(move.From, us, PieceType.Pawn);
+                PutPiece(move.To, us, move.Promotion);
                 break;
 
             case MoveKind.CastleKingSide:
-                MovePiece(move.From, move.To);
-                MovePiece(move.To + 1, move.To - 1);    // Rook: h-file to f-file
+                MovePiece(move.From, move.To, us, PieceType.King);
+                MovePiece(move.To + 1, move.To - 1, us, PieceType.Rook);    // Rook: h-file to f-file
                 break;
 
             case MoveKind.CastleQueenSide:
-                MovePiece(move.From, move.To);
-                MovePiece(move.To - 2, move.To + 1);    // Rook: a-file to d-file
+                MovePiece(move.From, move.To, us, PieceType.King);
+                MovePiece(move.To - 2, move.To + 1, us, PieceType.Rook);    // Rook: a-file to d-file
                 break;
 
             default:
@@ -95,7 +95,7 @@ public sealed partial class Board
     public void MakeNullMove()
     {
         history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey));
-        SetEnPassantSquare(Squares.None);
+        SetEnPassantSquare(Square.None);
         HalfMoveClock = Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
         SwitchSideToMove(SideToMove.Opponent());
     }
@@ -136,35 +136,35 @@ public sealed partial class Board
         {
             case MoveKind.Normal:
             case MoveKind.DoublePawnPush:
-                MovePiece(move.To, move.From);
+                MovePiece(move.To, move.From, us, move.Piece);
                 if (move.IsCapture)
                 {
-                    PutPiece(move.To, new Piece(them, move.Captured));
+                    PutPiece(move.To, them, move.Captured);
                 }
                 break;
 
             case MoveKind.EnPassant:
-                MovePiece(move.To, move.From);
-                PutPiece(EnPassantCaptureSquare(move), new Piece(them, PieceType.Pawn));
+                MovePiece(move.To, move.From, us, PieceType.Pawn);
+                PutPiece(EnPassantCaptureSquare(move), them, PieceType.Pawn);
                 break;
 
             case MoveKind.Promotion:
-                RemovePiece(move.To);
-                PutPiece(move.From, new Piece(us, PieceType.Pawn));
+                RemovePiece(move.To, us, move.Promotion);
+                PutPiece(move.From, us, PieceType.Pawn);
                 if (move.IsCapture)
                 {
-                    PutPiece(move.To, new Piece(them, move.Captured));
+                    PutPiece(move.To, them, move.Captured);
                 }
                 break;
 
             case MoveKind.CastleKingSide:
-                MovePiece(move.To, move.From);
-                MovePiece(move.To - 1, move.To + 1);
+                MovePiece(move.To, move.From, us, PieceType.King);
+                MovePiece(move.To - 1, move.To + 1, us, PieceType.Rook);
                 break;
 
             case MoveKind.CastleQueenSide:
-                MovePiece(move.To, move.From);
-                MovePiece(move.To + 1, move.To - 2);
+                MovePiece(move.To, move.From, us, PieceType.King);
+                MovePiece(move.To + 1, move.To - 2, us, PieceType.Rook);
                 break;
 
             default:
@@ -189,8 +189,5 @@ public sealed partial class Board
     /// <summary>
     /// The square of the pawn captured by an en passant move: the destination file on the source rank.
     /// </summary>
-    public static int EnPassantCaptureSquare(Move move)
-    {
-        return Squares.Index(Squares.FileOf(move.To), Squares.RankOf(move.From));
-    }
+    public static Square EnPassantCaptureSquare(Move move) => Square.At(move.To.File, move.From.Rank);
 }

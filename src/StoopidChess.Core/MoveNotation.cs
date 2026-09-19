@@ -11,10 +11,10 @@ public static class MoveNotation
     /// Parse UCI move text ("e2e4", "e7e8q") into its components, or null if malformed. Legality is
     /// not checked.
     /// </summary>
-    public static (int From, int To, PieceType Promotion)? ParseUci(string? text)
+    public static (Square From, Square To, PieceType Promotion)? ParseUci(string? text)
     {
         if (text is null || text.Length is not (4 or 5)
-            || Squares.TryParse(text.AsSpan(0, 2)) is not int from || Squares.TryParse(text.AsSpan(2, 2)) is not int to)
+            || Square.TryParse(text.AsSpan(0, 2)) is not Square from || Square.TryParse(text.AsSpan(2, 2)) is not Square to)
         {
             return null;
         }
@@ -47,9 +47,9 @@ public static class MoveNotation
                 {
                     text.Append(move.Piece.ToChar());
                 }
-                text.Append(Squares.Name(move.From));
+                text.Append(move.From.Name);
                 text.Append(move.IsCapture ? 'x' : '-');
-                text.Append(Squares.Name(move.To));
+                text.Append(move.To.Name);
                 if (move.IsPromotion)
                 {
                     text.Append('=').Append(move.Promotion.ToChar());

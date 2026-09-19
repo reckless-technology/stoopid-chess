@@ -82,8 +82,8 @@ public class EvaluatorTests
             int empty = 0;
             for (int file = 0; file < 8; file++)
             {
-                Piece piece = board[file, rank];
-                if (piece.IsNone)
+                (Colour colour, PieceType type) = board[file, rank];
+                if (type == PieceType.None)
                 {
                     empty++;
                     continue;
@@ -93,7 +93,7 @@ public class EvaluatorTests
                     fen.Append(empty);
                     empty = 0;
                 }
-                fen.Append(new Piece(piece.Colour.Opponent(), piece.Type).ToChar());
+                fen.Append(type.ToChar(colour.Opponent()));
             }
             if (empty > 0)
             {

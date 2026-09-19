@@ -1,4 +1,3 @@
-using System.Numerics;
 using StoopidChess.Core;
 
 namespace StoopidChess.Engine;
@@ -120,8 +119,8 @@ public sealed class Evaluator
 
     // The squares ahead of a pawn on its own file, and on the two adjacent files, indexed
     // [colour][square]. What lies there decides whether the pawn is passed, doubled or blocked.
-    private static readonly ulong[][] ForwardFile = BuildForwardMasks(adjacentFiles: false);
-    private static readonly ulong[][] ForwardAdjacentFiles = BuildForwardMasks(adjacentFiles: true);
+    private static readonly Bitboard[][] ForwardFile = BuildForwardMasks(adjacentFiles: false);
+    private static readonly Bitboard[][] ForwardAdjacentFiles = BuildForwardMasks(adjacentFiles: true);
 
     private readonly PawnHashEntry[] pawnHashTable = new PawnHashEntry[PawnTableSize];
 
@@ -144,9 +143,9 @@ public sealed class Evaluator
             for (PieceType type = PieceType.Pawn; type <= PieceType.Queen; type++)
             {
                 int[] table = tables[(int)type];
-                for (ulong bits = board.Pieces(colour, type); bits != 0;)
+                foreach (Square square in board.Pieces(colour, type))
                 {
-                    score += table[Bitboards.PopFirst(ref bits)];
+                    score += table[square];
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
@@ -174,7 +173,7 @@ public sealed class Evaluator
 
     private static int MinorAndRookCount(Board board, Colour colour)
     {
-        return BitOperations.PopCount(board.Pieces(colour, PieceType.Knight) | board.Pieces(colour, PieceType.Bishop) | board.Pieces(colour, PieceType.Rook));
+        return (board.Pieces(colour, PieceType.Knight) | board.Pieces(colour, PieceType.Bishop) | board.Pieces(colour, PieceType.Rook)).Count;
     }
 
     /// <summary>
@@ -184,11 +183,11 @@ public sealed class Evaluator
     private static int BishopMobility(Board board, Colour colour)
     {
         int squares = 0;
-        ulong occupied = board.Occupied;
-        ulong own = board.Pieces(colour);
-        for (ulong bishops = board.Pieces(colour, PieceType.Bishop); bishops != 0;)
+        Bitboard occupied = board.Occupied;
+        Bitboard own = board.Pieces(colour);
+        foreach (Square bishop in board.Pieces(colour, PieceType.Bishop))
         {
-            squares += BitOperations.PopCount(Attacks.Bishop(occupied, Bitboards.PopFirst(ref bishops)) & ~own);
+            squares += (Attacks.Bishop(occupied, bishop) & ~own).Count;
         }
         return squares;
     }
@@ -203,15 +202,15 @@ public sealed class Evaluator
             return entry.Score;
         }
         int score = 0;
-        ulong whitePawns = board.Pieces(Colour.White, PieceType.Pawn);
-        ulong blackPawns = board.Pieces(Colour.Black, PieceType.Pawn);
-        for (ulong bits = whitePawns; bits != 0;)
+        Bitboard whitePawns = board.Pieces(Colour.White, PieceType.Pawn);
+        Bitboard blackPawns = board.Pieces(Colour.Black, PieceType.Pawn);
+        foreach (Square pawn in whitePawns)
         {
-            score += EvaluatePawn(Bitboards.PopFirst(ref bits), Colour.White, whitePawns, blackPawns);
+            score += EvaluatePawn(pawn, Colour.White, whitePawns, blackPawns);
         }
-        for (ulong bits = blackPawns; bits != 0;)
+        foreach (Square pawn in blackPawns)
         {
-            score -= EvaluatePawn(Bitboards.PopFirst(ref bits), Colour.Black, blackPawns, whitePawns);
+            score -= EvaluatePawn(pawn, Colour.Black, blackPawns, whitePawns);
         }
         entry = new PawnHashEntry(key, score);
         return score;
@@ -220,19 +219,19 @@ public sealed class Evaluator
     /// <summary>
     /// Bonuses for defended and passed pawns; penalties for doubled and blocked pawns.
     /// </summary>
-    private static int EvaluatePawn(int square, Colour colour, ulong ownPawns, ulong enemyPawns)
+    private static int EvaluatePawn(Square square, Colour colour, Bitboard ownPawns, Bitboard enemyPawns)
     {
         int score = 0;
 
         // Defended by another pawn of the same colour, i.e. by a pawn on one of the squares from
         // which a pawn attacks this one: the squares diagonally behind it.
-        score += DefendedPawnBonus * BitOperations.PopCount(Attacks.Pawn(colour.Opponent(), square) & ownPawns);
+        score += DefendedPawnBonus * (Attacks.Pawn(colour.Opponent(), square) & ownPawns).Count;
 
         // What lies ahead on this file and on the two adjacent files
-        ulong ahead = ForwardFile[(int)colour][square];
-        bool pawnAheadOnFile = (ahead & (ownPawns | enemyPawns)) != 0;
-        bool doubled = (ahead & ownPawns) != 0;
-        bool enemyPawnAheadOnAdjacentFile = (ForwardAdjacentFiles[(int)colour][square] & enemyPawns) != 0;
+        Bitboard ahead = ForwardFile[(int)colour][square];
+        bool pawnAheadOnFile = (ahead & (ownPawns | enemyPawns)).IsNotEmpty;
+        bool doubled = (ahead & ownPawns).IsNotEmpty;
+        bool enemyPawnAheadOnAdjacentFile = (ForwardAdjacentFiles[(int)colour][square] & enemyPawns).IsNotEmpty;
 
         // Passed: nothing ahead on the file and no enemy pawn that could capture it on the way
         if (!pawnAheadOnFile && !enemyPawnAheadOnAdjacentFile)
@@ -244,8 +243,8 @@ public sealed class Evaluator
             score += DoubledPawnPenalty;
         }
         // Blocked: an enemy pawn directly ahead with none on an adjacent file to exchange it away
-        ulong inFront = Bitboards.Forward(colour, Bitboards.Of(square));
-        if ((inFront & enemyPawns) != 0 && !enemyPawnAheadOnAdjacentFile)
+        Bitboard inFront = Bitboard.Of(square).Forward(colour);
+        if ((inFront & enemyPawns).IsNotEmpty && !enemyPawnAheadOnAdjacentFile)
         {
             score += BlockedPawnPenalty;
         }
@@ -271,19 +270,17 @@ public sealed class Evaluator
             values[colour] = new int[source.Length][];
             for (int type = 0; type < source.Length; type++)
             {
-                values[colour][type] = new int[Squares.Count];
+                values[colour][type] = new int[Square.Count];
                 (int[] table, int material) = source[type];
                 if (table.Length == 0 || colour == (int)Colour.None)
                 {
                     continue;
                 }
-                foreach (int square in Squares.All)
+                foreach (Square square in Square.All)
                 {
-                    int file = Squares.FileOf(square);
-                    int rank = Squares.RankOf(square);
                     // White reads the table with rank 8 at the top; black sees the board flipped.
-                    int row = colour == (int)Colour.White ? 7 - rank : rank;
-                    int value = table[(row * 8) + file] + material;
+                    int row = colour == (int)Colour.White ? 7 - square.Rank : square.Rank;
+                    int value = table[(row * 8) + square.File] + material;
                     values[colour][type][square] = colour == (int)Colour.White ? value : -value;
                 }
             }
@@ -291,31 +288,29 @@ public sealed class Evaluator
         return values;
     }
 
-    private static ulong[][] BuildForwardMasks(bool adjacentFiles)
+    private static Bitboard[][] BuildForwardMasks(bool adjacentFiles)
     {
-        ulong[][] masks = new ulong[3][];
+        Bitboard[][] masks = new Bitboard[3][];
         for (int colour = 0; colour < 3; colour++)
         {
-            masks[colour] = new ulong[Squares.Count];
+            masks[colour] = new Bitboard[Square.Count];
             if (colour == (int)Colour.None)
             {
                 continue;
             }
-            foreach (int square in Squares.All)
+            foreach (Square square in Square.All)
             {
-                int file = Squares.FileOf(square);
-                int rank = Squares.RankOf(square);
-                ulong ranksAhead = 0;
-                for (int r = 0; r < 8; r++)
+                Bitboard ranksAhead = Bitboard.Empty;
+                for (int rank = 0; rank < 8; rank++)
                 {
-                    if (colour == (int)Colour.White ? r > rank : r < rank)
+                    if (colour == (int)Colour.White ? rank > square.Rank : rank < square.Rank)
                     {
-                        ranksAhead |= Bitboards.Rank(r);
+                        ranksAhead |= Bitboard.OfRank(rank);
                     }
                 }
-                ulong files = adjacentFiles
-                    ? (file > 0 ? Bitboards.File(file - 1) : 0) | (file < 7 ? Bitboards.File(file + 1) : 0)
-                    : Bitboards.File(file);
+                Bitboard files = adjacentFiles
+                    ? (square.File > 0 ? Bitboard.OfFile(square.File - 1) : Bitboard.Empty) | (square.File < 7 ? Bitboard.OfFile(square.File + 1) : Bitboard.Empty)
+                    : Bitboard.OfFile(square.File);
                 masks[colour][square] = files & ranksAhead;
             }
         }

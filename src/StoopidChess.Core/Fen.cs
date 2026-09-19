@@ -34,11 +34,11 @@ public static class Fen
 
         CastlingRights rights = ParseCastling(fields[2]);
 
-        int enPassant = Squares.None;
+        Square enPassant = Square.None;
         if (fields[3] != "-")
         {
-            enPassant = Squares.TryParse(fields[3]) ?? Squares.None;
-            if (enPassant == Squares.None || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
+            enPassant = Square.TryParse(fields[3]) ?? Square.None;
+            if (!enPassant.IsValid || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
             {
                 throw new FormatException($"invalid en passant square '{fields[3]}'");
             }
@@ -60,7 +60,7 @@ public static class Fen
         board.SetCastlingRights(rights);
         // An en passant square nobody can capture on is dropped, so that FIDE-identical positions
         // have identical keys whichever way they were reached
-        board.SetEnPassantSquare(enPassant != Squares.None && board.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Squares.None);
+        board.SetEnPassantSquare(enPassant.IsValid && board.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
         board.SetClocks(halfMoveClock, fullMoveNumber);
         return board;
     }
@@ -89,8 +89,8 @@ public static class Fen
             int empty = 0;
             for (int file = 0; file < 8; file++)
             {
-                Piece piece = board[file, rank];
-                if (piece.IsNone)
+                (Colour colour, PieceType type) = board[file, rank];
+                if (type == PieceType.None)
                 {
                     empty++;
                     continue;
@@ -100,7 +100,7 @@ public static class Fen
                     fen.Append(empty);
                     empty = 0;
                 }
-                fen.Append(piece.ToChar());
+                fen.Append(type.ToChar(colour));
             }
             if (empty != 0)
             {
@@ -113,7 +113,7 @@ public static class Fen
         }
         fen.Append(' ').Append(board.SideToMove == Colour.White ? 'w' : 'b');
         fen.Append(' ').Append(board.CastlingRights.ToFenString());
-        fen.Append(' ').Append(Squares.Name(board.EnPassantSquare));
+        fen.Append(' ').Append(board.EnPassantSquare.Name);
         fen.Append(' ').Append(board.HalfMoveClock);
         fen.Append(' ').Append(board.FullMoveNumber);
         return fen.ToString();
@@ -123,11 +123,15 @@ public static class Fen
     /// The en passant square must be empty, on the rank behind the pawn that just made a double push,
     /// and that pawn must be there.
     /// </summary>
-    private static bool IsConsistentEnPassantSquare(Board board, Colour sideToMove, int square)
+    private static bool IsConsistentEnPassantSquare(Board board, Colour sideToMove, Square square)
     {
         int expectedRank = sideToMove == Colour.White ? 5 : 2;
-        int pushedPawn = square - Board.PawnDirection(sideToMove);
-        return board[square].IsNone && Squares.RankOf(square) == expectedRank && board[pushedPawn] == new Piece(sideToMove.Opponent(), PieceType.Pawn);
+        if (board[square].Type != PieceType.None || square.Rank != expectedRank)
+        {
+            return false;
+        }
+        Square pushedPawn = square - Board.PawnDirection(sideToMove);
+        return board[pushedPawn] == (sideToMove.Opponent(), PieceType.Pawn);
     }
 
     private static void ParsePlacement(string placement, Board board)
@@ -147,13 +151,13 @@ public static class Fen
                 {
                     file += c - '0';
                 }
-                else if (Piece.FromChar(c) is Piece piece)
+                else if (PieceTypeExtensions.FromChar(c) is not PieceType.None and PieceType type)
                 {
                     if (file > 7)
                     {
                         throw new FormatException($"too many squares on rank {rank + 1}");
                     }
-                    board.PutPiece(Squares.Index(file, rank), piece);
+                    board.PutPiece(Square.At(file, rank), char.IsUpper(c) ? Colour.White : Colour.Black, type);
                     file++;
                 }
                 else

@@ -16,8 +16,8 @@ public class MoveGeneratorTests
         foreach (PerftPosition position in Perft.StandardPositions)
         {
             Board board = Board.FromFen(position.Fen);
-            AssertMatchesReference(board);
-            foreach (Move move in MoveGenerator.GenerateLegalMoves(board))
+            MoveList moves = AssertMatchesReference(board);
+            foreach (Move move in moves)
             {
                 board.MakeMove(move);
                 AssertMatchesReference(board);
@@ -35,7 +35,7 @@ public class MoveGeneratorTests
             Board board = Board.StartPosition();
             for (int ply = 0; ply < 150; ply++)
             {
-                List<Move> moves = AssertMatchesReference(board);
+                MoveList moves = AssertMatchesReference(board);
                 if (moves.Count == 0)
                 {
                     break;
@@ -52,8 +52,8 @@ public class MoveGeneratorTests
         {
             Board board = Board.FromFen(position.Fen);
             List<Move> expected = MoveGenerator.GenerateLegalMoves(board).Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits()).ToList();
-            var captures = new List<Move>();
-            MoveGenerator.GenerateLegalCaptures(board, captures);
+            MoveList captures = default;
+            MoveGenerator.GenerateLegalCaptures(board, ref captures);
             Assert.Equal(expected, captures.OrderBy(m => m.ToBits()).ToList());
         }
     }
@@ -90,7 +90,7 @@ public class MoveGeneratorTests
     public void OnlyTheKingMovesInDoubleCheck()
     {
         Board board = Board.FromFen("4k3/8/3N4/8/8/8/8/4RK2 b - - 0 1");
-        Assert.Equal(2, Bitboards.Count(board.Checkers));
+        Assert.Equal(2, board.Checkers.Count);
         Assert.Equal(["e8d7", "e8d8", "e8f8"], Uci(board).Order().ToList());
     }
 
@@ -113,7 +113,7 @@ public class MoveGeneratorTests
     public void PinnedPiecesMoveOnlyAlongThePin()
     {
         Board knight = Board.FromFen("k3r3/8/8/8/8/8/4N3/4K3 w - - 0 1");
-        Assert.DoesNotContain(MoveGenerator.GenerateLegalMoves(knight), m => m.From == Squares.Parse("e2"));
+        Assert.DoesNotContain(MoveGenerator.GenerateLegalMoves(knight), m => m.From == Square.Parse("e2"));
         Board bishop = Board.FromFen("7q/8/8/8/3B4/8/8/K6k w - - 0 1");
         List<string> bishopMoves = Uci(bishop).Where(m => m.StartsWith("d4", StringComparison.Ordinal)).Order().ToList();
         Assert.Equal(["d4b2", "d4c3", "d4e5", "d4f6", "d4g7", "d4h8"], bishopMoves);
@@ -131,9 +131,9 @@ public class MoveGeneratorTests
 
     private static List<string> Uci(Board board) => MoveGenerator.GenerateLegalMoves(board).Select(m => m.ToUci()).ToList();
 
-    private static List<Move> AssertMatchesReference(Board board)
+    private static MoveList AssertMatchesReference(Board board)
     {
-        List<Move> moves = MoveGenerator.GenerateLegalMoves(board);
+        MoveList moves = MoveGenerator.GenerateLegalMoves(board);
         List<Move> expected = ReferenceGenerator.LegalMoves(board);
         Assert.Equal(expected.OrderBy(m => m.ToBits()), moves.OrderBy(m => m.ToBits()));
         Assert.Equal(ReferenceGenerator.IsAttacked(board, board.KingSquare(board.SideToMove), board.SideToMove.Opponent()), board.IsInCheck);
@@ -167,28 +167,28 @@ public class MoveGeneratorTests
             return legal;
         }
 
-        public static bool IsAttacked(Board board, int square, Colour by)
+        public static bool IsAttacked(Board board, Square square, Colour by)
         {
-            int file = Squares.FileOf(square);
-            int rank = Squares.RankOf(square);
+            int file = square.File;
+            int rank = square.Rank;
             int pawnRank = rank - (by == Colour.White ? 1 : -1);     // A pawn attacks from the rank behind (from its point of view)
             foreach (int pawnFile in new[] { file - 1, file + 1 })
             {
-                if (At(board, pawnFile, pawnRank) == new Piece(by, PieceType.Pawn))
+                if (At(board, pawnFile, pawnRank) == (by, PieceType.Pawn))
                 {
                     return true;
                 }
             }
             foreach ((int df, int dr) in KnightSteps)
             {
-                if (At(board, file + df, rank + dr) == new Piece(by, PieceType.Knight))
+                if (At(board, file + df, rank + dr) == (by, PieceType.Knight))
                 {
                     return true;
                 }
             }
             foreach ((int df, int dr) in KingSteps)
             {
-                if (At(board, file + df, rank + dr) == new Piece(by, PieceType.King))
+                if (At(board, file + df, rank + dr) == (by, PieceType.King))
                 {
                     return true;
                 }
@@ -201,10 +201,10 @@ public class MoveGeneratorTests
             foreach ((int df, int dr) in directions)
             {
                 int f = file + df, r = rank + dr;
-                while (f is >= 0 and <= 7 && r is >= 0 and <= 7)
+                while (IsOnBoard(f, r))
                 {
-                    Piece piece = board[f, r];
-                    if (!piece.IsNone)
+                    (Colour Colour, PieceType Type) piece = board[f, r];
+                    if (piece.Type != PieceType.None)
                     {
                         if (piece.Colour == by && (piece.Type == slider || piece.Type == PieceType.Queen))
                         {
@@ -223,15 +223,15 @@ public class MoveGeneratorTests
         {
             Colour us = board.SideToMove;
             Colour them = us.Opponent();
-            foreach (int from in Squares.All)
+            foreach (Square from in Square.All)
             {
-                Piece piece = board[from];
+                (Colour Colour, PieceType Type) piece = board[from];
                 if (piece.Colour != us)
                 {
                     continue;
                 }
-                int file = Squares.FileOf(from);
-                int rank = Squares.RankOf(from);
+                int file = from.File;
+                int rank = from.Rank;
                 switch (piece.Type)
                 {
                     case PieceType.Pawn:
@@ -244,14 +244,19 @@ public class MoveGeneratorTests
                     case PieceType.King:
                         foreach ((int df, int dr) in piece.Type == PieceType.Knight ? KnightSteps : KingSteps)
                         {
-                            Piece target = At(board, file + df, rank + dr);
-                            if (target.Colour == Colour.None && IsOnBoard(file + df, rank + dr))
+                            if (!IsOnBoard(file + df, rank + dr))
                             {
-                                yield return new Move(from, Squares.Index(file + df, rank + dr), piece.Type);
+                                continue;
+                            }
+                            Square to = Square.At(file + df, rank + dr);
+                            (Colour Colour, PieceType Type) target = board[to];
+                            if (target.Type == PieceType.None)
+                            {
+                                yield return new Move(from, to, piece.Type);
                             }
                             else if (target.Colour == them)
                             {
-                                yield return new Move(from, Squares.Index(file + df, rank + dr), piece.Type, target.Type);
+                                yield return new Move(from, to, piece.Type, target.Type);
                             }
                         }
                         if (piece.Type == PieceType.King)
@@ -274,16 +279,17 @@ public class MoveGeneratorTests
                             int f = file + df, r = rank + dr;
                             while (IsOnBoard(f, r))
                             {
-                                Piece target = board[f, r];
-                                if (target.IsNone)
+                                Square to = Square.At(f, r);
+                                (Colour Colour, PieceType Type) target = board[to];
+                                if (target.Type == PieceType.None)
                                 {
-                                    yield return new Move(from, Squares.Index(f, r), piece.Type);
+                                    yield return new Move(from, to, piece.Type);
                                 }
                                 else
                                 {
                                     if (target.Colour == them)
                                     {
-                                        yield return new Move(from, Squares.Index(f, r), piece.Type, target.Type);
+                                        yield return new Move(from, to, piece.Type, target.Type);
                                     }
                                     break;
                                 }
@@ -296,16 +302,16 @@ public class MoveGeneratorTests
             }
         }
 
-        private static IEnumerable<Move> PawnMoves(Board board, Colour us, Colour them, int from, int file, int rank)
+        private static IEnumerable<Move> PawnMoves(Board board, Colour us, Colour them, Square from, int file, int rank)
         {
             int direction = us == Colour.White ? 1 : -1;
             int startRank = us == Colour.White ? 1 : 6;
             int promotionRank = us == Colour.White ? 7 : 0;
             int forwardRank = rank + direction;
             bool promotes = forwardRank == promotionRank;
-            if (board[file, forwardRank].IsNone)
+            if (board[file, forwardRank].Type == PieceType.None)
             {
-                int to = Squares.Index(file, forwardRank);
+                Square to = Square.At(file, forwardRank);
                 if (promotes)
                 {
                     foreach (PieceType promotion in Promotions)
@@ -316,9 +322,9 @@ public class MoveGeneratorTests
                 else
                 {
                     yield return new Move(from, to, PieceType.Pawn);
-                    if (rank == startRank && board[file, forwardRank + direction].IsNone)
+                    if (rank == startRank && board[file, forwardRank + direction].Type == PieceType.None)
                     {
-                        yield return new Move(from, Squares.Index(file, forwardRank + direction), PieceType.Pawn, PieceType.None, MoveKind.DoublePawnPush);
+                        yield return new Move(from, Square.At(file, forwardRank + direction), PieceType.Pawn, PieceType.None, MoveKind.DoublePawnPush);
                     }
                 }
             }
@@ -328,8 +334,8 @@ public class MoveGeneratorTests
                 {
                     continue;
                 }
-                int to = Squares.Index(captureFile, forwardRank);
-                Piece target = board[to];
+                Square to = Square.At(captureFile, forwardRank);
+                (Colour Colour, PieceType Type) target = board[to];
                 if (target.Colour == them)
                 {
                     if (promotes)
@@ -344,29 +350,29 @@ public class MoveGeneratorTests
                         yield return new Move(from, to, PieceType.Pawn, target.Type);
                     }
                 }
-                else if (to == board.EnPassantSquare && board[captureFile, rank] == new Piece(them, PieceType.Pawn))
+                else if (to == board.EnPassantSquare && board[captureFile, rank] == (them, PieceType.Pawn))
                 {
                     yield return new Move(from, to, PieceType.Pawn, PieceType.Pawn, MoveKind.EnPassant);
                 }
             }
         }
 
-        private static IEnumerable<Move> CastlingMoves(Board board, Colour us, Colour them, int king)
+        private static IEnumerable<Move> CastlingMoves(Board board, Colour us, Colour them, Square king)
         {
-            int home = us == Colour.White ? Squares.E1 : Squares.E8;
+            Square home = us == Colour.White ? Square.E1 : Square.E8;
             if (king != home || IsAttacked(board, home, them))
             {
                 yield break;
             }
-            Piece rook = new(us, PieceType.Rook);
+            (Colour, PieceType) rook = (us, PieceType.Rook);
             CastlingRights kingSide = us == Colour.White ? CastlingRights.WhiteKingSide : CastlingRights.BlackKingSide;
             CastlingRights queenSide = us == Colour.White ? CastlingRights.WhiteQueenSide : CastlingRights.BlackQueenSide;
-            if (board.CastlingRights.HasFlag(kingSide) && board[home + 3] == rook && board[home + 1].IsNone && board[home + 2].IsNone
+            if (board.CastlingRights.HasFlag(kingSide) && board[home + 3] == rook && board[home + 1].Type == PieceType.None && board[home + 2].Type == PieceType.None
                 && !IsAttacked(board, home + 1, them) && !IsAttacked(board, home + 2, them))
             {
                 yield return new Move(home, home + 2, PieceType.King, PieceType.None, MoveKind.CastleKingSide);
             }
-            if (board.CastlingRights.HasFlag(queenSide) && board[home - 4] == rook && board[home - 1].IsNone && board[home - 2].IsNone && board[home - 3].IsNone
+            if (board.CastlingRights.HasFlag(queenSide) && board[home - 4] == rook && board[home - 1].Type == PieceType.None && board[home - 2].Type == PieceType.None && board[home - 3].Type == PieceType.None
                 && !IsAttacked(board, home - 1, them) && !IsAttacked(board, home - 2, them))
             {
                 yield return new Move(home, home - 2, PieceType.King, PieceType.None, MoveKind.CastleQueenSide);
@@ -376,8 +382,8 @@ public class MoveGeneratorTests
         private static bool IsOnBoard(int file, int rank) => file is >= 0 and <= 7 && rank is >= 0 and <= 7;
 
         /// <summary>
-        /// The piece at file and rank, or <see cref="Piece.None"/> off the board.
+        /// The piece at file and rank, or the empty pair off the board.
         /// </summary>
-        private static Piece At(Board board, int file, int rank) => IsOnBoard(file, rank) ? board[file, rank] : Piece.None;
+        private static (Colour Colour, PieceType Type) At(Board board, int file, int rank) => IsOnBoard(file, rank) ? board[file, rank] : default;
     }
 }

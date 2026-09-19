@@ -6,7 +6,7 @@ namespace StoopidChess.Tests.Engine;
 
 public class TranspositionTableTests
 {
-    private static readonly Move SomeMove = new(Squares.E1, Squares.G1, PieceType.King, PieceType.None, MoveKind.CastleKingSide);
+    private static readonly Move SomeMove = new(Square.E1, Square.G1, PieceType.King, PieceType.None, MoveKind.CastleKingSide);
 
     [Fact]
     public void EntriesAreSixteenBytes()

@@ -21,11 +21,11 @@ public class FenTests
         Board board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b Kq e3 7 12");
         Assert.Equal(Colour.Black, board.SideToMove);
         Assert.Equal(CastlingRights.WhiteKingSide | CastlingRights.BlackQueenSide, board.CastlingRights);
-        Assert.Equal(Squares.Parse("e3"), board.EnPassantSquare);
+        Assert.Equal(Square.Parse("e3"), board.EnPassantSquare);
         Assert.Equal(7, board.HalfMoveClock);
         Assert.Equal(12, board.FullMoveNumber);
-        Assert.Equal(Piece.WhitePawn, board[Squares.Parse("e4")]);
-        Assert.Equal(Piece.BlackKing, board[Squares.E8]);
+        Assert.Equal((Colour.White, PieceType.Pawn), board[Square.Parse("e4")]);
+        Assert.Equal((Colour.Black, PieceType.King), board[Square.E8]);
         Assert.Equal(32, board.PieceCount);
     }
 
@@ -34,17 +34,17 @@ public class FenTests
     {
         // No white pawn beside e5, so the square is dropped and the key equals the plain position
         Board dropped = Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
-        Assert.Equal(Squares.None, dropped.EnPassantSquare);
+        Assert.Equal(Square.None, dropped.EnPassantSquare);
         Assert.Equal(Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").Key, dropped.Key);
         // The same applies to double pushes made on the board
         Board board = Board.StartPosition();
         board.MakeMove(BoardTests.FindMove(board, "e2e4")!.Value);
-        Assert.Equal(Squares.None, board.EnPassantSquare);
+        Assert.Equal(Square.None, board.EnPassantSquare);
         board.MakeMove(BoardTests.FindMove(board, "d7d5")!.Value);
-        Assert.Equal(Squares.None, board.EnPassantSquare);
+        Assert.Equal(Square.None, board.EnPassantSquare);
         board.MakeMove(BoardTests.FindMove(board, "e4e5")!.Value);
         board.MakeMove(BoardTests.FindMove(board, "f7f5")!.Value);
-        Assert.Equal(Squares.Parse("f6"), board.EnPassantSquare);
+        Assert.Equal(Square.Parse("f6"), board.EnPassantSquare);
         // Reaching the same position by a different order gives the same key
         Board other = Board.StartPosition();
         foreach (string uci in new[] { "e2e4", "g8f6", "g1f3", "f6g8", "f3g1" })

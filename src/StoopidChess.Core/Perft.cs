@@ -22,7 +22,15 @@ public static class Perft
         {
             return 1;
         }
-        List<Move> moves = MoveGenerator.GenerateLegalMoves(board);
+        // One move list per depth, reused across the whole tree
+        return Count(board, depth, new MoveList[depth]);
+    }
+
+    private static long Count(Board board, int depth, MoveList[] lists)
+    {
+        ref MoveList moves = ref lists[depth - 1];
+        moves.Clear();
+        MoveGenerator.GenerateLegalMoves(board, ref moves);
         if (depth == 1)
         {
             return moves.Count;
@@ -31,7 +39,7 @@ public static class Perft
         foreach (Move move in moves)
         {
             board.MakeMove(move);
-            nodes += Count(board, depth - 1);
+            nodes += Count(board, depth - 1, lists);
             board.UnmakeMove();
         }
         return nodes;
@@ -43,7 +51,7 @@ public static class Perft
     public static IEnumerable<(Move Move, long Nodes)> Divide(Board board, int depth)
     {
         ArgumentNullException.ThrowIfNull(board);
-        foreach (Move move in MoveGenerator.GenerateLegalMoves(board))
+        foreach (Move move in MoveGenerator.GenerateLegalMoves(board).ToArray())
         {
             board.MakeMove(move);
             long nodes = Count(board, depth - 1);

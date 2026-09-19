@@ -14,9 +14,9 @@ public static class Zobrist
     private const int PieceTypes = 7;
     private const int Colours = 3;
 
-    private static readonly ulong[] Pieces = new ulong[Colours * PieceTypes * Squares.Count];
+    private static readonly ulong[] Pieces = new ulong[Colours * PieceTypes * Square.Count];
     private static readonly ulong[] CastlingKeys = new ulong[16];
-    private static readonly ulong[] EnPassantKeys = new ulong[Squares.Count];
+    private static readonly ulong[] EnPassantKeys = new ulong[Square.Count];
 
     static Zobrist()
     {
@@ -48,15 +48,15 @@ public static class Zobrist
     /// </summary>
     public static ulong SideToMove { get; }
 
-    public static ulong Piece(Piece piece, int square)
+    public static ulong Piece(Colour colour, PieceType type, Square square)
     {
-        return Pieces[((((int)piece.Colour * PieceTypes) + (int)piece.Type) * Squares.Count) + square];
+        return Pieces[((((int)colour * PieceTypes) + (int)type) * Square.Count) + square];
     }
 
     public static ulong Castling(CastlingRights rights) => CastlingKeys[(int)rights];
 
     /// <summary>
-    /// The key for an en passant square; zero for <see cref="Squares.None"/>.
+    /// The key for an en passant square; zero for <see cref="Square.None"/>.
     /// </summary>
-    public static ulong EnPassant(int square) => square == Squares.None ? 0 : EnPassantKeys[square];
+    public static ulong EnPassant(Square square) => square.IsValid ? EnPassantKeys[square] : 0;
 }

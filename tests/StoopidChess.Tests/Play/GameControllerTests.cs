@@ -43,13 +43,13 @@ public class GameControllerTests
         using GameController controller = await StartAsync();
         controller.NewGame(Colour.White);
         Assert.False(controller.IsThinking);
-        Assert.False(controller.TryHumanMove(Squares.Parse("e2"), Squares.Parse("e5")));
-        Assert.True(controller.TryHumanMove(Squares.Parse("e2"), Squares.Parse("e4")));
+        Assert.False(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e5")));
+        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
         Assert.False(controller.IsHumanTurn);
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(2, controller.Game.Moves.Count);
         Assert.True(controller.IsHumanTurn);
-        Assert.False(controller.TryHumanMove(Squares.Parse("e4"), Squares.Parse("e5")) && controller.Game.Moves.Count != 3);
+        Assert.False(controller.TryHumanMove(Square.Parse("e4"), Square.Parse("e5")) && controller.Game.Moves.Count != 3);
     }
 
     [Fact]
@@ -57,13 +57,13 @@ public class GameControllerTests
     {
         using GameController controller = await StartAsync();
         controller.Load(new SavedGame { StartFen = "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", HumanColour = Colour.White });
-        int from = Squares.Parse("b7");
-        int to = Squares.Parse("b8");
+        Square from = Square.Parse("b7");
+        Square to = Square.Parse("b8");
         Assert.Equal(4, controller.HumanMoveCandidates(from, to).Count);
         Assert.False(controller.TryHumanMove(from, to));
         Assert.True(controller.TryHumanMove(from, to, PieceType.Knight));
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal(Piece.WhiteKnight, controller.Game.Board[to]);
+        Assert.Equal((Colour.White, PieceType.Knight), controller.Game.Board[to]);
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class GameControllerTests
         using GameController controller = await StartAsync();
         controller.LimitsFor = _ => new SearchLimits { Infinite = true };
         controller.NewGame(Colour.White);
-        controller.TryHumanMove(Squares.Parse("d2"), Squares.Parse("d4"));
+        controller.TryHumanMove(Square.Parse("d2"), Square.Parse("d4"));
         Assert.True(controller.IsThinking);
         controller.Undo();
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
@@ -86,7 +86,7 @@ public class GameControllerTests
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Colour.White);
-        controller.TryHumanMove(Squares.Parse("d2"), Squares.Parse("d4"));
+        controller.TryHumanMove(Square.Parse("d2"), Square.Parse("d4"));
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(2, controller.Game.Moves.Count);
         controller.Undo();
@@ -147,10 +147,10 @@ public class GameControllerTests
         controller.ClearBoard();
         Assert.True(controller.IsEditing);
         Assert.Null(controller.Save());
-        Assert.Empty(controller.HumanMoveCandidates(Squares.E1, Squares.Parse("e2")));
-        controller.EditSquare(Squares.E1, Piece.WhiteKing);
-        controller.EditSquare(Squares.E8, Piece.BlackKing);
-        controller.EditSquare(Squares.Parse("a7"), Piece.WhiteRook);
+        Assert.Empty(controller.HumanMoveCandidates(Square.E1, Square.Parse("e2")));
+        controller.EditSquare(Square.E1, (Colour.White, PieceType.King));
+        controller.EditSquare(Square.E8, (Colour.Black, PieceType.King));
+        controller.EditSquare(Square.Parse("a7"), (Colour.White, PieceType.Rook));
         Assert.False(controller.IsEditing);
         controller.SetSideToMove(Colour.Black);
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
@@ -187,7 +187,7 @@ public class GameControllerTests
         controller.Tick(TimeSpan.FromSeconds(1));
         Assert.Equal(TimeSpan.FromSeconds(1), controller.WhiteClock);
         Assert.Equal(TimeSpan.Zero, controller.BlackClock);
-        Assert.True(controller.TryHumanMove(Squares.Parse("d1"), Squares.Parse("d8")));
+        Assert.True(controller.TryHumanMove(Square.Parse("d1"), Square.Parse("d8")));
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(GameStatus.Checkmate, controller.Game.Status);
         controller.Tick(TimeSpan.FromSeconds(1));

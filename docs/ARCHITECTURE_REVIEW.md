@@ -20,7 +20,7 @@ Sizes: Core 2,000 lines, Engine 1,900, Uci 80, Gui 1,160 (+1,090 designer), test
 - **`UciSession` on a `Task` with a synchronous stop.** The simplest correct design for a
   single-threaded command loop.
 - **Perft, bench signature, make/unmake key oracle** as the three regression gates.
-- **`int` squares with a static `Squares` helper**, record structs for `Move` and `Piece`, and the
+- **`int` squares with a static `Squares` helper** (superseded in September 2026 by the `Square`, `Bitboard` and `MoveList` value types, see `BITBOARDS.md`), record structs for `Move` and `Piece`, and the
   rest of the modern C# idiom.
 
 ## Where the strength is (capability, do first)

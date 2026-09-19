@@ -27,7 +27,7 @@ internal sealed class PawnPromotionForm : Form
         {
             var picture = new PictureBox
             {
-                Image = PieceImages.Get(new Piece(colour, type)),
+                Image = PieceImages.Get(colour, type),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Location = new Point(x, Gap),
                 Size = new Size(ImageSize, ImageSize),

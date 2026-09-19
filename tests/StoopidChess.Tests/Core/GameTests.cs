@@ -70,7 +70,7 @@ public class GameTests
         Assert.False(game.TryMakeMove("e2e5"));
         Assert.False(game.TryMakeMove("e7e5"));
         Assert.False(game.TryMakeMove("nonsense"));
-        Assert.Throws<ArgumentException>(() => game.MakeMove(new Move(Squares.Parse("e2"), Squares.Parse("e5"), PieceType.Pawn)));
+        Assert.Throws<ArgumentException>(() => game.MakeMove(new Move(Square.Parse("e2"), Square.Parse("e5"), PieceType.Pawn)));
         Assert.Empty(game.Moves);
         Assert.True(game.TryMakeMove("e2e4"));
         Assert.Single(game.Moves);
@@ -81,13 +81,13 @@ public class GameTests
     public void PromotionNeedsAPieceChoice()
     {
         Game game = Game.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
-        int from = Squares.Parse("b7");
-        int to = Squares.Parse("b8");
+        Square from = Square.Parse("b7");
+        Square to = Square.Parse("b8");
         Assert.Equal(4, game.LegalMovesBetween(from, to).Count());
         Assert.Null(game.FindMove(from, to));
         Assert.Equal(PieceType.Rook, game.FindMove(from, to, PieceType.Rook)!.Value.Promotion);
         Assert.True(game.TryMakeMove("b7b8r"));
-        Assert.Equal(Piece.WhiteRook, game.Board[to]);
+        Assert.Equal((Colour.White, PieceType.Rook), game.Board[to]);
     }
 
     [Fact]
@@ -112,8 +112,8 @@ public class GameTests
         {
             Assert.True(game.TryMakeMove(uci), uci);
         }
-        Assert.Equal([Piece.BlackPawn, Piece.BlackQueen], game.CapturedPieces(Colour.Black));
-        Assert.Equal([Piece.WhitePawn, Piece.WhitePawn], game.CapturedPieces(Colour.White));
+        Assert.Equal([PieceType.Pawn, PieceType.Queen], game.CapturedPieces(Colour.Black));
+        Assert.Equal([PieceType.Pawn, PieceType.Pawn], game.CapturedPieces(Colour.White));
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class GameTests
     {
         Game game = Game.FromFen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
         Assert.True(game.TryMakeMove("a8a1"));
-        Assert.Equal([Piece.WhiteRook], game.CapturedPieces(Colour.White));
+        Assert.Equal([PieceType.Rook], game.CapturedPieces(Colour.White));
         Assert.Equal("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", game.StartFen);
     }
 
@@ -137,7 +137,7 @@ public class GameTests
     public void RejectsPositionsWithoutKings()
     {
         PositionBuilder builder = PositionBuilder.From(Board.StartPosition());
-        builder[Squares.E8] = Piece.None;
+        builder[Square.E8] = default;
         Assert.Throws<InvalidOperationException>(() => new Game(builder.Build()));
     }
 }

@@ -81,7 +81,7 @@ public sealed class GameController : IDisposable
 
     public Colour SideToMove => Editing?.SideToMove ?? Game.SideToMove;
 
-    public Piece PieceAt(int square) => Editing is null ? Game.Board[square] : Editing[square];
+    public (Colour Colour, PieceType Type) PieceAt(Square square) => Editing is null ? Game.Board[square] : Editing[square];
 
     /// <summary>
     /// Raised after any change to the game, the editor, the engine or the thinking state.
@@ -303,7 +303,7 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// The legal moves for the human between two squares: none, one, or the four promotions.
     /// </summary>
-    public IReadOnlyList<Move> HumanMoveCandidates(int from, int to)
+    public IReadOnlyList<Move> HumanMoveCandidates(Square from, Square to)
     {
         return IsHumanTurn ? Game.LegalMovesBetween(from, to).ToList() : [];
     }
@@ -311,7 +311,7 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// Make the human's move if it is legal and it is the human's turn.
     /// </summary>
-    public bool TryHumanMove(int from, int to, PieceType promotion = PieceType.None)
+    public bool TryHumanMove(Square from, Square to, PieceType promotion = PieceType.None)
     {
         if (!IsHumanTurn)
         {
@@ -391,7 +391,7 @@ public sealed class GameController : IDisposable
     // Position editing
     // ---------------------------------------------------------------------------------------------
 
-    public void EditSquare(int square, Piece piece)
+    public void EditSquare(Square square, (Colour Colour, PieceType Type) piece)
     {
         PositionBuilder builder = Editing ?? PositionBuilder.From(Game.Board);
         builder[square] = piece;

@@ -4,11 +4,12 @@ namespace StoopidChess.Core;
 /// Assembles a position piece by piece, for position editors and tests. A <see cref="Board"/> can
 /// only be changed by making and unmaking moves; anything else goes through a builder, which
 /// produces a fresh board once the position is legal. Castling rights are kept only where the king
-/// and rook still stand on their home squares.
+/// and rook still stand on their home squares. A piece is a (colour, type) pair; the default pair
+/// is an empty square.
 /// </summary>
 public sealed class PositionBuilder
 {
-    private readonly Piece[] squares = new Piece[Squares.Count];
+    private readonly (Colour Colour, PieceType Type)[] squares = new (Colour, PieceType)[Square.Count];
     private Colour sideToMove = Colour.White;
 
     /// <summary>
@@ -16,7 +17,6 @@ public sealed class PositionBuilder
     /// </summary>
     public PositionBuilder()
     {
-        Array.Fill(squares, Piece.None);
     }
 
     /// <summary>
@@ -26,14 +26,14 @@ public sealed class PositionBuilder
     {
         ArgumentNullException.ThrowIfNull(board);
         var builder = new PositionBuilder { sideToMove = board.SideToMove, CastlingRights = board.CastlingRights };
-        foreach (int square in Squares.All)
+        foreach (Square square in Square.All)
         {
             builder.squares[square] = board[square];
         }
         return builder;
     }
 
-    public Piece this[int square]
+    public (Colour Colour, PieceType Type) this[Square square]
     {
         get
         {
@@ -43,7 +43,7 @@ public sealed class PositionBuilder
         set
         {
             RequireOnBoard(square);
-            bool valid = value.IsNone
+            bool valid = value.Type == PieceType.None
                 ? value.Colour == Colour.None
                 : value.Colour is Colour.White or Colour.Black && value.Type is >= PieceType.Pawn and <= PieceType.King;
             if (!valid)
@@ -53,6 +53,11 @@ public sealed class PositionBuilder
             squares[square] = value;
         }
     }
+
+    /// <summary>
+    /// Empty a square.
+    /// </summary>
+    public void Clear(Square square) => this[square] = default;
 
     public Colour SideToMove
     {
@@ -91,11 +96,12 @@ public sealed class PositionBuilder
     private Board Assemble()
     {
         var board = new Board();
-        foreach (int square in Squares.All)
+        foreach (Square square in Square.All)
         {
-            if (!squares[square].IsNone)
+            (Colour colour, PieceType type) = squares[square];
+            if (type != PieceType.None)
             {
-                board.PutPiece(square, squares[square]);
+                board.PutPiece(square, colour, type);
             }
         }
         board.SwitchSideToMove(sideToMove);
@@ -104,18 +110,18 @@ public sealed class PositionBuilder
     }
 
     // Castling rights survive only where the king or rook still stands on its home square
-    private static readonly (int Square, Piece Piece)[] CastlingHomes =
+    private static readonly (Square Square, Colour Colour, PieceType Type)[] CastlingHomes =
     [
-        (Squares.E1, Piece.WhiteKing), (Squares.H1, Piece.WhiteRook), (Squares.A1, Piece.WhiteRook),
-        (Squares.E8, Piece.BlackKing), (Squares.H8, Piece.BlackRook), (Squares.A8, Piece.BlackRook),
+        (Square.E1, Colour.White, PieceType.King), (Square.H1, Colour.White, PieceType.Rook), (Square.A1, Colour.White, PieceType.Rook),
+        (Square.E8, Colour.Black, PieceType.King), (Square.H8, Colour.Black, PieceType.Rook), (Square.A8, Colour.Black, PieceType.Rook),
     ];
 
     private CastlingRights EffectiveCastlingRights()
     {
         CastlingRights rights = CastlingRights;
-        foreach ((int square, Piece piece) in CastlingHomes)
+        foreach ((Square square, Colour colour, PieceType type) in CastlingHomes)
         {
-            if (squares[square] != piece)
+            if (squares[square] != (colour, type))
             {
                 rights &= ~CastlingRightsExtensions.LostBySquare(square);
             }
@@ -123,9 +129,9 @@ public sealed class PositionBuilder
         return rights;
     }
 
-    private static void RequireOnBoard(int square)
+    private static void RequireOnBoard(Square square)
     {
-        if (!Squares.IsOnBoard(square))
+        if (!square.IsValid)
         {
             throw new ArgumentOutOfRangeException(nameof(square));
         }

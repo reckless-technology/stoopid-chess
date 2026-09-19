@@ -20,7 +20,7 @@ public partial class MainForm : Form
     private readonly ToolStripMenuItem chooseEngineMenuItem = new("&Choose UCI engine...");
     private readonly ToolStripMenuItem showEngineOutputMenuItem = new("Show engine &output in move list") { CheckOnClick = true };
 
-    private int dragFrom = Squares.None;        // Square of the piece being dragged, or None
+    private Square dragFrom = Square.None;        // Square of the piece being dragged, or None
     private Point dragPosition;
     private Point contextMenuPosition;
 
@@ -178,41 +178,41 @@ public partial class MainForm : Form
 
     private int SquareSize => Math.Min(chessBoardPictureBox.Width, chessBoardPictureBox.Height) / 8;
 
-    private Point SquareOrigin(int square)
+    private Point SquareOrigin(Square square)
     {
-        int file = Squares.FileOf(square);
-        int rank = Squares.RankOf(square);
+        int file = square.File;
+        int rank = square.Rank;
         int x = controller.IsBoardFlipped ? 7 - file : file;
         int y = controller.IsBoardFlipped ? rank : 7 - rank;
         return new Point(x * SquareSize, y * SquareSize);
     }
 
-    private int SquareAt(Point location)
+    private Square SquareAt(Point location)
     {
         int size = SquareSize;
         int x = Math.Clamp(location.X / size, 0, 7);
         int y = Math.Clamp(location.Y / size, 0, 7);
         int file = controller.IsBoardFlipped ? 7 - x : x;
         int rank = controller.IsBoardFlipped ? y : 7 - y;
-        return Squares.Index(file, rank);
+        return Square.At(file, rank);
     }
 
     private void OnBoardPaint(object? sender, PaintEventArgs e)
     {
         Graphics graphics = e.Graphics;
         int size = SquareSize;
-        foreach (int square in Squares.All)
+        foreach (Square square in Square.All)
         {
             Point origin = SquareOrigin(square);
-            graphics.FillRectangle(Board.IsLightSquare(square) ? Brushes.Ivory : Brushes.Gray, origin.X, origin.Y, size, size);
+            graphics.FillRectangle(square.IsLight ? Brushes.Ivory : Brushes.Gray, origin.X, origin.Y, size, size);
         }
-        foreach (int square in Squares.All)
+        foreach (Square square in Square.All)
         {
-            Piece piece = controller.PieceAt(square);
-            if (!piece.IsNone && square != dragFrom)
+            (Colour colour, PieceType type) = controller.PieceAt(square);
+            if (type != PieceType.None && square != dragFrom)
             {
                 Point origin = SquareOrigin(square);
-                graphics.DrawImage(PieceImages.Get(piece), origin.X, origin.Y, size, size);
+                graphics.DrawImage(PieceImages.Get(colour, type), origin.X, origin.Y, size, size);
             }
         }
         if (!controller.IsEditing && controller.Game.Board.LastMove is Move last && !last.IsNone)
@@ -222,9 +222,9 @@ public partial class MainForm : Form
             graphics.DrawRectangle(LastMovePen, fromOrigin.X, fromOrigin.Y, size, size);
             graphics.DrawRectangle(LastMovePen, toOrigin.X, toOrigin.Y, size, size);
         }
-        if (dragFrom != Squares.None && !controller.PieceAt(dragFrom).IsNone)
+        if (dragFrom != Square.None && controller.PieceAt(dragFrom) is (Colour dragColour, PieceType dragType) && dragType != PieceType.None)
         {
-            graphics.DrawImage(PieceImages.Get(controller.PieceAt(dragFrom)), dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
+            graphics.DrawImage(PieceImages.Get(dragColour, dragType), dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
         }
     }
 
@@ -239,9 +239,9 @@ public partial class MainForm : Form
         {
             int y = colour == Colour.White ? 0 : size;
             int x = 0;
-            foreach (Piece piece in controller.Game.CapturedPieces(colour))
+            foreach (PieceType captured in controller.Game.CapturedPieces(colour))
             {
-                e.Graphics.DrawImage(PieceImages.Get(piece), x, y, size, size);
+                e.Graphics.DrawImage(PieceImages.Get(colour, captured), x, y, size, size);
                 x += size;
             }
         }
@@ -262,7 +262,7 @@ public partial class MainForm : Form
         {
             return;
         }
-        int square = SquareAt(e.Location);
+        Square square = SquareAt(e.Location);
         if (controller.PieceAt(square).Colour == controller.HumanColour)
         {
             dragFrom = square;
@@ -273,7 +273,7 @@ public partial class MainForm : Form
 
     private void OnBoardMouseMove(object? sender, MouseEventArgs e)
     {
-        if (dragFrom != Squares.None)
+        if (dragFrom != Square.None)
         {
             dragPosition = e.Location;
             chessBoardPictureBox.Invalidate();
@@ -282,13 +282,13 @@ public partial class MainForm : Form
 
     private void OnBoardMouseUp(object? sender, MouseEventArgs e)
     {
-        if (dragFrom == Squares.None || e.Button != MouseButtons.Left)
+        if (dragFrom == Square.None || e.Button != MouseButtons.Left)
         {
             return;
         }
-        int from = dragFrom;
-        int to = SquareAt(e.Location);
-        dragFrom = Squares.None;
+        Square from = dragFrom;
+        Square to = SquareAt(e.Location);
+        dragFrom = Square.None;
         chessBoardPictureBox.Invalidate();
         if (to == from)
         {
@@ -364,21 +364,21 @@ public partial class MainForm : Form
         contextMenuStrip.Items.Add(blackToMove);
     }
 
-    private void EditSquare(Piece piece) => controller.EditSquare(SquareAt(contextMenuPosition), piece);
+    private void EditSquare(Colour colour, PieceType type) => controller.EditSquare(SquareAt(contextMenuPosition), (colour, type));
 
-    private void OnSetWhitePawn(object? sender, EventArgs e) => EditSquare(Piece.WhitePawn);
-    private void OnSetWhiteKnight(object? sender, EventArgs e) => EditSquare(Piece.WhiteKnight);
-    private void OnSetWhiteBishop(object? sender, EventArgs e) => EditSquare(Piece.WhiteBishop);
-    private void OnSetWhiteRook(object? sender, EventArgs e) => EditSquare(Piece.WhiteRook);
-    private void OnSetWhiteQueen(object? sender, EventArgs e) => EditSquare(Piece.WhiteQueen);
-    private void OnSetWhiteKing(object? sender, EventArgs e) => EditSquare(Piece.WhiteKing);
-    private void OnSetBlackPawn(object? sender, EventArgs e) => EditSquare(Piece.BlackPawn);
-    private void OnSetBlackKnight(object? sender, EventArgs e) => EditSquare(Piece.BlackKnight);
-    private void OnSetBlackBishop(object? sender, EventArgs e) => EditSquare(Piece.BlackBishop);
-    private void OnSetBlackRook(object? sender, EventArgs e) => EditSquare(Piece.BlackRook);
-    private void OnSetBlackQueen(object? sender, EventArgs e) => EditSquare(Piece.BlackQueen);
-    private void OnSetBlackKing(object? sender, EventArgs e) => EditSquare(Piece.BlackKing);
-    private void OnClearSquare(object? sender, EventArgs e) => EditSquare(Piece.None);
+    private void OnSetWhitePawn(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.Pawn);
+    private void OnSetWhiteKnight(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.Knight);
+    private void OnSetWhiteBishop(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.Bishop);
+    private void OnSetWhiteRook(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.Rook);
+    private void OnSetWhiteQueen(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.Queen);
+    private void OnSetWhiteKing(object? sender, EventArgs e) => EditSquare(Colour.White, PieceType.King);
+    private void OnSetBlackPawn(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.Pawn);
+    private void OnSetBlackKnight(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.Knight);
+    private void OnSetBlackBishop(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.Bishop);
+    private void OnSetBlackRook(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.Rook);
+    private void OnSetBlackQueen(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.Queen);
+    private void OnSetBlackKing(object? sender, EventArgs e) => EditSquare(Colour.Black, PieceType.King);
+    private void OnClearSquare(object? sender, EventArgs e) => EditSquare(Colour.None, PieceType.None);
     private void OnClearBoard(object? sender, EventArgs e) => controller.ClearBoard();
 
     private void OnSaveGame(object? sender, EventArgs e)
