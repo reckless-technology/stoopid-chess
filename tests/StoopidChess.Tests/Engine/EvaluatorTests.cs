@@ -65,6 +65,23 @@ public class EvaluatorTests
     /// <summary>
     /// Mirror the board vertically and swap colours, giving the same position from the other side.
     /// </summary>
+    [Theory]
+    [InlineData(Board.StartFen)]
+    [InlineData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w - - 0 1")]
+    [InlineData("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1")]
+    [InlineData("r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/1BP1B1N1/PP3PPP/RN1QR1K1 w - - 0 11")]
+    [InlineData("8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1")]
+    [InlineData("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1")]
+    [InlineData("6k1/8/P7/8/7p/8/8/1K6 w - - 0 1")]
+    public void IsSymmetricUnderFileMirror(string fen)
+    {
+        // Crafty's evtest check: the position mirrored file by file (a-h swapped) must score the same,
+        // which catches terms that lean to one side of the board by mistake
+        var board = Board.FromFen(fen);
+        var evaluator = new Evaluator();
+        Assert.Equal(evaluator.Evaluate(board), evaluator.Evaluate(FileMirror(board)));
+    }
+
     private static Board ColourFlip(Board board)
     {
         var fen = new System.Text.StringBuilder();
@@ -99,5 +116,39 @@ public class EvaluatorTests
         string flippedCastling = castling == "-" ? "-" : new string([.. castling.Select(c => char.IsUpper(c) ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c))]);
         string side = board.SideToMove == Colour.White ? "b" : "w";
         return Board.FromFen($"{fen} {side} {flippedCastling} - 0 1");
+    }
+
+    private static Board FileMirror(Board board)
+    {
+        var fen = new System.Text.StringBuilder();
+        for (int rank = 7; rank >= 0; rank--)
+        {
+            int empty = 0;
+            for (int file = 7; file >= 0; file--)
+            {
+                (Colour colour, PieceType type) = board[file, rank];
+                if (type == PieceType.None)
+                {
+                    empty++;
+                    continue;
+                }
+                if (empty > 0)
+                {
+                    fen.Append(empty);
+                    empty = 0;
+                }
+                fen.Append(type.ToChar(colour));
+            }
+            if (empty > 0)
+            {
+                fen.Append(empty);
+            }
+            if (rank != 0)
+            {
+                fen.Append('/');
+            }
+        }
+        string side = board.SideToMove == Colour.White ? "w" : "b";
+        return Board.FromFen($"{fen} {side} - - 0 1");   // Castling rights cannot be mirrored and the evaluation ignores them
     }
 }
