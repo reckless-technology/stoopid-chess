@@ -96,7 +96,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    move reductions and pruning like the killers +35 ± 50 (37 W, 27 L, 36 D), a two-ply follow-up history (our own previous
    move, the moved piece and its square) added to the quiet-move score 0 ± 52 (not kept), a reverse futility margin of
    60 cp per ply instead of 80 +38 ± 49 (40 W, 29 L, 31 D), 45 cp 0 ± 52 (not kept), late move pruning to depth 6
-   instead of 4 -42 ± 58 (not kept). A
+   instead of 4 -42 ± 58 (not kept), reverse futility pruning to depth 9 instead of 7 0 ± 49 (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
