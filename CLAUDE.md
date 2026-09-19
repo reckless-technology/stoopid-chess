@@ -152,4 +152,6 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
   --severity info` pass.
 - Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only APIs.
+- **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
+  what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
