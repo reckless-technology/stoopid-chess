@@ -30,6 +30,9 @@ public sealed class Evaluator
     public const int KingZoneAttackPenalty = 5;
     public const int KingZoneQueenAttackPenalty = 10;
 
+    // Two bishops cover both square colours
+    public const int BishopPairBonus = 30;
+
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
     private static readonly int[] PassedPawnBonus = [0, 5, 10, 20, 35, 60, 100, 0];
 
@@ -153,6 +156,10 @@ public sealed class Evaluator
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
             int own = Mobility(board, colour) + PassedPawns(board, colour);
+            if (board.Pieces(colour, PieceType.Bishop).Count >= 2)
+            {
+                own += BishopPairBonus;
+            }
             if (!endgame)
             {
                 own -= KingZoneAttacks(board, colour);
