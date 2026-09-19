@@ -32,7 +32,7 @@ public sealed class Evaluator
     public const int WeakKingSquarePenalty = 15;
 
     // Two bishops cover both square colours
-    public const int BishopPairBonus = 30;
+    public const int BishopPairBonus = 45;
 
     // Having the move is worth something in itself
     public const int TempoBonus = 10;
