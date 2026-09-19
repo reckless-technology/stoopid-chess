@@ -30,6 +30,13 @@ public sealed class Evaluator
     public const int KingZoneAttackPenalty = 5;
     public const int KingZoneQueenAttackPenalty = 10;
 
+    // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
+    private static readonly int[] PassedPawnBonus = [0, 5, 10, 20, 35, 60, 100, 0];
+
+    // The squares ahead of a pawn on its own file and the two beside it, indexed [colour][square]:
+    // an enemy pawn there stops it being passed
+    private static readonly Bitboard[][] PassedPawnSpan = BuildPassedPawnSpans();
+
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram.
     private static readonly int[] PawnTable =
@@ -145,7 +152,7 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
-            int own = Mobility(board, colour);
+            int own = Mobility(board, colour) + PassedPawns(board, colour);
             if (!endgame)
             {
                 own -= KingZoneAttacks(board, colour);
@@ -153,6 +160,54 @@ public sealed class Evaluator
             score += colour == Colour.White ? own : -own;
         }
         return board.SideToMove == Colour.White ? score : -score;
+    }
+
+    /// <summary>
+    /// Bonus for each pawn with no enemy pawn ahead of it on its own or the adjacent files, growing
+    /// as it advances.
+    /// </summary>
+    private static int PassedPawns(Board board, Colour colour)
+    {
+        Bitboard enemyPawns = board.Pieces(colour.Opponent(), PieceType.Pawn);
+        Bitboard[] spans = PassedPawnSpan[(int)colour];
+        int bonus = 0;
+        foreach (Square square in board.Pieces(colour, PieceType.Pawn))
+        {
+            if ((spans[square] & enemyPawns).IsEmpty)
+            {
+                bonus += PassedPawnBonus[colour == Colour.White ? square.Rank : 7 - square.Rank];
+            }
+        }
+        return bonus;
+    }
+
+    private static Bitboard[][] BuildPassedPawnSpans()
+    {
+        Bitboard[][] spans = new Bitboard[3][];
+        for (int colour = 0; colour < 3; colour++)
+        {
+            spans[colour] = new Bitboard[Square.Count];
+            if (colour == (int)Colour.None)
+            {
+                continue;
+            }
+            foreach (Square square in Square.All)
+            {
+                Bitboard files = Bitboard.OfFile(square.File)
+                    | (square.File > 0 ? Bitboard.OfFile(square.File - 1) : Bitboard.Empty)
+                    | (square.File < 7 ? Bitboard.OfFile(square.File + 1) : Bitboard.Empty);
+                Bitboard ranksAhead = Bitboard.Empty;
+                for (int rank = 0; rank < 8; rank++)
+                {
+                    if (colour == (int)Colour.White ? rank > square.Rank : rank < square.Rank)
+                    {
+                        ranksAhead |= Bitboard.OfRank(rank);
+                    }
+                }
+                spans[colour][square] = files & ranksAhead;
+            }
+        }
+        return spans;
     }
 
     /// <summary>
