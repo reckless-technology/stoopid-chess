@@ -37,3 +37,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Mobility by per-piece tables with diminishing returns instead of a linear rate (knight -32..26 over 0-8 squares, bishop -30..36, rook -20..22, queen -15..15) | -3 ± 58 (38 W, 39 L, 23 D) | no |
 | Weak king zone squares: 15 cp per zone square the enemy attacks that no own piece or pawn other than the king defends, middlegame only, on top of the linear attack count | +49 ± 55 (44 W, 30 L, 26 D) | yes |
 | Safe checks: a penalty per square from which an enemy knight (25), bishop (20), rook (30) or queen (40) could give check with nothing but the king to take it | -7 ± 64 (36 W, 38 L, 26 D) | no |
+| Safe major-piece mobility: rooks skip squares attacked by enemy minors, queens also those attacked by enemy rooks (about 10% slower) | -53 ± 58 (31 W, 46 L, 23 D) | no |
