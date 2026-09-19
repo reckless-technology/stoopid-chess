@@ -78,5 +78,27 @@ public sealed record SearchLimits
         return budget < MinimumThinkingTime ? MinimumThinkingTime : budget;
     }
 
+    /// <summary>
+    /// The most a single move may take when the search is extended: most of the clock, so that it never flags.
+    /// </summary>
+    public TimeSpan? TimeCap(Colour sideToMove)
+    {
+        if (Infinite)
+        {
+            return null;
+        }
+        if (MoveTime is not null)
+        {
+            return MoveTime;
+        }
+        TimeSpan? remaining = sideToMove == Colour.White ? WhiteTime : BlackTime;
+        if (remaining is null)
+        {
+            return null;
+        }
+        TimeSpan cap = (AtLeastZero(remaining.Value) * 0.8) - MoveOverhead;
+        return cap < MinimumThinkingTime ? MinimumThinkingTime : cap;
+    }
+
     private static TimeSpan AtLeastZero(TimeSpan time) => time < TimeSpan.Zero ? TimeSpan.Zero : time;
 }
