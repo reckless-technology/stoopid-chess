@@ -51,3 +51,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Passed pawns in the endgame, after Crafty: the rank bonus times (twice the enemy king'''s distance from the square in front minus our king'''s) over 8 | +28 ± 49 then +49 ± 55, +38 ± 36 over 200 games (83 W, 61 L, 56 D) | yes |
 | Free-path passers, after Crafty: the rank bonus again when no square ahead of the passer is attacked, half when only the next square is safe | -28 ± 53 (28 W, 36 L, 36 D) | no |
 | Drawish endings after Crafty'''s winning chances: with no pawns a lone minor or a lead of at most a minor against a king off the edge scores one eighth, a pure opposite-coloured-bishop ending half | -28 ± 57 (34 W, 42 L, 24 D) | no |
+| Candidate passers after Crafty: no enemy pawn ahead on the file and at least as many own pawns beside or behind as enemy pawns guarding the files ahead, half the passer bonus | -7 ± 61 (38 W, 40 L, 22 D) | no |
