@@ -57,3 +57,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Tempo bonus 20 cp instead of 10 | -38 ± 54 (30 W, 41 L, 29 D) | no |
 | Mobility rates 5/4/3/1 cp per square instead of 4/3/2/1 | +67 ± 59 (48 W, 29 L, 23 D) | yes |
 | Mobility rates 6/5/4/2 | +14 ± 42 then +53 ± 47, +33 ± 31 over 200 games (74 W, 55 L, 71 D) | yes |
+| Mobility rates 7/6/5/2 | +21 ± 46 then -17 ± 44, +2 ± 33 over 200 games (72 W, 71 L, 57 D) | no |
