@@ -18,7 +18,7 @@ public sealed class Searcher
     public const int DrawScore = 0;
     private const int Infinity = MateScore + 1;
     private const int NodesBetweenTimeChecks = 2048;
-    private const int NullMoveMinimumDepth = 3;
+    private const int NullMoveMinimumDepth = 2;
     private const int NullMoveReduction = 3;
     private const int ScoreDropMargin = 30;          // A fall in the root score by this much earns the move more time
     private const int ScoreDropMinimumDepth = 4;
