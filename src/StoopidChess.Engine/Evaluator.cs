@@ -36,6 +36,10 @@ public sealed class Evaluator
     // Having the move is worth something in itself
     public const int TempoBonus = 10;
 
+    // A knight on an outpost: in the opponent's half (ranks 4 to 6 from its own side), defended by
+    // an own pawn, on a square no enemy pawn can ever attack
+    public const int KnightOutpostBonus = 20;
+
     // King shelter and pawn storm (middlegame only), on the king's file and the two beside it. The
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
@@ -166,7 +170,7 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
-            int own = Mobility(board, colour) + PassedPawns(board, colour);
+            int own = Mobility(board, colour) + PassedPawns(board, colour) + KnightOutposts(board, colour);
             if (board.Pieces(colour, PieceType.Bishop).Count >= 2)
             {
                 own += BishopPairBonus;
@@ -223,6 +227,33 @@ public sealed class Evaluator
             }
         }
         return score;
+    }
+
+    /// <summary>
+    /// Knights on outposts: squares in the opponent's half that an own pawn defends and that no enemy
+    /// pawn can reach (none ahead on the neighbouring files, which the passed-pawn spans encode).
+    /// </summary>
+    private static int KnightOutposts(Board board, Colour colour)
+    {
+        Colour them = colour.Opponent();
+        Bitboard ownPawns = board.Pieces(colour, PieceType.Pawn);
+        Bitboard enemyPawns = board.Pieces(them, PieceType.Pawn);
+        Bitboard outpostRanks = colour == Colour.White
+            ? Bitboard.Rank4 | Bitboard.Rank5 | Bitboard.Rank6
+            : Bitboard.Rank5 | Bitboard.Rank4 | Bitboard.Rank3;
+        Bitboard defended = Attacks.Pawns(colour, ownPawns);
+        Bitboard[] spans = PassedPawnSpan[(int)colour];
+        int bonus = 0;
+        foreach (Square square in board.Pieces(colour, PieceType.Knight) & outpostRanks & defended)
+        {
+            // The span ahead on the neighbouring files, less the knight's own file
+            Bitboard adjacentAhead = spans[square] & ~Bitboard.OfFile(square.File);
+            if ((adjacentAhead & enemyPawns).IsEmpty)
+            {
+                bonus += KnightOutpostBonus;
+            }
+        }
+        return bonus;
     }
 
     /// <summary>

@@ -26,3 +26,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King shelter and pawn storm on the three files around the king, middlegame only: nearest own pawn ahead scores by rank (+25 unmoved, +15, +5, none -30), nearest enemy pawn ahead costs by distance (-30 at two ranks, -20, -10; halved when blocked by an own pawn) | +30 ± 53 (32 W, 25 L, 23 D) | yes |
 | Isolated pawns (-15 each) and doubled pawns (-10 per extra pawn on a file) | -39 ± 61 (27 W, 36 L, 17 D) | no |
 | Tempo bonus, 10 cp for the side to move | +30 ± 60 (32 W, 25 L, 23 D) | yes |
+| Knight outposts: a knight on ranks 4 to 6 defended by an own pawn where no enemy pawn can ever attack it, +20 | +44 ± 55 (31 W, 21 L, 28 D) | yes |
