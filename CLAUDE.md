@@ -70,7 +70,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    of quiet moves at depth <= 3 with a 100 cp per ply margin +4 ± 58 (not kept), delta pruning in
    quiescence with a 200 cp margin -4 ± 54 (not kept), countermove heuristic (the quiet reply that last refuted
    the opponent's move, ordered after the killers) +103 ± 65, one-ply continuation history added to the
-   quiet-move history score +30 ± 56. Evaluation experiments are logged in docs/EVALUATION.md;
+   quiet-move history score +30 ± 56, the logarithmic LMR table retried on top of the new ordering +17 ± 63 (still
+   not kept; retry after further ordering work). Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
 ## Architecture notes
