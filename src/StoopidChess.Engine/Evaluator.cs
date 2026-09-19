@@ -25,6 +25,11 @@ public sealed class Evaluator
     public const int RookMobility = 2;
     public const int QueenMobility = 1;
 
+    // King safety (middlegame only): centipawns per square of the king zone (the king's square and
+    // its neighbours) attacked by an enemy piece
+    public const int KingZoneAttackPenalty = 5;
+    public const int KingZoneQueenAttackPenalty = 10;
+
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram.
     private static readonly int[] PawnTable =
@@ -140,9 +145,44 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
-            score += colour == Colour.White ? Mobility(board, colour) : -Mobility(board, colour);
+            int own = Mobility(board, colour);
+            if (!endgame)
+            {
+                own -= KingZoneAttacks(board, colour);
+            }
+            score += colour == Colour.White ? own : -own;
         }
         return board.SideToMove == Colour.White ? score : -score;
+    }
+
+    /// <summary>
+    /// The pressure on the colour's king: enemy piece attacks on the king's square and the squares
+    /// around it, each attacked square counted once per attacking piece.
+    /// </summary>
+    private static int KingZoneAttacks(Board board, Colour colour)
+    {
+        Colour them = colour.Opponent();
+        Square king = board.KingSquare(colour);
+        Bitboard zone = Attacks.King(king) | Bitboard.Of(king);
+        Bitboard occupied = board.Occupied;
+        int penalty = 0;
+        foreach (Square square in board.Pieces(them, PieceType.Knight))
+        {
+            penalty += KingZoneAttackPenalty * (Attacks.Knight(square) & zone).Count;
+        }
+        foreach (Square square in board.Pieces(them, PieceType.Bishop))
+        {
+            penalty += KingZoneAttackPenalty * (Attacks.Bishop(occupied, square) & zone).Count;
+        }
+        foreach (Square square in board.Pieces(them, PieceType.Rook))
+        {
+            penalty += KingZoneAttackPenalty * (Attacks.Rook(occupied, square) & zone).Count;
+        }
+        foreach (Square square in board.Pieces(them, PieceType.Queen))
+        {
+            penalty += KingZoneQueenAttackPenalty * (Attacks.Queen(occupied, square) & zone).Count;
+        }
+        return penalty;
     }
 
     /// <summary>

@@ -19,3 +19,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Reset to the Simplified Evaluation Function (baseline) | +13 ± 68 against the previous evaluation (pawn structure, bishop mobility, 330/370 minors): those terms were worth nothing | baseline |
 | Mobility: squares each knight, bishop, rook and queen can move to or capture on, at 4, 3, 2 and 1 cp per square | +108 ± 63 (41 W, 17 L, 22 D) | yes |
 | King safety: pawn shield, 10 cp per own pawn one rank ahead of the king on its three files and 5 cp two ranks ahead, middlegame only | -4 ± 52 (27 W, 28 L, 25 D) | no |
+| King safety: enemy piece attacks into the king zone (king square and neighbours), 5 cp per attacked square for knights, bishops and rooks, 10 for queens, middlegame only | +30 ± 59 (31 W, 24 L, 25 D) | yes |
