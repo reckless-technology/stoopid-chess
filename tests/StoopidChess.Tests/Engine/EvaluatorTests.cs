@@ -8,7 +8,7 @@ public class EvaluatorTests
     [Fact]
     public void StartPositionIsBalanced()
     {
-        Assert.Equal(0, new Evaluator().Evaluate(Board.StartPosition()));
+        Assert.Equal(Evaluator.TempoBonus, new Evaluator().Evaluate(Board.StartPosition()));
     }
 
     [Theory]

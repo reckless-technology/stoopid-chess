@@ -33,6 +33,9 @@ public sealed class Evaluator
     // Two bishops cover both square colours
     public const int BishopPairBonus = 30;
 
+    // Having the move is worth something in itself
+    public const int TempoBonus = 10;
+
     // King shelter and pawn storm (middlegame only), on the king's file and the two beside it. The
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
@@ -175,7 +178,7 @@ public sealed class Evaluator
             }
             score += colour == Colour.White ? own : -own;
         }
-        return board.SideToMove == Colour.White ? score : -score;
+        return TempoBonus + (board.SideToMove == Colour.White ? score : -score);
     }
 
     /// <summary>
