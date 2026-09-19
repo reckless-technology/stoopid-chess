@@ -42,3 +42,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King zone extended one rank forward: the three squares beyond the king's neighbours count for the attack and weak square penalties too | +53 ± 63 (44 W, 29 L, 27 D) | yes |
 | Mobility area includes squares holding own pieces other than pawns and the king (defending a piece counts as a square) | -14 ± 50 (31 W, 35 L, 34 D) | no |
 | King attacker count: 4 cp times the square of the number of enemy pieces attacking the zone, on top of the linear count | -10 ± 52 (34 W, 37 L, 29 D) | no |
+| Connected pawns: a pawn defended by a pawn or beside one scores by rank 5/7/12/20/40 from the third to the seventh | +17 ± 47 then -17 ± 56, 0 ± 36 over 200 games (76 W, 76 L, 48 D) | no |
