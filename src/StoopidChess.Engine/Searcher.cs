@@ -34,6 +34,7 @@ public sealed class Searcher
     private readonly Evaluator evaluator = new();
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
+    private readonly Move[,] counterMoves = new Move[7, Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
     private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
@@ -86,6 +87,7 @@ public sealed class Searcher
         nodeLimit = limits.Infinite ? null : limits.Nodes;
         stopped = false;
         Array.Clear(killers);
+        Array.Clear(counterMoves);
         Array.Clear(history);
         stopwatch.Restart();
 
@@ -363,6 +365,10 @@ public sealed class Searcher
                 {
                     RecordKiller(ply, move);
                     RecordHistory(move, depth);
+                    if (board.LastMove is { IsNone: false } previous)
+                    {
+                        counterMoves[(int)previous.Piece, previous.To] = move;
+                    }
                 }
                 table.Store(board.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
@@ -539,10 +545,11 @@ public sealed class Searcher
         {
             return;
         }
+        Move counter = board.LastMove is { IsNone: false } previous ? counterMoves[(int)previous.Piece, previous.To] : Move.None;
         Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
         {
-            scores[i] = ScoreMove(moves[i], ply, tableMove);
+            scores[i] = ScoreMove(moves[i], ply, tableMove, counter);
         }
         // Insertion sort, descending by score; stable and fast for the short lists chess produces
         for (int i = 1; i < count; i++)
@@ -561,7 +568,7 @@ public sealed class Searcher
         }
     }
 
-    private int ScoreMove(Move move, int ply, Move tableMove)
+    private int ScoreMove(Move move, int ply, Move tableMove, Move counter)
     {
         if (move == tableMove)
         {
@@ -587,6 +594,10 @@ public sealed class Searcher
         if (move == killers[ply, 1])
         {
             return 80_000;
+        }
+        if (move == counter)
+        {
+            return 70_000;
         }
         return Math.Min(history[(int)board.SideToMove, move.From, move.To], HistoryCap);
     }
