@@ -39,7 +39,7 @@ public sealed class SavedGame
         return new SavedGame
         {
             StartFen = game.StartFen,
-            Moves = game.UciMoves.ToList(),
+            Moves = [.. game.UciMoves],
             HumanColour = humanColour,
             IsBoardFlipped = isBoardFlipped,
             Level = level,

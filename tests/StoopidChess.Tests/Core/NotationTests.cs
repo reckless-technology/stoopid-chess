@@ -28,8 +28,8 @@ public class NotationTests
     [Fact]
     public void WritesUciAndLongAlgebraic()
     {
-        Board board = Board.FromFen("r3k2r/1P2p3/8/3pP3/8/8/8/R3K2R w KQkq d6 0 1");
-        Dictionary<string, Move> moves = MoveGenerator.GenerateLegalMoves(board).ToDictionary(m => m.ToUci());
+        var board = Board.FromFen("r3k2r/1P2p3/8/3pP3/8/8/8/R3K2R w KQkq d6 0 1");
+        var moves = MoveGenerator.GenerateLegalMoves(board).ToDictionary(m => m.ToUci());
         Assert.Equal("O-O", MoveNotation.ToLongAlgebraic(moves["e1g1"]));
         Assert.Equal("O-O-O", MoveNotation.ToLongAlgebraic(moves["e1c1"]));
         Assert.Equal("e5xd6 e.p.", MoveNotation.ToLongAlgebraic(moves["e5d6"]));
@@ -49,7 +49,7 @@ public class NotationTests
             foreach (PieceType promotion in new[] { PieceType.None, PieceType.Queen, PieceType.Knight })
             {
                 var move = new Move(from, Square.H8 - from + Square.A1, PieceType.Pawn, PieceType.Rook, MoveKind.Promotion, promotion);
-                Move unpacked = Move.FromBits(move.ToBits());
+                var unpacked = Move.FromBits(move.ToBits());
                 Assert.Equal(move, unpacked);
                 Assert.Equal(from, unpacked.From);
                 Assert.Equal(Square.H8 - from, unpacked.To);

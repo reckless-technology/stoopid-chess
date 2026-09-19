@@ -47,7 +47,7 @@ public class UciEngineClientTests
     {
         using var client = UciEngineClient.StartInProcess();
         await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
-        Game game = Game.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
+        var game = Game.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
         client.SetPosition(game.StartFen, game.UciMoves);
         string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(Timeout);
         Assert.Equal("d1d8", best);

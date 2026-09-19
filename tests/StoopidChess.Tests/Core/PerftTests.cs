@@ -38,7 +38,7 @@ public class PerftTests
     [MemberData(nameof(Positions))]
     public void LeafNodeCountMatchesReference(string fen, int depth, long expected)
     {
-        Board board = Board.FromFen(fen);
+        var board = Board.FromFen(fen);
         string normalisedFen = board.ToFen();
         Assert.Equal(expected, Perft.Count(board, depth));
         // The board must be restored exactly by the make/unmake pairs
@@ -48,8 +48,8 @@ public class PerftTests
     [Fact]
     public void DivideSumsToTheFullCount()
     {
-        Board board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-        List<(Move Move, long Nodes)> divided = Perft.Divide(board, 3).ToList();
+        var board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+        List<(Move Move, long Nodes)> divided = [.. Perft.Divide(board, 3)];
         Assert.Equal(48, divided.Count);
         Assert.Equal(97862, divided.Sum(d => d.Nodes));
     }

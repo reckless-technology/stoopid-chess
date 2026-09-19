@@ -18,7 +18,7 @@ public class FenTests
     [Fact]
     public void ParsesFields()
     {
-        Board board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b Kq e3 7 12");
+        var board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b Kq e3 7 12");
         Assert.Equal(Colour.Black, board.SideToMove);
         Assert.Equal(CastlingRights.WhiteKingSide | CastlingRights.BlackQueenSide, board.CastlingRights);
         Assert.Equal(Square.Parse("e3"), board.EnPassantSquare);
@@ -33,11 +33,11 @@ public class FenTests
     public void EnPassantSquareIsKeptOnlyWhenACaptureIsPossible()
     {
         // No white pawn beside e5, so the square is dropped and the key equals the plain position
-        Board dropped = Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
+        var dropped = Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
         Assert.Equal(Square.None, dropped.EnPassantSquare);
         Assert.Equal(Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").Key, dropped.Key);
         // The same applies to double pushes made on the board
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         board.MakeMove(BoardTests.FindMove(board, "e2e4")!.Value);
         Assert.Equal(Square.None, board.EnPassantSquare);
         board.MakeMove(BoardTests.FindMove(board, "d7d5")!.Value);
@@ -46,12 +46,12 @@ public class FenTests
         board.MakeMove(BoardTests.FindMove(board, "f7f5")!.Value);
         Assert.Equal(Square.Parse("f6"), board.EnPassantSquare);
         // Reaching the same position by a different order gives the same key
-        Board other = Board.StartPosition();
+        var other = Board.StartPosition();
         foreach (string uci in new[] { "e2e4", "g8f6", "g1f3", "f6g8", "f3g1" })
         {
             other.MakeMove(BoardTests.FindMove(other, uci)!.Value);
         }
-        Board direct = Board.StartPosition();
+        var direct = Board.StartPosition();
         direct.MakeMove(BoardTests.FindMove(direct, "e2e4")!.Value);
         Assert.Equal(direct.Key, other.Key);
         Assert.Equal(1, other.RepetitionCount());
@@ -60,7 +60,7 @@ public class FenTests
     [Fact]
     public void HugeClockValuesAreClampedNotOverflowed()
     {
-        Board board = Board.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 2147483647 99999999999");
+        var board = Board.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 2147483647 99999999999");
         Assert.Equal(Board.MaxHalfMoveClock, board.HalfMoveClock);
         Assert.Equal(int.MaxValue, board.FullMoveNumber);
         var game = new Game(board);
@@ -73,7 +73,7 @@ public class FenTests
     [Fact]
     public void ClockFieldsAreOptional()
     {
-        Board board = Board.FromFen("4k3/8/8/8/8/8/8/4K3 w - -");
+        var board = Board.FromFen("4k3/8/8/8/8/8/8/4K3 w - -");
         Assert.Equal(0, board.HalfMoveClock);
         Assert.Equal(1, board.FullMoveNumber);
         Assert.Equal("4k3/8/8/8/8/8/8/4K3 w - - 0 1", board.ToFen());

@@ -473,7 +473,7 @@ public sealed class GameController : IDisposable
     public bool Load(SavedGame saved)
     {
         ArgumentNullException.ThrowIfNull(saved);
-        Game? loaded = saved.ToGame();
+        var loaded = saved.ToGame();
         if (loaded is null)
         {
             return false;

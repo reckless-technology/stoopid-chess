@@ -165,7 +165,7 @@ public static class Attacks
             int rank = square.Rank + rankStep;
             while (IsOnBoard(file, rank))
             {
-                Square to = Square.At(file, rank);
+                var to = Square.At(file, rank);
                 attacks |= Bitboard.Of(to);
                 if (occupied.Contains(to))
                 {

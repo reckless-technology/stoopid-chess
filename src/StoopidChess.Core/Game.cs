@@ -77,7 +77,7 @@ public sealed class Game
             (ulong, int) current = (Board.Key, Board.Ply);
             if (legalMoves is null || legalMovesFor != current)
             {
-                legalMoves = MoveGenerator.GenerateLegalMoves(Board).ToArray();
+                legalMoves = [.. MoveGenerator.GenerateLegalMoves(Board)];
                 legalMovesFor = current;
             }
             return legalMoves;

@@ -132,7 +132,7 @@ public class UciSessionTests
             session.HandleCommand("perft 0");
             session.HandleCommand("bench 0");
         }
-        string[] bestMoves = Lines(output).Where(l => l.StartsWith("bestmove ", StringComparison.Ordinal)).ToArray();
+        string[] bestMoves = [.. Lines(output).Where(l => l.StartsWith("bestmove ", StringComparison.Ordinal))];
         Assert.Equal(5, bestMoves.Length);
         Assert.All(bestMoves, l => Assert.NotEqual("bestmove 0000", l));
         Assert.DoesNotContain(Lines(output), l => l.Contains("search failed", StringComparison.Ordinal));
@@ -156,7 +156,7 @@ public class UciSessionTests
         Assert.Contains(lines, l => l.StartsWith("info depth 3 score cp ", StringComparison.Ordinal) && l.Contains(" pv ", StringComparison.Ordinal));
         string best = lines[^1];
         Assert.StartsWith("bestmove ", best, StringComparison.Ordinal);
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         board.MakeMove(BoardTestHelpers.Move(board, "e2e4"));
         Assert.Contains(MoveGenerator.GenerateLegalMoves(board), m => m.ToUci() == best.Split(' ')[1]);
     }
@@ -223,7 +223,7 @@ public class UciSessionTests
             session.HandleCommand("quit");
         }
         string[] lines = Lines(output);
-        int[] bestMoveLines = lines.Select((line, index) => (line, index)).Where(t => t.line.StartsWith("bestmove ", StringComparison.Ordinal)).Select(t => t.index).ToArray();
+        int[] bestMoveLines = [.. lines.Select((line, index) => (line, index)).Where(t => t.line.StartsWith("bestmove ", StringComparison.Ordinal)).Select(t => t.index)];
         Assert.Equal(3, bestMoveLines.Length);
         Assert.Equal("bestmove d1d8", lines[bestMoveLines[2]]);
         // Every bestmove precedes the info lines of the next search, so after the second bestmove

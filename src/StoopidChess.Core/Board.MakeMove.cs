@@ -38,7 +38,7 @@ public sealed partial class Board
             case MoveKind.DoublePawnPush:
                 MovePiece(move.From, move.To, us, PieceType.Pawn);
                 // Record the en passant square only if an enemy pawn could actually capture there
-                Square passed = Square.Unchecked((move.From.Index + move.To.Index) >> 1);
+                var passed = Square.Unchecked((move.From.Index + move.To.Index) >> 1);
                 if (IsAttackedByPawn(passed, them))
                 {
                     SetEnPassantSquare(passed);

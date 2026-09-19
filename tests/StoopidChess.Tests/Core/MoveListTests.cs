@@ -21,7 +21,7 @@ public class MoveListTests
         Assert.Throws<ArgumentOutOfRangeException>(() => moves[2]);
         Assert.True(moves.Contains(G1F3));
         Assert.False(moves.Contains(E1G1));
-        Assert.Equal([E2E4, G1F3], moves.ToArray());
+        Assert.Equal([E2E4, G1F3], [.. moves]);
         var seen = new List<Move>();
         foreach (Move move in moves)
         {

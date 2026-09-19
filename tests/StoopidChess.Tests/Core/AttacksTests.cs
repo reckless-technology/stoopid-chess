@@ -66,7 +66,7 @@ public class AttacksTests
     public void RayWalkingReferenceIsRight()
     {
         // Rook on d4 with blockers on d6 and f4: up to and including the blockers, the whole way otherwise
-        Square d4 = Square.Parse("d4");
+        var d4 = Square.Parse("d4");
         Bitboard occupied = Bitboard.Of(Square.Parse("d6")) | Bitboard.Of(Square.Parse("f4"));
         Bitboard expected = Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("d6"))
             | Bitboard.Of(Square.Parse("e4")) | Bitboard.Of(Square.Parse("f4"))

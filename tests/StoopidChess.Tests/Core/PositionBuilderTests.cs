@@ -8,7 +8,7 @@ public class PositionBuilderTests
     public void BuildsTheStartPositionFromScratch()
     {
         var builder = new PositionBuilder { CastlingRights = CastlingRights.All };
-        Board reference = Board.StartPosition();
+        var reference = Board.StartPosition();
         foreach (Square square in Square.All)
         {
             builder[square] = reference[square];
@@ -22,14 +22,14 @@ public class PositionBuilderTests
     [Fact]
     public void FromCopiesAPositionAndEditsDoNotTouchTheOriginal()
     {
-        Board original = Board.StartPosition();
-        PositionBuilder builder = PositionBuilder.From(original);
+        var original = Board.StartPosition();
+        var builder = PositionBuilder.From(original);
         builder[Square.E1] = default;
         builder[Square.Parse("d4")] = (Colour.White, PieceType.King);
         Board edited = builder.Build();
         Assert.Equal(Board.StartFen, original.ToFen());
         Assert.Equal((Colour.White, PieceType.King), edited[Square.Parse("d4")]);
-        Assert.True(edited[Square.E1].Type == PieceType.None);
+        Assert.Equal(PieceType.None, edited[Square.E1].Type);
         (ulong key, _) = edited.ComputeKeys();
         Assert.Equal(key, edited.Key);
     }
@@ -37,7 +37,7 @@ public class PositionBuilderTests
     [Fact]
     public void CastlingRightsSurviveOnlyWithKingAndRookAtHome()
     {
-        PositionBuilder builder = PositionBuilder.From(Board.StartPosition());
+        var builder = PositionBuilder.From(Board.StartPosition());
         builder[Square.E1] = default;
         builder[Square.Parse("d4")] = (Colour.White, PieceType.King);
         Assert.Equal(CastlingRights.Black, builder.Build().CastlingRights);
@@ -55,7 +55,7 @@ public class PositionBuilderTests
     [Fact]
     public void SideToMoveIsRespected()
     {
-        PositionBuilder builder = PositionBuilder.From(Board.StartPosition());
+        var builder = PositionBuilder.From(Board.StartPosition());
         builder.SideToMove = Colour.Black;
         Board board = builder.Build();
         Assert.Equal(Colour.Black, board.SideToMove);
@@ -71,11 +71,11 @@ public class PositionBuilderTests
         Assert.Null(empty.TryBuild());
         Assert.Throws<InvalidOperationException>(() => empty.Build());
 
-        PositionBuilder noBlackKing = PositionBuilder.From(Board.StartPosition());
+        var noBlackKing = PositionBuilder.From(Board.StartPosition());
         noBlackKing[Square.E8] = default;
         Assert.False(noBlackKing.IsLegal);
 
-        PositionBuilder backRankPawn = PositionBuilder.From(Board.StartPosition());
+        var backRankPawn = PositionBuilder.From(Board.StartPosition());
         backRankPawn[Square.A8] = (Colour.White, PieceType.Pawn);
         Assert.False(backRankPawn.IsLegal);
         backRankPawn[Square.A8] = (Colour.Black, PieceType.Rook);
@@ -116,7 +116,7 @@ public class PositionBuilderTests
     {
         var game = new Game();
         game.TryMakeMove("e2e4");
-        PositionBuilder builder = PositionBuilder.From(game.Board);
+        var builder = PositionBuilder.From(game.Board);
         builder[Square.Parse("d8")] = default;
         var edited = new Game(builder.Build());
         Assert.Empty(edited.Moves);

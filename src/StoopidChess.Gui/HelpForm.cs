@@ -7,23 +7,22 @@ using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
 
-namespace StoopidChess.Gui
-{
-    public partial class HelpForm : Form
-    {
-        public HelpForm()
-        {
-            InitializeComponent();
-            this.ControlBox = false;
-            this.StartPosition = FormStartPosition.CenterParent;
-            okButton.Focus();
-            textBox.Select(0, 0);
-            this.Text = "Stoopid Chess " + Application.ProductVersion.Split('+')[0];
-        }
+namespace StoopidChess.Gui;
 
-        private void okButton_Click(object? sender, EventArgs e)
-        {
-            this.Close();
-        }
+public partial class HelpForm : Form
+{
+    public HelpForm()
+    {
+        InitializeComponent();
+        ControlBox = false;
+        StartPosition = FormStartPosition.CenterParent;
+        okButton.Focus();
+        textBox.Select(0, 0);
+        Text = "Stoopid Chess " + Application.ProductVersion.Split('+')[0];
+    }
+
+    private void OnOkClick(object? sender, EventArgs e)
+    {
+        Close();
     }
 }

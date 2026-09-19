@@ -10,7 +10,7 @@ public class BoardTests
         var random = new Random(2026);
         for (int game = 0; game < 50; game++)
         {
-            Board board = Board.StartPosition();
+            var board = Board.StartPosition();
             for (int ply = 0; ply < 120; ply++)
             {
                 MoveList moves = MoveGenerator.GenerateLegalMoves(board);
@@ -43,8 +43,8 @@ public class BoardTests
     public void CapturingARookOnItsHomeSquareRemovesTheCastlingRight()
     {
         // White bishop takes the rook on h8; black must not be able to castle king side later
-        Board board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-        Board bishop = Board.FromFen("r3k2r/8/8/8/8/8/1B6/R3K2R w KQkq - 0 1");
+        var board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        var bishop = Board.FromFen("r3k2r/8/8/8/8/8/1B6/R3K2R w KQkq - 0 1");
         Move? capture = FindMove(bishop, "b2h8");
         Assert.NotNull(capture);
         bishop.MakeMove(capture.Value);
@@ -55,7 +55,7 @@ public class BoardTests
     [Fact]
     public void MovingKingOrRookRemovesCastlingRights()
     {
-        Board board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        var board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
         board.MakeMove(FindMove(board, "a1b1")!.Value);
         Assert.Equal(CastlingRights.WhiteKingSide | CastlingRights.Black, board.CastlingRights);
         board.MakeMove(FindMove(board, "e8d8")!.Value);
@@ -68,12 +68,12 @@ public class BoardTests
     [Fact]
     public void CastlingMovesTheRookToo()
     {
-        Board board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+        var board = Board.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
         board.MakeMove(FindMove(board, "e1g1")!.Value);
         Assert.Equal((Colour.White, PieceType.King), board[Square.G1]);
         Assert.Equal((Colour.White, PieceType.Rook), board[Square.F1]);
-        Assert.True(board[Square.E1].Type == PieceType.None);
-        Assert.True(board[Square.H1].Type == PieceType.None);
+        Assert.Equal(PieceType.None, board[Square.E1].Type);
+        Assert.Equal(PieceType.None, board[Square.H1].Type);
         board.MakeMove(FindMove(board, "e8c8")!.Value);
         Assert.Equal((Colour.Black, PieceType.King), board[Square.C8]);
         Assert.Equal((Colour.Black, PieceType.Rook), board[Square.D8]);
@@ -86,12 +86,12 @@ public class BoardTests
     [Fact]
     public void EnPassantCaptureRemovesThePassedPawn()
     {
-        Board board = Board.FromFen("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2");
+        var board = Board.FromFen("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2");
         Move? capture = FindMove(board, "e5d6");
         Assert.NotNull(capture);
         Assert.Equal(MoveKind.EnPassant, capture.Value.Kind);
         board.MakeMove(capture.Value);
-        Assert.True(board[Square.Parse("d5")].Type == PieceType.None);
+        Assert.Equal(PieceType.None, board[Square.Parse("d5")].Type);
         Assert.Equal((Colour.White, PieceType.Pawn), board[Square.Parse("d6")]);
         Assert.Equal(1, board.Count(Colour.White, PieceType.Pawn) + board.Count(Colour.Black, PieceType.Pawn));
         board.UnmakeMove();
@@ -101,8 +101,8 @@ public class BoardTests
     [Fact]
     public void PromotionReplacesThePawn()
     {
-        Board board = Board.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
-        List<Move> promotions = MoveGenerator.GenerateLegalMoves(board).Where(m => m.From == Square.Parse("b7")).ToList();
+        var board = Board.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
+        List<Move> promotions = [.. MoveGenerator.GenerateLegalMoves(board).Where(m => m.From == Square.Parse("b7"))];
         Assert.Equal(4, promotions.Count);
         Move knight = promotions.Single(m => m.Promotion == PieceType.Knight);
         board.MakeMove(knight);
@@ -116,7 +116,7 @@ public class BoardTests
     [Fact]
     public void HalfMoveClockResetsOnPawnMovesAndCaptures()
     {
-        Board board = Board.FromFen("r3k2r/8/8/8/8/8/P7/R3K2R w KQkq - 5 1");
+        var board = Board.FromFen("r3k2r/8/8/8/8/8/P7/R3K2R w KQkq - 5 1");
         board.MakeMove(FindMove(board, "a1b1")!.Value);
         Assert.Equal(6, board.HalfMoveClock);
         board.MakeMove(FindMove(board, "a8a2")!.Value);
@@ -129,7 +129,7 @@ public class BoardTests
     [Fact]
     public void RepetitionCountSeesEarlierIdenticalPositions()
     {
-        Board board = Board.FromFen("4k3/8/8/8/8/8/8/R3K3 w - - 0 1");
+        var board = Board.FromFen("4k3/8/8/8/8/8/8/R3K3 w - - 0 1");
         Assert.Equal(0, board.RepetitionCount());
         string[] shuffle = ["a1b1", "e8d8", "b1a1", "d8e8"];
         foreach (string uci in shuffle)
@@ -143,7 +143,7 @@ public class BoardTests
         }
         Assert.Equal(2, board.RepetitionCount());
         // A pawn move breaks the chain
-        Board pawns = Board.FromFen("4k3/8/8/8/8/8/P7/R3K3 w - - 0 1");
+        var pawns = Board.FromFen("4k3/8/8/8/8/8/P7/R3K3 w - - 0 1");
         pawns.MakeMove(FindMove(pawns, "a2a3")!.Value);
         foreach (string uci in new[] { "e8d8", "a1b1", "d8e8", "b1a1" })
         {
@@ -172,7 +172,7 @@ public class BoardTests
     [Fact]
     public void NullMoveSwitchesSidesAndUnmakesExactly()
     {
-        Board board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3p4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3");
+        var board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3p4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3");
         board.MakeMove(FindMove(board, "c2c4")!.Value);     // The black pawn on d4 could capture en passant on c3
         Assert.Equal(Square.Parse("c3"), board.EnPassantSquare);
         string fen = board.ToFen();
@@ -196,7 +196,7 @@ public class BoardTests
     [Fact]
     public void IndexersRangeCheck()
     {
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         Assert.Throws<ArgumentOutOfRangeException>(() => board[Square.None]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[Square.None]);
         Assert.Throws<ArgumentOutOfRangeException>(() => board[8, 0]);
@@ -207,12 +207,12 @@ public class BoardTests
     [Fact]
     public void GenerationOrderIsIndependentOfHistory()
     {
-        Board viaOneOrder = Board.StartPosition();
+        var viaOneOrder = Board.StartPosition();
         foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
         {
             viaOneOrder.MakeMove(FindMove(viaOneOrder, uci)!.Value);
         }
-        Board viaOtherOrder = Board.StartPosition();
+        var viaOtherOrder = Board.StartPosition();
         foreach (string uci in new[] { "d2d4", "e7e6", "b1c3", "d7d5", "e2e4", "f8b4", "e4e5", "c7c5" })
         {
             viaOtherOrder.MakeMove(FindMove(viaOtherOrder, uci)!.Value);
@@ -224,7 +224,7 @@ public class BoardTests
     [Fact]
     public void CloneIsIndependent()
     {
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         Board copy = board.Clone();
         board.MakeMove(FindMove(board, "e2e4")!.Value);
         Assert.Equal(Board.StartFen, copy.ToFen());

@@ -15,7 +15,7 @@ public class MoveGeneratorTests
     {
         foreach (PerftPosition position in Perft.StandardPositions)
         {
-            Board board = Board.FromFen(position.Fen);
+            var board = Board.FromFen(position.Fen);
             MoveList moves = AssertMatchesReference(board);
             foreach (Move move in moves)
             {
@@ -32,7 +32,7 @@ public class MoveGeneratorTests
         var random = new Random(1912);
         for (int game = 0; game < 60; game++)
         {
-            Board board = Board.StartPosition();
+            var board = Board.StartPosition();
             for (int ply = 0; ply < 150; ply++)
             {
                 MoveList moves = AssertMatchesReference(board);
@@ -50,11 +50,11 @@ public class MoveGeneratorTests
     {
         foreach (PerftPosition position in Perft.StandardPositions)
         {
-            Board board = Board.FromFen(position.Fen);
-            List<Move> expected = MoveGenerator.GenerateLegalMoves(board).Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits()).ToList();
+            var board = Board.FromFen(position.Fen);
+            List<Move> expected = [.. MoveGenerator.GenerateLegalMoves(board).Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits())];
             MoveList captures = default;
             MoveGenerator.GenerateLegalCaptures(board, ref captures);
-            Assert.Equal(expected, captures.OrderBy(m => m.ToBits()).ToList());
+            Assert.Equal(expected, [.. captures.OrderBy(m => m.ToBits())]);
         }
     }
 
@@ -62,7 +62,7 @@ public class MoveGeneratorTests
     public void EnPassantThatExposesTheKingAlongTheRankIsIllegal()
     {
         // Lifting both pawns off the fifth rank would let the rook on h5 see the king on a5
-        Board board = Board.FromFen("4k3/8/8/KPp4r/8/8/8/8 w - c6 0 2");
+        var board = Board.FromFen("4k3/8/8/KPp4r/8/8/8/8 w - c6 0 2");
         Assert.DoesNotContain("b5c6", Uci(board));
         Assert.Contains("b5b6", Uci(board));
     }
@@ -70,7 +70,7 @@ public class MoveGeneratorTests
     [Fact]
     public void EnPassantMayCaptureACheckingPawn()
     {
-        Board board = Board.FromFen("8/8/8/2k5/3Pp3/8/8/4K3 b - d3 0 1");
+        var board = Board.FromFen("8/8/8/2k5/3Pp3/8/8/4K3 b - d3 0 1");
         Assert.True(board.IsInCheck);
         Assert.Contains("e4d3", Uci(board));
         Assert.Contains("c5d4", Uci(board));
@@ -81,7 +81,7 @@ public class MoveGeneratorTests
     public void APinnedPawnCannotCaptureEnPassantOffThePinLine()
     {
         // The bishop on a2 pins the pawn on c4 to the king on e6
-        Board board = Board.FromFen("8/8/4k3/8/2pP4/8/B7/7K b - d3 0 1");
+        var board = Board.FromFen("8/8/4k3/8/2pP4/8/B7/7K b - d3 0 1");
         Assert.DoesNotContain("c4d3", Uci(board));
         Assert.DoesNotContain("c4c3", Uci(board));
     }
@@ -89,7 +89,7 @@ public class MoveGeneratorTests
     [Fact]
     public void OnlyTheKingMovesInDoubleCheck()
     {
-        Board board = Board.FromFen("4k3/8/3N4/8/8/8/8/4RK2 b - - 0 1");
+        var board = Board.FromFen("4k3/8/3N4/8/8/8/8/4RK2 b - - 0 1");
         Assert.Equal(2, board.Checkers.Count);
         Assert.Equal(["e8d7", "e8d8", "e8f8"], Uci(board).Order().ToList());
     }
@@ -97,25 +97,25 @@ public class MoveGeneratorTests
     [Fact]
     public void CastlingNeedsTheCrossedSquaresUnattacked()
     {
-        Board board = Board.FromFen("4k3/8/8/8/8/8/5r2/R3K2R w KQ - 0 1");
+        var board = Board.FromFen("4k3/8/8/8/8/8/5r2/R3K2R w KQ - 0 1");
         Assert.Contains("e1c1", Uci(board));
         Assert.DoesNotContain("e1g1", Uci(board));
-        Board inCheck = Board.FromFen("4k3/8/8/8/8/8/4r3/R3K2R w KQ - 0 1");
+        var inCheck = Board.FromFen("4k3/8/8/8/8/8/4r3/R3K2R w KQ - 0 1");
         Assert.DoesNotContain("e1c1", Uci(inCheck));
         Assert.DoesNotContain("e1g1", Uci(inCheck));
         Assert.Contains("e1e2", Uci(inCheck));
         // The b-file square only needs to be empty, not safe
-        Board bAttacked = Board.FromFen("4k3/8/8/8/8/8/1r6/R3K2R w KQ - 0 1");
+        var bAttacked = Board.FromFen("4k3/8/8/8/8/8/1r6/R3K2R w KQ - 0 1");
         Assert.Contains("e1c1", Uci(bAttacked));
     }
 
     [Fact]
     public void PinnedPiecesMoveOnlyAlongThePin()
     {
-        Board knight = Board.FromFen("k3r3/8/8/8/8/8/4N3/4K3 w - - 0 1");
+        var knight = Board.FromFen("k3r3/8/8/8/8/8/4N3/4K3 w - - 0 1");
         Assert.DoesNotContain(MoveGenerator.GenerateLegalMoves(knight), m => m.From == Square.Parse("e2"));
-        Board bishop = Board.FromFen("7q/8/8/8/3B4/8/8/K6k w - - 0 1");
-        List<string> bishopMoves = Uci(bishop).Where(m => m.StartsWith("d4", StringComparison.Ordinal)).Order().ToList();
+        var bishop = Board.FromFen("7q/8/8/8/3B4/8/8/K6k w - - 0 1");
+        List<string> bishopMoves = [.. Uci(bishop).Where(m => m.StartsWith("d4", StringComparison.Ordinal)).Order()];
         Assert.Equal(["d4b2", "d4c3", "d4e5", "d4f6", "d4g7", "d4h8"], bishopMoves);
     }
 
@@ -123,13 +123,13 @@ public class MoveGeneratorTests
     public void KingMayNotStepAlongAnAttackersLineThroughItsOwnSquare()
     {
         // The rook on a1 attacks the whole first rank; e1 is in check and f1 is behind the king on the same line
-        Board board = Board.FromFen("4k3/8/8/8/8/8/8/r3K3 w - - 0 1");
+        var board = Board.FromFen("4k3/8/8/8/8/8/8/r3K3 w - - 0 1");
         Assert.DoesNotContain("e1f1", Uci(board));
         Assert.DoesNotContain("e1d1", Uci(board));
         Assert.Contains("e1e2", Uci(board));
     }
 
-    private static List<string> Uci(Board board) => MoveGenerator.GenerateLegalMoves(board).Select(m => m.ToUci()).ToList();
+    private static List<string> Uci(Board board) => [.. MoveGenerator.GenerateLegalMoves(board).Select(m => m.ToUci())];
 
     private static MoveList AssertMatchesReference(Board board)
     {
@@ -248,7 +248,7 @@ public class MoveGeneratorTests
                             {
                                 continue;
                             }
-                            Square to = Square.At(file + df, rank + dr);
+                            var to = Square.At(file + df, rank + dr);
                             (Colour Colour, PieceType Type) target = board[to];
                             if (target.Type == PieceType.None)
                             {
@@ -279,7 +279,7 @@ public class MoveGeneratorTests
                             int f = file + df, r = rank + dr;
                             while (IsOnBoard(f, r))
                             {
-                                Square to = Square.At(f, r);
+                                var to = Square.At(f, r);
                                 (Colour Colour, PieceType Type) target = board[to];
                                 if (target.Type == PieceType.None)
                                 {
@@ -311,7 +311,7 @@ public class MoveGeneratorTests
             bool promotes = forwardRank == promotionRank;
             if (board[file, forwardRank].Type == PieceType.None)
             {
-                Square to = Square.At(file, forwardRank);
+                var to = Square.At(file, forwardRank);
                 if (promotes)
                 {
                     foreach (PieceType promotion in Promotions)
@@ -334,7 +334,7 @@ public class MoveGeneratorTests
                 {
                     continue;
                 }
-                Square to = Square.At(captureFile, forwardRank);
+                var to = Square.At(captureFile, forwardRank);
                 (Colour Colour, PieceType Type) target = board[to];
                 if (target.Colour == them)
                 {

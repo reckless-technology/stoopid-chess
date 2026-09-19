@@ -297,7 +297,7 @@ public sealed partial class Board
     {
         Debug.Assert(squares[square] == PieceType.None, "square must be empty");
         Debug.Assert(type != PieceType.None && colour != Colour.None, "cannot put an empty piece");
-        Bitboard bit = Bitboard.Of(square);
+        var bit = Bitboard.Of(square);
         byType[(int)type] |= bit;
         byColour[(int)colour] |= bit;
         occupied |= bit;
@@ -309,7 +309,7 @@ public sealed partial class Board
     internal void RemovePiece(Square square, Colour colour, PieceType type)
     {
         Debug.Assert(squares[square] == type && byColour[(int)colour].Contains(square), "the piece is not there");
-        Bitboard bit = Bitboard.Of(square);
+        var bit = Bitboard.Of(square);
         byType[(int)type] &= ~bit;
         byColour[(int)colour] &= ~bit;
         occupied &= ~bit;
@@ -428,7 +428,7 @@ public sealed partial class Board
         foreach (Square square in Square.All)
         {
             PieceType type = squares[square];
-            Bitboard bit = Bitboard.Of(square);
+            var bit = Bitboard.Of(square);
             bool white = byColour[(int)Colour.White].Contains(square);
             bool black = byColour[(int)Colour.Black].Contains(square);
             if (type == PieceType.None)

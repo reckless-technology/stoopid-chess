@@ -107,7 +107,6 @@ public sealed class Searcher
                 // that did complete is better than an arbitrary one.
                 if (completedDepth == 0)
                 {
-                    bestMove = move;
                     principalVariation = [move];
                 }
                 break;

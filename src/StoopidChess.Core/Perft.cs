@@ -109,6 +109,6 @@ public static class Perft
         {
             lines.Add(line);
         }
-        return ParseEpd(lines).ToList();
+        return [.. ParseEpd(lines)];
     }
 }

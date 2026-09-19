@@ -66,7 +66,7 @@ public class SearchTests
         // White has a rook against a queen. The kings have shuffled a1-b1-a1 and a8-b8-a8 once, so
         // Kb1 now recreates an earlier position, which the search treats as a draw: better than the
         // material deficit of every other move.
-        Board board = Board.FromFen("k7/8/8/8/8/8/6q1/K6R w - - 0 1");
+        var board = Board.FromFen("k7/8/8/8/8/8/6q1/K6R w - - 0 1");
         foreach (string uci in new[] { "a1b1", "a8b8", "b1a1", "b8a8" })
         {
             board.MakeMove(BoardTestHelpers.Move(board, uci));
@@ -123,7 +123,7 @@ public class SearchTests
     [Fact]
     public void SearchIsDeterministic()
     {
-        Board board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+        var board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
         SearchResult first = NewSearcher().Search(board, SearchLimits.ForDepth(4));
         SearchResult second = NewSearcher().Search(board, SearchLimits.ForDepth(4));
         Assert.Equal(first.BestMove, second.BestMove);
@@ -135,12 +135,12 @@ public class SearchTests
     [Fact]
     public void SearchDependsOnlyOnThePositionNotOnHowItWasReached()
     {
-        Board viaOneOrder = Board.StartPosition();
+        var viaOneOrder = Board.StartPosition();
         foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
         {
             viaOneOrder.MakeMove(BoardTestHelpers.Move(viaOneOrder, uci));
         }
-        Board viaOtherOrder = Board.StartPosition();
+        var viaOtherOrder = Board.StartPosition();
         foreach (string uci in new[] { "d2d4", "e7e6", "b1c3", "d7d5", "e2e4", "f8b4", "e4e5", "c7c5" })
         {
             viaOtherOrder.MakeMove(BoardTestHelpers.Move(viaOtherOrder, uci));
@@ -165,7 +165,7 @@ public class SearchTests
     [Fact]
     public void LeavesTheCallersBoardUntouched()
     {
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         board.MakeMove(BoardTestHelpers.Move(board, "e2e4"));
         string fen = board.ToFen();
         NewSearcher().Search(board, SearchLimits.ForDepth(3));
@@ -176,7 +176,7 @@ public class SearchTests
     [Fact]
     public void PrincipalVariationIsLegal()
     {
-        Board board = Board.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
+        var board = Board.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
         SearchResult result = NewSearcher().Search(board, SearchLimits.ForDepth(4));
         Assert.Equal(result.BestMove, result.PrincipalVariation[0]);
         Board replay = board.Clone();
@@ -220,7 +220,7 @@ public class SearchTests
     public async Task CanBeCancelled()
     {
         using var cancellation = new CancellationTokenSource();
-        var searcher = NewSearcher();
+        Searcher searcher = NewSearcher();
         Task<SearchResult> search = Task.Run(() => searcher.Search(Board.StartPosition(), new SearchLimits { Infinite = true }, cancellationToken: cancellation.Token));
         await Task.Delay(100);
         Assert.False(search.IsCompleted);

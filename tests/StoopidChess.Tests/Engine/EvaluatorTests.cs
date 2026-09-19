@@ -20,7 +20,7 @@ public class EvaluatorTests
     [InlineData("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1")]
     public void IsSymmetricUnderColourFlip(string fen)
     {
-        Board board = Board.FromFen(fen);
+        var board = Board.FromFen(fen);
         Board flipped = ColourFlip(board);
         var evaluator = new Evaluator();
         // Both scores are from the side to move's point of view, and the side to move is flipped too,
@@ -53,7 +53,7 @@ public class EvaluatorTests
     public void PawnHashCachesStructureScores()
     {
         var evaluator = new Evaluator();
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         evaluator.Evaluate(board);
         Assert.Equal(0, evaluator.PawnHashHits);
         evaluator.Evaluate(board);
@@ -105,7 +105,7 @@ public class EvaluatorTests
             }
         }
         string castling = board.CastlingRights.ToFenString();
-        string flippedCastling = castling == "-" ? "-" : new string(castling.Select(c => char.IsUpper(c) ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c)).ToArray());
+        string flippedCastling = castling == "-" ? "-" : new string([.. castling.Select(c => char.IsUpper(c) ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c))]);
         string side = board.SideToMove == Colour.White ? "b" : "w";
         return Board.FromFen($"{fen} {side} {flippedCastling} - 0 1");
     }

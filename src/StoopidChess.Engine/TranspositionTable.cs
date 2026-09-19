@@ -19,23 +19,14 @@ public enum NodeType : byte
 /// an entry is small enough to be read and written in two aligned words.
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
-public readonly struct TranspositionEntry
+public readonly struct TranspositionEntry(ulong key, Move bestMove, int score, int depth, NodeType type)
 {
-    private readonly uint move;
-    private readonly short score;
-    private readonly byte depth;
-    private readonly NodeType type;
+    private readonly uint move = bestMove.ToBits();
+    private readonly short score = (short)Math.Clamp(score, short.MinValue, short.MaxValue);
+    private readonly byte depth = (byte)Math.Clamp(depth, 0, byte.MaxValue);
+    private readonly NodeType type = type;
 
-    public TranspositionEntry(ulong key, Move bestMove, int score, int depth, NodeType type)
-    {
-        Key = key;
-        move = bestMove.ToBits();
-        this.score = (short)Math.Clamp(score, short.MinValue, short.MaxValue);
-        this.depth = (byte)Math.Clamp(depth, 0, byte.MaxValue);
-        this.type = type;
-    }
-
-    public ulong Key { get; }
+    public ulong Key { get; } = key;
 
     public Move BestMove => Move.FromBits(move);
 

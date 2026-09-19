@@ -22,7 +22,7 @@ public class GameTests
     [Fact]
     public void StalemateIsDetected()
     {
-        Game game = Game.FromFen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
+        var game = Game.FromFen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
         Assert.Equal(GameStatus.Stalemate, game.Status);
         Assert.False(game.IsInCheck);
     }
@@ -30,7 +30,7 @@ public class GameTests
     [Fact]
     public void ThreefoldRepetitionIsADraw()
     {
-        Game game = Game.FromFen("4k3/8/8/8/8/8/8/R3K3 w - - 0 1");
+        var game = Game.FromFen("4k3/8/8/8/8/8/8/R3K3 w - - 0 1");
         for (int i = 0; i < 2; i++)
         {
             foreach (string uci in new[] { "a1b1", "e8d8", "b1a1", "d8e8" })
@@ -80,9 +80,9 @@ public class GameTests
     [Fact]
     public void PromotionNeedsAPieceChoice()
     {
-        Game game = Game.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
-        Square from = Square.Parse("b7");
-        Square to = Square.Parse("b8");
+        var game = Game.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
+        var from = Square.Parse("b7");
+        var to = Square.Parse("b8");
         Assert.Equal(4, game.LegalMovesBetween(from, to).Count());
         Assert.Null(game.FindMove(from, to));
         Assert.Equal(PieceType.Rook, game.FindMove(from, to, PieceType.Rook)!.Value.Promotion);
@@ -119,7 +119,7 @@ public class GameTests
     [Fact]
     public void StartFenIsRecordedForBlackToMovePositions()
     {
-        Game game = Game.FromFen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
+        var game = Game.FromFen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
         Assert.True(game.TryMakeMove("a8a1"));
         Assert.Equal([PieceType.Rook], game.CapturedPieces(Colour.White));
         Assert.Equal("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", game.StartFen);
@@ -128,7 +128,7 @@ public class GameTests
     [Fact]
     public void RejectsBoardsThatAlreadyHaveMoves()
     {
-        Board board = Board.StartPosition();
+        var board = Board.StartPosition();
         board.MakeMove(MoveGenerator.GenerateLegalMoves(board)[0]);
         Assert.Throws<ArgumentException>(() => new Game(board));
     }
@@ -136,7 +136,7 @@ public class GameTests
     [Fact]
     public void RejectsPositionsWithoutKings()
     {
-        PositionBuilder builder = PositionBuilder.From(Board.StartPosition());
+        var builder = PositionBuilder.From(Board.StartPosition());
         builder[Square.E8] = default;
         Assert.Throws<InvalidOperationException>(() => new Game(builder.Build()));
     }

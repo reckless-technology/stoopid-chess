@@ -57,8 +57,8 @@ public class GameControllerTests
     {
         using GameController controller = await StartAsync();
         controller.Load(new SavedGame { StartFen = "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", HumanColour = Colour.White });
-        Square from = Square.Parse("b7");
-        Square to = Square.Parse("b8");
+        var from = Square.Parse("b7");
+        var to = Square.Parse("b8");
         Assert.Equal(4, controller.HumanMoveCandidates(from, to).Count);
         Assert.False(controller.TryHumanMove(from, to));
         Assert.True(controller.TryHumanMove(from, to, PieceType.Knight));
@@ -127,7 +127,7 @@ public class GameControllerTests
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Colour.None);
-        var deadline = DateTime.UtcNow + Timeout;
+        DateTime deadline = DateTime.UtcNow + Timeout;
         while (controller.Game.Moves.Count < 4 && DateTime.UtcNow < deadline)
         {
             await controller.WaitUntilIdleAsync().WaitAsync(Timeout);

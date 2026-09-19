@@ -290,7 +290,7 @@ public sealed class Evaluator
 
     private static Bitboard[][] BuildForwardMasks(bool adjacentFiles)
     {
-        Bitboard[][] masks = new Bitboard[3][];
+        var masks = new Bitboard[3][];
         for (int colour = 0; colour < 3; colour++)
         {
             masks[colour] = new Bitboard[Square.Count];

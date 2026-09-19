@@ -43,7 +43,7 @@ static int RunPerft(int maxMillionNodes)
     int failures = 0;
     foreach (PerftPosition position in Perft.StandardPositions)
     {
-        Board board = Board.FromFen(position.Fen);
+        var board = Board.FromFen(position.Fen);
         foreach ((int depth, long expected) in position.Depths)
         {
             if (expected > budget)
