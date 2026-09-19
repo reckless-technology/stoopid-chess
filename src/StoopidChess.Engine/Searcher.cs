@@ -20,6 +20,8 @@ public sealed class Searcher
     private const int NodesBetweenTimeChecks = 2048;
     private const int NullMoveMinimumDepth = 3;
     private const int NullMoveReduction = 2;
+    private const int ReverseFutilityMaxDepth = 7;
+    private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
     private const int LmrMinimumDepth = 3;
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
@@ -275,11 +277,23 @@ public sealed class Searcher
             return tableScore;
         }
 
+        bool pvNode = beta - alpha > 1;
+        int staticEval = inCheck ? -Infinity : Evaluate();
+
+        // Reverse futility pruning: in a non-PV node at low depth, a static evaluation so far above
+        // beta that a few plies of play cannot bring it back down is taken as a fail-high at once.
+        if (depth <= ReverseFutilityMaxDepth && !inCheck && !pvNode && beta < MateThreshold
+            && staticEval - (ReverseFutilityMargin * depth) >= beta)
+        {
+            statistics.ReverseFutilityCutoffs++;
+            return staticEval;
+        }
+
         // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
         // real move will almost certainly do so too, so the node is a fail-high. Skipped in check,
         // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
         if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !board.LastMoveWasNull
-            && board.HasNonPawnMaterial(board.SideToMove) && Evaluate() >= beta)
+            && board.HasNonPawnMaterial(board.SideToMove) && staticEval >= beta)
         {
             int reduction = NullMoveReduction + (depth / 6);
             board.MakeNullMove();

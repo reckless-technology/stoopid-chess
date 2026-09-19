@@ -42,7 +42,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (242,733 nodes; depth 6 is 585,859). Any change to search
+   `BenchTests.Depth5Signature` (130,938 nodes; depth 6 is 321,718). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -62,7 +62,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    the original search 40-0 and the improved search 40-0; self-play gains were null move
    +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
    windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept),
-   bitboards with a legal move generator (a pure speed change) +95 ± 70.
+   bitboards with a legal move generator (a pure speed change) +95 ± 70, reverse futility pruning
+   +122 ± 50 (80 games).
 
 ## Architecture notes
 
@@ -132,7 +133,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   is apparent, LF line endings). **All code is formatted with `dotnet format StoopidChess.slnx`
   before it is committed.** The pre-commit hook in `.githooks/pre-commit` refuses a commit that
   `dotnet format --verify-no-changes` would change; enable it once per clone with
-  `git config core.hooksPath .githooks`. The style rules it does not enforce (they are suggestions,
-  not errors) are matched by hand.
+  `git config core.hooksPath .githooks`. VS Code formats C# files on save with the C# extension
+  (`.vscode/settings.json`), organising imports too. The style rules the hook does not enforce (they
+  are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
+  --severity info` pass.
 - Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only APIs.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.

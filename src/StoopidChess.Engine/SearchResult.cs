@@ -39,9 +39,11 @@ public sealed class SearchStatistics
     public long TranspositionCutoffs { get; internal set; }
     public long BetaCutoffs { get; internal set; }
     public long NullMoveCutoffs { get; internal set; }
+    public long ReverseFutilityCutoffs { get; internal set; }
+    public long PrunedMoves { get; internal set; }
 
     public override string ToString()
     {
-        return $"nodes {Nodes} qnodes {QuiescenceNodes} ttcuts {TranspositionCutoffs} betacuts {BetaCutoffs} nullcuts {NullMoveCutoffs}";
+        return $"nodes {Nodes} qnodes {QuiescenceNodes} ttcuts {TranspositionCutoffs} betacuts {BetaCutoffs} nullcuts {NullMoveCutoffs} rfpcuts {ReverseFutilityCutoffs} pruned {PrunedMoves}";
     }
 }
