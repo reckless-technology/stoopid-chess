@@ -64,7 +64,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept),
    bitboards with a legal move generator (a pure speed change) +95 ± 70, reverse futility pruning
    +122 ± 50 (80 games), late move pruning at depth <= 4 after the (5 + depth^2)th quiet move +30 ± 61
-   (80 games; pawnstar's 3 + depth^2 to depth 8 measured -22 ± 59 and was not kept).
+   (80 games; pawnstar's 3 + depth^2 to depth 8 measured -22 ± 59 and was not kept), a logarithmic LMR
+   table (0.75 + ln(depth) ln(move) / 2.25, one less in PV nodes) -22 ± 57 (not kept).
 
 ## Architecture notes
 
