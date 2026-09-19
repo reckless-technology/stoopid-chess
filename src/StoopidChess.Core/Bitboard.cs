@@ -100,6 +100,11 @@ public readonly record struct Bitboard
     public Square First => Square.Unchecked(BitOperations.TrailingZeroCount(bits));
 
     /// <summary>
+    /// The highest square in the set (an invalid square for the empty set).
+    /// </summary>
+    public Square Last => Square.Unchecked(63 - BitOperations.LeadingZeroCount(bits));
+
+    /// <summary>
     /// The set without its lowest square.
     /// </summary>
     public Bitboard WithoutFirst => new(bits & (bits - 1));

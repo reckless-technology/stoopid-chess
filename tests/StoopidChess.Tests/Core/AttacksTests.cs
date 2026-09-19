@@ -83,6 +83,8 @@ public class AttacksTests
         Bitboard bits = Bitboard.Of(Square.A1) | Bitboard.Of(Square.H8) | Bitboard.Of(Square.Parse("e4"));
         Assert.Equal(3, bits.Count);
         Assert.Equal(Square.A1, bits.First);
+        Assert.Equal(Square.H8, bits.Last);
+        Assert.Equal(Square.Parse("e4"), Bitboard.Of(Square.Parse("e4")).Last);
         Assert.Equal([Square.A1, Square.Parse("e4"), Square.H8], Enumerate(bits));
         Assert.Equal(Square.A1, Bitboard.PopFirst(ref bits));
         Assert.Equal(Square.Parse("e4"), Bitboard.PopFirst(ref bits));

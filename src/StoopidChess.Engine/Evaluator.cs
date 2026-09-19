@@ -33,6 +33,14 @@ public sealed class Evaluator
     // Two bishops cover both square colours
     public const int BishopPairBonus = 30;
 
+    // King shelter and pawn storm (middlegame only), on the king's file and the two beside it. The
+    // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
+    // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
+    // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
+    private static readonly int[] ShelterByRank = [0, 25, 15, 5, 0, 0, 0, 0];      // Pawn rank from its own side
+    private const int ShelterMissing = -30;
+    private static readonly int[] StormByDistance = [0, 0, 30, 20, 10, 0, 0, 0];   // Ranks between the king and the pawn
+
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
     private static readonly int[] PassedPawnBonus = [0, 5, 10, 20, 35, 60, 100, 0];
 
@@ -163,10 +171,55 @@ public sealed class Evaluator
             if (!endgame)
             {
                 own -= KingZoneAttacks(board, colour);
+                own += ShelterAndStorm(board, colour);
             }
             score += colour == Colour.White ? own : -own;
         }
         return board.SideToMove == Colour.White ? score : -score;
+    }
+
+    /// <summary>
+    /// The pawn cover in front of the king and the enemy pawns advancing on it, over the king's file
+    /// and its neighbours (moved in from the edge so that a king in the corner still counts three).
+    /// </summary>
+    private static int ShelterAndStorm(Board board, Colour colour)
+    {
+        Square king = board.KingSquare(colour);
+        Bitboard ownPawns = board.Pieces(colour, PieceType.Pawn);
+        Bitboard enemyPawns = board.Pieces(colour.Opponent(), PieceType.Pawn);
+        // The ranks in front of the king, from its point of view
+        Bitboard ahead = colour == Colour.White
+            ? new Bitboard(~0UL << (8 * (king.Rank + 1)))
+            : new Bitboard(king.Rank == 0 ? 0UL : ~0UL >> (8 * (8 - king.Rank)));
+        int score = 0;
+        int centreFile = Math.Clamp(king.File, 1, 6);
+        for (int file = centreFile - 1; file <= centreFile + 1; file++)
+        {
+            Bitboard column = Bitboard.OfFile(file) & ahead;
+            Bitboard shelter = column & ownPawns;
+            if (shelter.IsEmpty)
+            {
+                score += ShelterMissing;
+            }
+            else
+            {
+                Square pawn = colour == Colour.White ? shelter.First : shelter.Last;
+                score += ShelterByRank[colour == Colour.White ? pawn.Rank : 7 - pawn.Rank];
+            }
+            Bitboard storm = column & enemyPawns;
+            if (storm.IsNotEmpty)
+            {
+                Square pawn = colour == Colour.White ? storm.First : storm.Last;
+                int penalty = StormByDistance[Math.Abs(pawn.Rank - king.Rank)];
+                // An enemy pawn faced by one of ours cannot advance to open lines
+                if (ownPawns.Contains(pawn - Board.PawnDirection(colour.Opponent())))
+                {
+                    penalty /= 2;
+                }
+                score -= penalty;
+            }
+        }
+        return score;
     }
 
     /// <summary>
