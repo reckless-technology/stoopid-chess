@@ -42,7 +42,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (130,938 nodes; depth 6 is 321,718). Any change to search
+   `BenchTests.Depth5Signature` (86,351 nodes; depth 6 is 217,470). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -63,7 +63,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
    windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept),
    bitboards with a legal move generator (a pure speed change) +95 ± 70, reverse futility pruning
-   +122 ± 50 (80 games).
+   +122 ± 50 (80 games), late move pruning at depth <= 4 after the (5 + depth^2)th quiet move +30 ± 61
+   (80 games; pawnstar's 3 + depth^2 to depth 8 measured -22 ± 59 and was not kept).
 
 ## Architecture notes
 

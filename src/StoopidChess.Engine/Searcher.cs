@@ -22,6 +22,8 @@ public sealed class Searcher
     private const int NullMoveReduction = 2;
     private const int ReverseFutilityMaxDepth = 7;
     private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
+    private const int LateMovePruningMaxDepth = 4;
+    private const int LateMovePruningBase = 5;         // Quiet moves after the (base + depth^2)th are skipped
     private const int LmrMinimumDepth = 3;
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
@@ -331,6 +333,13 @@ public sealed class Searcher
         foreach (Move move in moves)
         {
             moveNumber++;
+            // Late move pruning: at low depth in a non-PV node, quiet moves ordered this late are
+            // so unlikely to beat the moves already searched that they are skipped altogether
+            if (depth <= LateMovePruningMaxDepth && !pvNode && !inCheck && moveNumber > LateMovePruningBase + (depth * depth) && IsReducible(move, ply))
+            {
+                statistics.PrunedMoves++;
+                continue;
+            }
             board.MakeMove(move);
             // Late move reductions: quiet moves ordered this far down are searched shallower first
             int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !board.IsInCheck
