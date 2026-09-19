@@ -31,3 +31,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Tapered evaluation: king tables interpolated and king safety scaled by a 0-24 material phase instead of the binary endgame rule | -70 ± 58 (20 W, 36 L, 24 D) | no |
 | Passed pawns in the endgame: 5 cp per square of enemy king distance to the square ahead, minus own king distance (from here on tests are 100 games at 12+0.12) | -14 ± 50 (34 W, 38 L, 28 D) | no |
 | Pawn threats: 15 cp per enemy piece (not pawn or king) attacked by an own pawn | -17 ± 49 (34 W, 39 L, 27 D) | no |
+| Safe mobility: squares attacked by enemy pawns no longer count | +38 ± 55 (41 W, 30 L, 29 D) | yes |

@@ -340,7 +340,9 @@ public sealed class Evaluator
     private static int Mobility(Board board, Colour colour)
     {
         Bitboard occupied = board.Occupied;
-        Bitboard targets = ~board.Pieces(colour);
+        // Squares guarded by enemy pawns are no use to a piece, so they do not count as mobility
+        Bitboard pawnGuarded = Attacks.Pawns(colour.Opponent(), board.Pieces(colour.Opponent(), PieceType.Pawn));
+        Bitboard targets = ~board.Pieces(colour) & ~pawnGuarded;
         int mobility = 0;
         foreach (Square square in board.Pieces(colour, PieceType.Knight))
         {
