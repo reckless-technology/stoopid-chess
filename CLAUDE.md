@@ -93,7 +93,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    instability -14 ± 58 (not kept), an aspiration window of 20 cp instead of 40 +14 ± 52 then +31 ± 53, +23 ± 37 over
    the 200 (80 W, 67 L, 53 D; kept), one more ply of null move reduction per 200 cp of static evaluation above beta,
    at most three, +3 ± 46 (not kept), an aspiration window of 12 cp -7 ± 58 (not kept), the countermove exempt from late
-   move reductions and pruning like the killers +35 ± 50 (37 W, 27 L, 36 D). A
+   move reductions and pruning like the killers +35 ± 50 (37 W, 27 L, 36 D), a two-ply follow-up history (our own previous
+   move, the moved piece and its square) added to the quiet-move score 0 ± 52 (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
