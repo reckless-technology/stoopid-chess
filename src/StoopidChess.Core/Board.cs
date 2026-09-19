@@ -183,6 +183,21 @@ public sealed partial class Board
     }
 
     /// <summary>
+    /// The pieces of both colours that would attack the square if only the given squares were
+    /// occupied, for exchange evaluation, which lifts pieces off the board one by one.
+    /// </summary>
+    public Bitboard AttackersTo(Square square, Bitboard occupied)
+    {
+        return ((Attacks.Pawn(Colour.Black, square) & byType[(int)PieceType.Pawn] & byColour[(int)Colour.White])
+            | (Attacks.Pawn(Colour.White, square) & byType[(int)PieceType.Pawn] & byColour[(int)Colour.Black])
+            | (Attacks.Knight(square) & byType[(int)PieceType.Knight])
+            | (Attacks.King(square) & byType[(int)PieceType.King])
+            | (Attacks.Bishop(occupied, square) & (byType[(int)PieceType.Bishop] | byType[(int)PieceType.Queen]))
+            | (Attacks.Rook(occupied, square) & (byType[(int)PieceType.Rook] | byType[(int)PieceType.Queen])))
+            & occupied;
+    }
+
+    /// <summary>
     /// Is the square attacked by any piece of the given colour?
     /// </summary>
     public bool IsAttacked(Square square, Colour by) => AttackersTo(square, by).IsNotEmpty;

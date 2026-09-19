@@ -452,6 +452,12 @@ public sealed class Searcher
 
         foreach (Move move in moves)
         {
+            // A capture that the exchange evaluation says loses material is not worth searching
+            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(board, move) < 0)
+            {
+                statistics.PrunedMoves++;
+                continue;
+            }
             board.MakeMove(move);
             int score = -Quiescence(-beta, -alpha, ply + 1);
             board.UnmakeMove();
