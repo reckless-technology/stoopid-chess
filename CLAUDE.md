@@ -43,7 +43,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (43,067 nodes; depth 6 is 86,915). Any change to search
+   `BenchTests.Depth5Signature` (38,272 nodes; depth 6 is 82,251). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based

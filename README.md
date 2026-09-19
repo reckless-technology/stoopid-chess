@@ -58,7 +58,7 @@ the above and launch configurations for debugging the GUI and the engine.
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 43,067 nodes, depth 6 = 86,915 nodes. A test asserts the depth-5
+Current values: depth 5 = 38,272 nodes, depth 6 = 82,251 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing

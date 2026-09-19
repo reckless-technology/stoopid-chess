@@ -27,8 +27,8 @@ public sealed class Evaluator
 
     // King safety (middlegame only): centipawns per square of the king zone (the king's square and
     // its neighbours) attacked by an enemy piece
-    public const int KingZoneAttackPenalty = 5;
-    public const int KingZoneQueenAttackPenalty = 10;
+    public const int KingZoneAttackPenalty = 4;
+    public const int KingZoneQueenAttackPenalty = 8;
     public const int WeakKingSquarePenalty = 15;
 
     // Two bishops cover both square colours

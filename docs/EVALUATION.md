@@ -45,3 +45,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Connected pawns: a pawn defended by a pawn or beside one scores by rank 5/7/12/20/40 from the third to the seventh | +17 ± 47 then -17 ± 56, 0 ± 36 over 200 games (76 W, 76 L, 48 D) | no |
 | Piece threats: 25 cp per minor piece attack on an enemy rook or queen, 20 per rook attack on the queen | -56 ± 61 (28 W, 44 L, 28 D) | no |
 | King zone attack penalties raised from 5 and 10 to 7 and 14 cp | -42 ± 58 (32 W, 44 L, 24 D) | no |
+| King zone attack penalties lowered from 5 and 10 to 4 and 8 cp, the extended zone having enlarged the linear term | +21 ± 43 then +21 ± 50, +21 ± 33 over 200 games (76 W, 64 L, 60 D) | yes |
