@@ -26,9 +26,9 @@ public class SearchLimitsTests
         var limits = new SearchLimits { WhiteTime = TimeSpan.FromSeconds(60), BlackTime = TimeSpan.FromSeconds(6), WhiteIncrement = TimeSpan.FromSeconds(1) };
         TimeSpan white = limits.TimeBudget(Colour.White)!.Value;
         TimeSpan black = limits.TimeBudget(Colour.Black)!.Value;
-        // 60s / 30 moves + 80% of the increment, less overhead
-        Assert.InRange(white.TotalMilliseconds, 2700, 2800);
-        Assert.InRange(black.TotalMilliseconds, 150, 200);
+        // 60s / 20 moves + 80% of the increment, less overhead
+        Assert.InRange(white.TotalMilliseconds, 3700, 3800);
+        Assert.InRange(black.TotalMilliseconds, 250, 300);
         Assert.True(white > black);
     }
 

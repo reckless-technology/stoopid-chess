@@ -67,7 +67,7 @@ public sealed record SearchLimits
         }
         TimeSpan clock = AtLeastZero(remaining.Value);
         TimeSpan increment = AtLeastZero((sideToMove == Colour.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero);
-        int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 30;
+        int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 20;
         TimeSpan budget = (clock / movesToGo) + (increment * 0.8);
         TimeSpan cap = clock * 0.8;
         if (budget > cap)
