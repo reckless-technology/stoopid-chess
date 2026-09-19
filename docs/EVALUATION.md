@@ -32,3 +32,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Passed pawns in the endgame: 5 cp per square of enemy king distance to the square ahead, minus own king distance (from here on tests are 100 games at 12+0.12) | -14 ± 50 (34 W, 38 L, 28 D) | no |
 | Pawn threats: 15 cp per enemy piece (not pawn or king) attacked by an own pawn | -17 ± 49 (34 W, 39 L, 27 D) | no |
 | Safe mobility: squares attacked by enemy pawns no longer count | +38 ± 55 (41 W, 30 L, 29 D) | yes |
+| King danger by attack units (N 2, B 2, R 3, Q 5 per attacked zone square) through the classic convex table, replacing the linear penalty | -14 ± 52 (35 W, 39 L, 26 D) | no |
