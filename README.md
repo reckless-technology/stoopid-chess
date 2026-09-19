@@ -50,14 +50,15 @@ the above and launch configurations for debugging the GUI and the engine.
 - Negamax alpha-beta (principal variation search) with iterative deepening and aspiration windows, a two-tier transposition table (depth-preferred and
   always-replace), null-move pruning, late move reductions, killer moves and a history heuristic, MVV/LVA capture ordering, a quiescence search
   with stand-pat, a check extension at the horizon, and mate distance pruning.
-- Evaluation: material and piece-square tables, pawn structure (passed, doubled, blocked, defended
-  pawns, cached by pawn hash), bishop mobility, and separate king tables for the endgame.
+- Evaluation: the Simplified Evaluation Function (material and piece-square tables, with a separate
+  king table in the endgame) as a baseline, plus whatever terms self-play has since justified;
+  `docs/EVALUATION.md` is the log of every term tried, kept or not.
 - UCI: `uci`, `isready`, `setoption name Hash`, `ucinewgame`, `position`, `go` (depth, nodes,
   movetime, wtime/btime/winc/binc/movestogo, infinite), `stop`, `quit`; plus `d`, `eval`,
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
-Current values: depth 5 = 86,351 nodes, depth 6 = 217,470 nodes. A test asserts the depth-5
+Current values: depth 5 = 82,464 nodes, depth 6 = 171,184 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
 
 ## Testing

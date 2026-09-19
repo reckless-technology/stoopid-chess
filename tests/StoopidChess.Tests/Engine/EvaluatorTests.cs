@@ -41,23 +41,14 @@ public class EvaluatorTests
     }
 
     [Fact]
-    public void PassedPawnsAreWorthMore()
+    public void EndgameFollowsTheSimplifiedEvaluationRule()
     {
-        var evaluator = new Evaluator();
-        int passed = evaluator.Evaluate(Board.FromFen("4k3/8/8/8/8/8/3P4/4K3 w - - 0 1"));
-        int blocked = evaluator.Evaluate(Board.FromFen("4k3/8/8/8/8/3p4/3P4/4K3 w - - 0 1"));
-        Assert.True(passed > blocked + Evaluator.PawnValue, $"passed {passed} blocked {blocked}");
-    }
-
-    [Fact]
-    public void PawnHashCachesStructureScores()
-    {
-        var evaluator = new Evaluator();
-        var board = Board.StartPosition();
-        evaluator.Evaluate(board);
-        Assert.Equal(0, evaluator.PawnHashHits);
-        evaluator.Evaluate(board);
-        Assert.Equal(1, evaluator.PawnHashHits);
+        Assert.True(Evaluator.IsEndgame(Board.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")));               // Queen alone
+        Assert.True(Evaluator.IsEndgame(Board.FromFen("4k3/8/8/8/8/8/8/2NQK3 w - - 0 1")));              // Queen and one minor
+        Assert.False(Evaluator.IsEndgame(Board.FromFen("4k3/8/8/8/8/8/8/1BNQK3 w - - 0 1")));            // Queen and two minors
+        Assert.False(Evaluator.IsEndgame(Board.FromFen("4k3/8/8/8/8/8/8/2RQK3 w - - 0 1")));             // Queen and a rook
+        Assert.True(Evaluator.IsEndgame(Board.FromFen("4k3/8/8/8/8/8/8/RNBK3R w - - 0 1")));             // No queens at all
+        Assert.False(Evaluator.IsEndgame(Board.FromFen("3qk3/8/8/8/8/8/8/1BNQK3 w - - 0 1")));          // One side over the limit is enough
     }
 
     [Fact]

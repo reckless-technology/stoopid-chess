@@ -11,7 +11,8 @@ the `StoopidChess.Play` controller) that plays against any UCI engine. .NET 10;
 project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
 [docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements,
-and [docs/BITBOARDS.md](docs/BITBOARDS.md) for the bitboard board and legal move generator.
+[docs/BITBOARDS.md](docs/BITBOARDS.md) for the bitboard board and legal move generator, and
+[docs/EVALUATION.md](docs/EVALUATION.md) for the evaluation baseline and the log of terms tried.
 
 ## Build / test / run
 
@@ -42,7 +43,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (86,351 nodes; depth 6 is 217,470). Any change to search
+   `BenchTests.Depth5Signature` (82,464 nodes; depth 6 is 171,184). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -67,7 +68,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    (80 games; pawnstar's 3 + depth^2 to depth 8 measured -22 ± 59 and was not kept), a logarithmic LMR
    table (0.75 + ln(depth) ln(move) / 2.25, one less in PV nodes) -22 ± 57 (not kept), futility pruning
    of quiet moves at depth <= 3 with a 100 cp per ply margin +4 ± 58 (not kept), delta pruning in
-   quiescence with a 200 cp margin -4 ± 54 (not kept).
+   quiescence with a 200 cp margin -4 ± 54 (not kept). Evaluation experiments are logged in docs/EVALUATION.md;
+   the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
 ## Architecture notes
 
@@ -108,8 +110,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
   mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
-  with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (it owns the pawn
-  hash). `Bench` is the fixed position set behind the signature.
+  with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (so that terms may keep
+  caches such as a pawn hash); it starts from the Simplified Evaluation Function, see docs/EVALUATION.md.
+  `Bench` is the fixed position set behind the signature.
 - **UCI lives in Engine, not in the Uci project.** `src/StoopidChess.Engine/Uci/UciSession` handles
   the protocol over any `TextReader`/`TextWriter`, running searches on a `Task` so `stop`/`isready`
   work while thinking; `UciEngineClient` is the GUI side, with `StartInProcess()` (anonymous pipes to
