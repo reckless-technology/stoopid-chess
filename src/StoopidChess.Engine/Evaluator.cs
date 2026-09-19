@@ -20,10 +20,10 @@ public sealed class Evaluator
     public const int QueenValue = 900;
 
     // Mobility: centipawns per square a piece can move to or capture on
-    public const int KnightMobility = 5;
-    public const int BishopMobility = 4;
-    public const int RookMobility = 3;
-    public const int QueenMobility = 1;
+    public const int KnightMobility = 6;
+    public const int BishopMobility = 5;
+    public const int RookMobility = 4;
+    public const int QueenMobility = 2;
 
     // King safety (middlegame only): centipawns per square of the king zone (the king's square and
     // its neighbours) attacked by an enemy piece
