@@ -76,7 +76,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pruning of captures losing more than 100 cp per ply at depth <= 6 +17 ± 59 (not kept), a hard time limit of
    three times the soft budget so that a started iteration can finish +13 ± 60 (not kept), a history malus for the
    quiet moves searched before a cutoff +13 ± 60 (not kept), null move reduction 3 + depth/4 instead of 2 + depth/6
-   +45 ± 50 (100 games at 12+0.12, the test setting from here on). Evaluation experiments are logged in docs/EVALUATION.md;
+   +45 ± 50 (100 games at 12+0.12, the test setting from here on), an improving heuristic (static evaluation above
+   two plies ago) taking one ply off the reverse futility margin and halving the late move pruning count when not
+   improving +10 ± 57 (not kept). Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
 ## Architecture notes
