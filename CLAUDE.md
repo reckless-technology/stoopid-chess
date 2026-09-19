@@ -72,7 +72,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    the opponent's move, ordered after the killers) +103 ± 65, one-ply continuation history added to the
    quiet-move history score +30 ± 56, the logarithmic LMR table retried on top of the new ordering +17 ± 63 (still
    not kept; retry after further ordering work), static exchange evaluation pruning of losing captures in
-   quiescence +30 ± 55, ordering SEE-losing captures behind all quiet moves -30 ± 68 (not kept). Evaluation experiments are logged in docs/EVALUATION.md;
+   quiescence +30 ± 55, ordering SEE-losing captures behind all quiet moves -30 ± 68 (not kept), main-search SEE
+   pruning of captures losing more than 100 cp per ply at depth <= 6 +17 ± 59 (not kept). Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
 ## Architecture notes
