@@ -126,9 +126,9 @@ public sealed class Searcher
             principalVariation = ExtractPrincipalVariation(bestMove, depth);
             onProgress?.Invoke(new SearchResult(depth, score, statistics.Nodes, stopwatch.Elapsed, principalVariation));
 
-            if (IsMateScore(score) && !limits.Infinite && limits.Depth is null)
+            if (IsMateScore(score) && MateScore - Math.Abs(score) <= depth && !limits.Infinite && limits.Depth is null)
             {
-                break;  // A forced mate has been found; deeper search cannot improve on it
+                break;  // A forced mate within the searched depth is proven; deeper search cannot improve on it
             }
             if (timeBudget is not null && stopwatch.Elapsed > timeBudget.Value / 2)
             {
