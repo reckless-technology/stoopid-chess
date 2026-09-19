@@ -49,3 +49,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | One attack pass per side serving mobility, king zone pressure and weak squares (refactor, every score identical) | about 2% faster at bench depth 9, signature unchanged | yes |
 | Passed pawn races, Crafty'''s rule of the square: with no enemy pieces, a passer the king cannot catch counts 525 + 10 per rank for the side that queens first (the search already sees such races at this time control) | -17 ± 54 (30 W, 35 L, 35 D) | no |
 | Passed pawns in the endgame, after Crafty: the rank bonus times (twice the enemy king'''s distance from the square in front minus our king'''s) over 8 | +28 ± 49 then +49 ± 55, +38 ± 36 over 200 games (83 W, 61 L, 56 D) | yes |
+| Free-path passers, after Crafty: the rank bonus again when no square ahead of the passer is attacked, half when only the next square is safe | -28 ± 53 (28 W, 36 L, 36 D) | no |
