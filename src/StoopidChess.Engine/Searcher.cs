@@ -38,6 +38,7 @@ public sealed class Searcher
     private readonly Evaluator evaluator = new();
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
+    private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
     private readonly Move[,] counterMoves = new Move[7, Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
     private readonly int[,,,] continuationHistory = new int[7, Square.Count, 7, Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
     private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
@@ -580,6 +581,7 @@ public sealed class Searcher
         }
         Move previous = board.LastMove is { IsNone: false } last ? last : Move.None;
         Move counter = previous.IsNone ? Move.None : counterMoves[(int)previous.Piece, previous.To];
+        counterAtPly[ply] = counter;
         Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
         {
@@ -646,7 +648,7 @@ public sealed class Searcher
     /// </summary>
     private bool IsReducible(Move move, int ply)
     {
-        return !move.IsCapture && !move.IsPromotion && move != killers[ply, 0] && move != killers[ply, 1];
+        return !move.IsCapture && !move.IsPromotion && move != killers[ply, 0] && move != killers[ply, 1] && move != counterAtPly[ply];
     }
 
     /// <summary>
