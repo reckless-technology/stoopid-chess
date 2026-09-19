@@ -59,3 +59,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Mobility rates 6/5/4/2 | +14 ± 42 then +53 ± 47, +33 ± 31 over 200 games (74 W, 55 L, 71 D) | yes |
 | Mobility rates 7/6/5/2 | +21 ± 46 then -17 ± 44, +2 ± 33 over 200 games (72 W, 71 L, 57 D) | no |
 | Passed pawn table scaled by 1.5 (8/15/30/52/90/150) | -31 ± 49 (27 W, 36 L, 37 D) | no |
+| Passed pawn table scaled by 0.75 (4/8/15/26/45/75) | -24 ± 46 (28 W, 35 L, 37 D) | no |
