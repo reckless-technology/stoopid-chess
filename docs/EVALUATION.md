@@ -44,3 +44,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King attacker count: 4 cp times the square of the number of enemy pieces attacking the zone, on top of the linear count | -10 ± 52 (34 W, 37 L, 29 D) | no |
 | Connected pawns: a pawn defended by a pawn or beside one scores by rank 5/7/12/20/40 from the third to the seventh | +17 ± 47 then -17 ± 56, 0 ± 36 over 200 games (76 W, 76 L, 48 D) | no |
 | Piece threats: 25 cp per minor piece attack on an enemy rook or queen, 20 per rook attack on the queen | -56 ± 61 (28 W, 44 L, 28 D) | no |
+| King zone attack penalties raised from 5 and 10 to 7 and 14 cp | -42 ± 58 (32 W, 44 L, 24 D) | no |
