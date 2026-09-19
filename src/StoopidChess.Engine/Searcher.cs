@@ -19,7 +19,7 @@ public sealed class Searcher
     private const int Infinity = MateScore + 1;
     private const int NodesBetweenTimeChecks = 2048;
     private const int NullMoveMinimumDepth = 3;
-    private const int NullMoveReduction = 2;
+    private const int NullMoveReduction = 3;
     private const int ReverseFutilityMaxDepth = 7;
     private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
     private const int LateMovePruningMaxDepth = 4;
@@ -301,7 +301,7 @@ public sealed class Searcher
         if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !board.LastMoveWasNull
             && board.HasNonPawnMaterial(board.SideToMove) && staticEval >= beta)
         {
-            int reduction = NullMoveReduction + (depth / 6);
+            int reduction = NullMoveReduction + (depth / 4);
             board.MakeNullMove();
             int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
             board.UnmakeMove();
