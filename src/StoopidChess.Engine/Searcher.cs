@@ -22,6 +22,7 @@ public sealed class Searcher
     private const int NullMoveReduction = 3;
     private const int ScoreDropMargin = 30;          // A fall in the root score by this much earns the move more time
     private const int ScoreDropMinimumDepth = 4;
+    private const int MoveChangeMinimumDepth = 6;     // A new best move from this depth on earns more time too
     private const int InternalIterativeReductionMinimumDepth = 4;
     private const int ReverseFutilityMaxDepth = 7;
     private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
@@ -125,9 +126,11 @@ public sealed class Searcher
                 }
                 break;
             }
-            if (timeBudget is not null && timeCap is not null && !extended && completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin)
+            if (timeBudget is not null && timeCap is not null && !extended
+                && ((completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin) || (completedDepth >= MoveChangeMinimumDepth && move != bestMove)))
             {
-                // The score fell: give this move half as much time again, within the clock, to sort it out
+                // The score fell or the best move changed: give this move half as much time again, within
+                // the clock, to sort it out
                 extended = true;
                 TimeSpan longer = timeBudget.Value * 1.5;
                 timeBudget = longer < timeCap.Value ? longer : timeCap.Value;

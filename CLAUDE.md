@@ -85,7 +85,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    of on any mate score, -38 ± 54 then -24 ± 52: kept anyway, because in all 200 games the side that saw a mate won,
    so the rule could not have changed a result (noise), while fifty-move-rule draws, the one thing it can change,
    fell from 21 in 500 games to 7 in 200. Half as much time again, within 80% of the clock, the first time the root
-   score falls 30 cp or more between iterations from depth 4 +78 ± 48 (45 W, 23 L, 32 D). A 100-game result between about +15 and +25 is neither kept nor rejected: a
+   score falls 30 cp or more between iterations from depth 4 +78 ± 48 (45 W, 23 L, 32 D), the same extension when the
+   best move changes from depth 6 +45 ± 46 (43 W, 30 L, 27 D). A 100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
