@@ -29,6 +29,7 @@ public sealed class Evaluator
     // its neighbours) attacked by an enemy piece
     public const int KingZoneAttackPenalty = 5;
     public const int KingZoneQueenAttackPenalty = 10;
+    public const int WeakKingSquarePenalty = 15;
 
     // Two bishops cover both square colours
     public const int BishopPairBonus = 30;
@@ -314,23 +315,51 @@ public sealed class Evaluator
         Square king = board.KingSquare(colour);
         Bitboard zone = Attacks.King(king) | Bitboard.Of(king);
         Bitboard occupied = board.Occupied;
+        Bitboard theirAttacks = Attacks.Pawns(them, board.Pieces(them, PieceType.Pawn));
         int penalty = 0;
         foreach (Square square in board.Pieces(them, PieceType.Knight))
         {
-            penalty += KingZoneAttackPenalty * (Attacks.Knight(square) & zone).Count;
+            Bitboard attacks = Attacks.Knight(square);
+            theirAttacks |= attacks;
+            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
         }
         foreach (Square square in board.Pieces(them, PieceType.Bishop))
         {
-            penalty += KingZoneAttackPenalty * (Attacks.Bishop(occupied, square) & zone).Count;
+            Bitboard attacks = Attacks.Bishop(occupied, square);
+            theirAttacks |= attacks;
+            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
         }
         foreach (Square square in board.Pieces(them, PieceType.Rook))
         {
-            penalty += KingZoneAttackPenalty * (Attacks.Rook(occupied, square) & zone).Count;
+            Bitboard attacks = Attacks.Rook(occupied, square);
+            theirAttacks |= attacks;
+            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
         }
         foreach (Square square in board.Pieces(them, PieceType.Queen))
         {
-            penalty += KingZoneQueenAttackPenalty * (Attacks.Queen(occupied, square) & zone).Count;
+            Bitboard attacks = Attacks.Queen(occupied, square);
+            theirAttacks |= attacks;
+            penalty += KingZoneQueenAttackPenalty * (attacks & zone).Count;
         }
+        // Zone squares the enemy attacks and nothing but the king defends are where an attack breaks through
+        Bitboard ourDefence = Attacks.Pawns(colour, board.Pieces(colour, PieceType.Pawn));
+        foreach (Square square in board.Pieces(colour, PieceType.Knight))
+        {
+            ourDefence |= Attacks.Knight(square);
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Bishop))
+        {
+            ourDefence |= Attacks.Bishop(occupied, square);
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Rook))
+        {
+            ourDefence |= Attacks.Rook(occupied, square);
+        }
+        foreach (Square square in board.Pieces(colour, PieceType.Queen))
+        {
+            ourDefence |= Attacks.Queen(occupied, square);
+        }
+        penalty += WeakKingSquarePenalty * (zone & theirAttacks & ~ourDefence).Count;
         return penalty;
     }
 
