@@ -178,7 +178,7 @@ public sealed class Evaluator
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
             (SideAttacks us, SideAttacks them, Bitboard zone) = colour == Colour.White ? (white, black, whiteZone) : (black, white, blackZone);
-            int own = us.Mobility + PassedPawns(board, colour) + KnightOutposts(board, colour);
+            int own = us.Mobility + PassedPawns(board, colour, endgame) + KnightOutposts(board, colour);
             if (board.Pieces(colour, PieceType.Bishop).Count >= 2)
             {
                 own += BishopPairBonus;
@@ -270,19 +270,36 @@ public sealed class Evaluator
     /// Bonus for each pawn with no enemy pawn ahead of it on its own or the adjacent files, growing
     /// as it advances.
     /// </summary>
-    private static int PassedPawns(Board board, Colour colour)
+    private static int PassedPawns(Board board, Colour colour, bool endgame)
     {
-        Bitboard enemyPawns = board.Pieces(colour.Opponent(), PieceType.Pawn);
+        Colour them = colour.Opponent();
+        Bitboard enemyPawns = board.Pieces(them, PieceType.Pawn);
         Bitboard[] spans = PassedPawnSpan[(int)colour];
+        Square ownKing = board.KingSquare(colour);
+        Square enemyKing = board.KingSquare(them);
         int bonus = 0;
         foreach (Square square in board.Pieces(colour, PieceType.Pawn))
         {
-            if ((spans[square] & enemyPawns).IsEmpty)
+            if ((spans[square] & enemyPawns).IsNotEmpty)
             {
-                bonus += PassedPawnBonus[colour == Colour.White ? square.Rank : 7 - square.Rank];
+                continue;
+            }
+            int rankBonus = PassedPawnBonus[colour == Colour.White ? square.Rank : 7 - square.Rank];
+            bonus += rankBonus;
+            if (endgame)
+            {
+                // Kings decide passed pawns in the endgame (after Crafty): the further the enemy king is
+                // from the square in front of the pawn, and the nearer our own, the better
+                var next = new Square(square + (colour == Colour.White ? 8 : -8));
+                bonus += rankBonus * ((2 * Distance(enemyKing, next)) - Distance(ownKing, next)) / 8;
             }
         }
         return bonus;
+    }
+
+    private static int Distance(Square a, Square b)
+    {
+        return Math.Max(Math.Abs(a.File - b.File), Math.Abs(a.Rank - b.Rank));
     }
 
     private static Bitboard[][] BuildPassedPawnSpans()
