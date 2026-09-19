@@ -313,7 +313,9 @@ public sealed class Evaluator
     {
         Colour them = colour.Opponent();
         Square king = board.KingSquare(colour);
-        Bitboard zone = Attacks.King(king) | Bitboard.Of(king);
+        // The king, its neighbours and the three squares beyond them in front, where an attack builds up
+        Bitboard ring = Attacks.King(king) | Bitboard.Of(king);
+        Bitboard zone = ring | ring.Forward(colour);
         Bitboard occupied = board.Occupied;
         Bitboard theirAttacks = Attacks.Pawns(them, board.Pieces(them, PieceType.Pawn));
         int penalty = 0;
