@@ -25,7 +25,7 @@ public sealed class Searcher
     private const int MoveChangeMinimumDepth = 6;     // A new best move from this depth on earns more time too
     private const int InternalIterativeReductionMinimumDepth = 4;
     private const int ReverseFutilityMaxDepth = 7;
-    private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
+    private const int ReverseFutilityMargin = 60;      // Per ply of remaining depth
     private const int LateMovePruningMaxDepth = 4;
     private const int LateMovePruningBase = 5;         // Quiet moves after the (base + depth^2)th are skipped
     private const int LmrMinimumDepth = 3;
