@@ -35,6 +35,7 @@ public sealed class Searcher
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
     private readonly Move[,] counterMoves = new Move[7, Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
+    private readonly int[,,,] continuationHistory = new int[7, Square.Count, 7, Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
     private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
@@ -89,6 +90,7 @@ public sealed class Searcher
         Array.Clear(killers);
         Array.Clear(counterMoves);
         Array.Clear(history);
+        Array.Clear(continuationHistory);
         stopwatch.Restart();
 
         MoveList rootMoves = MoveGenerator.GenerateLegalMoves(board);
@@ -368,6 +370,8 @@ public sealed class Searcher
                     if (board.LastMove is { IsNone: false } previous)
                     {
                         counterMoves[(int)previous.Piece, previous.To] = move;
+                        ref int continuation = ref continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
+                        continuation = Math.Min(continuation + (depth * depth), HistoryCap);
                     }
                 }
                 table.Store(board.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
@@ -545,11 +549,12 @@ public sealed class Searcher
         {
             return;
         }
-        Move counter = board.LastMove is { IsNone: false } previous ? counterMoves[(int)previous.Piece, previous.To] : Move.None;
+        Move previous = board.LastMove is { IsNone: false } last ? last : Move.None;
+        Move counter = previous.IsNone ? Move.None : counterMoves[(int)previous.Piece, previous.To];
         Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
         {
-            scores[i] = ScoreMove(moves[i], ply, tableMove, counter);
+            scores[i] = ScoreMove(moves[i], ply, tableMove, counter, previous);
         }
         // Insertion sort, descending by score; stable and fast for the short lists chess produces
         for (int i = 1; i < count; i++)
@@ -568,7 +573,7 @@ public sealed class Searcher
         }
     }
 
-    private int ScoreMove(Move move, int ply, Move tableMove, Move counter)
+    private int ScoreMove(Move move, int ply, Move tableMove, Move counter, Move previous)
     {
         if (move == tableMove)
         {
@@ -599,7 +604,12 @@ public sealed class Searcher
         {
             return 70_000;
         }
-        return Math.Min(history[(int)board.SideToMove, move.From, move.To], HistoryCap);
+        int quiet = history[(int)board.SideToMove, move.From, move.To];
+        if (!previous.IsNone)
+        {
+            quiet += continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
+        }
+        return Math.Min(quiet, HistoryCap);
     }
 
     /// <summary>
