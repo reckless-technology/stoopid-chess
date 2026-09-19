@@ -20,6 +20,7 @@ public sealed class Searcher
     private const int NodesBetweenTimeChecks = 2048;
     private const int NullMoveMinimumDepth = 3;
     private const int NullMoveReduction = 3;
+    private const int InternalIterativeReductionMinimumDepth = 4;
     private const int ReverseFutilityMaxDepth = 7;
     private const int ReverseFutilityMargin = 80;      // Per ply of remaining depth
     private const int LateMovePruningMaxDepth = 4;
@@ -281,6 +282,13 @@ public sealed class Searcher
         if (TryTableCutoff(alpha, beta, depth, ply, out Move tableMove, out int tableScore))
         {
             return tableScore;
+        }
+
+        // Internal iterative reduction: with no table move to order first, a deep node is searched a ply
+        // shallower; if it matters, the next iteration comes back to it with a table move in hand
+        if (depth >= InternalIterativeReductionMinimumDepth && tableMove.IsNone)
+        {
+            depth--;
         }
 
         bool pvNode = beta - alpha > 1;
