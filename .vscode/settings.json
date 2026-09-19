@@ -1,12 +1,17 @@
 {
   "dotnet.defaultSolution": "StoopidChess.slnx",
   "dotnet.unitTests.runSettingsPath": "",
+  "dotnet.formatting.organizeImportsOnFormat": true,
   "files.exclude": {
     "**/bin": true,
     "**/obj": true
   },
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
   "[csharp]": {
     "editor.formatOnSave": true,
+    "editor.formatOnSaveMode": "file",
     "editor.defaultFormatter": "ms-dotnettools.csharp"
   }
 }
