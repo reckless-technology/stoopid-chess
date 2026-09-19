@@ -159,6 +159,12 @@ public sealed class Evaluator
         ArgumentNullException.ThrowIfNull(board);
         int score = 0;
         bool endgame = IsEndgame(board);
+        // One pass over each side's pieces serves mobility, the pressure on the enemy king and the
+        // attack maps the weak king squares need
+        Bitboard whiteZone = KingZone(board, Colour.White);
+        Bitboard blackZone = KingZone(board, Colour.Black);
+        SideAttacks white = PieceAttacks(board, Colour.White, blackZone);
+        SideAttacks black = PieceAttacks(board, Colour.Black, whiteZone);
         foreach (Colour colour in ColourExtensions.Sides)
         {
             int[][] tables = PieceSquareValues[(int)colour];
@@ -171,14 +177,17 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)PieceType.King][board.KingSquare(colour)];
-            int own = Mobility(board, colour) + PassedPawns(board, colour) + KnightOutposts(board, colour);
+            (SideAttacks us, SideAttacks them, Bitboard zone) = colour == Colour.White ? (white, black, whiteZone) : (black, white, blackZone);
+            int own = us.Mobility + PassedPawns(board, colour) + KnightOutposts(board, colour);
             if (board.Pieces(colour, PieceType.Bishop).Count >= 2)
             {
                 own += BishopPairBonus;
             }
             if (!endgame)
             {
-                own -= KingZoneAttacks(board, colour);
+                // The pressure on the king: enemy piece attacks into the zone, and the zone squares the
+                // enemy attacks that nothing but the king defends, where an attack breaks through
+                own -= them.KingZoneAttack + (WeakKingSquarePenalty * (zone & them.Attacks & ~us.Attacks).Count);
                 own += ShelterAndStorm(board, colour);
             }
             score += colour == Colour.White ? own : -own;
@@ -306,92 +315,63 @@ public sealed class Evaluator
     }
 
     /// <summary>
-    /// The pressure on the colour's king: enemy piece attacks on the king's square and the squares
-    /// around it, each attacked square counted once per attacking piece.
+    /// What one pass over a side's knights, bishops, rooks and queens yields: their mobility, the
+    /// pressure they put on the enemy king zone, and every square the side's pieces and pawns attack.
     /// </summary>
-    private static int KingZoneAttacks(Board board, Colour colour)
+    private readonly record struct SideAttacks(int Mobility, int KingZoneAttack, Bitboard Attacks);
+
+    /// <summary>
+    /// The king, its neighbours and the three squares beyond them in front, where an attack builds up.
+    /// </summary>
+    private static Bitboard KingZone(Board board, Colour colour)
     {
-        Colour them = colour.Opponent();
         Square king = board.KingSquare(colour);
-        // The king, its neighbours and the three squares beyond them in front, where an attack builds up
         Bitboard ring = Attacks.King(king) | Bitboard.Of(king);
-        Bitboard zone = ring | ring.Forward(colour);
-        Bitboard occupied = board.Occupied;
-        Bitboard theirAttacks = Attacks.Pawns(them, board.Pieces(them, PieceType.Pawn));
-        int penalty = 0;
-        foreach (Square square in board.Pieces(them, PieceType.Knight))
-        {
-            Bitboard attacks = Attacks.Knight(square);
-            theirAttacks |= attacks;
-            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
-        }
-        foreach (Square square in board.Pieces(them, PieceType.Bishop))
-        {
-            Bitboard attacks = Attacks.Bishop(occupied, square);
-            theirAttacks |= attacks;
-            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
-        }
-        foreach (Square square in board.Pieces(them, PieceType.Rook))
-        {
-            Bitboard attacks = Attacks.Rook(occupied, square);
-            theirAttacks |= attacks;
-            penalty += KingZoneAttackPenalty * (attacks & zone).Count;
-        }
-        foreach (Square square in board.Pieces(them, PieceType.Queen))
-        {
-            Bitboard attacks = Attacks.Queen(occupied, square);
-            theirAttacks |= attacks;
-            penalty += KingZoneQueenAttackPenalty * (attacks & zone).Count;
-        }
-        // Zone squares the enemy attacks and nothing but the king defends are where an attack breaks through
-        Bitboard ourDefence = Attacks.Pawns(colour, board.Pieces(colour, PieceType.Pawn));
-        foreach (Square square in board.Pieces(colour, PieceType.Knight))
-        {
-            ourDefence |= Attacks.Knight(square);
-        }
-        foreach (Square square in board.Pieces(colour, PieceType.Bishop))
-        {
-            ourDefence |= Attacks.Bishop(occupied, square);
-        }
-        foreach (Square square in board.Pieces(colour, PieceType.Rook))
-        {
-            ourDefence |= Attacks.Rook(occupied, square);
-        }
-        foreach (Square square in board.Pieces(colour, PieceType.Queen))
-        {
-            ourDefence |= Attacks.Queen(occupied, square);
-        }
-        penalty += WeakKingSquarePenalty * (zone & theirAttacks & ~ourDefence).Count;
-        return penalty;
+        return ring | ring.Forward(colour);
     }
 
     /// <summary>
-    /// How many squares the colour's pieces can move to or capture on, weighted by piece type.
+    /// Mobility (squares each piece can move to or capture on, weighted by piece type, squares
+    /// guarded by enemy pawns being no use to a piece), the attacks into the enemy king zone (each
+    /// attacked square counted once per attacking piece) and the side's attack map, in one pass.
     /// </summary>
-    private static int Mobility(Board board, Colour colour)
+    private static SideAttacks PieceAttacks(Board board, Colour colour, Bitboard enemyZone)
     {
         Bitboard occupied = board.Occupied;
-        // Squares guarded by enemy pawns are no use to a piece, so they do not count as mobility
         Bitboard pawnGuarded = Attacks.Pawns(colour.Opponent(), board.Pieces(colour.Opponent(), PieceType.Pawn));
         Bitboard targets = ~board.Pieces(colour) & ~pawnGuarded;
+        Bitboard attacks = Attacks.Pawns(colour, board.Pieces(colour, PieceType.Pawn));
         int mobility = 0;
+        int zoneAttack = 0;
         foreach (Square square in board.Pieces(colour, PieceType.Knight))
         {
-            mobility += KnightMobility * (Attacks.Knight(square) & targets).Count;
+            Bitboard reach = Attacks.Knight(square);
+            attacks |= reach;
+            mobility += KnightMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in board.Pieces(colour, PieceType.Bishop))
         {
-            mobility += BishopMobility * (Attacks.Bishop(occupied, square) & targets).Count;
+            Bitboard reach = Attacks.Bishop(occupied, square);
+            attacks |= reach;
+            mobility += BishopMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in board.Pieces(colour, PieceType.Rook))
         {
-            mobility += RookMobility * (Attacks.Rook(occupied, square) & targets).Count;
+            Bitboard reach = Attacks.Rook(occupied, square);
+            attacks |= reach;
+            mobility += RookMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in board.Pieces(colour, PieceType.Queen))
         {
-            mobility += QueenMobility * (Attacks.Queen(occupied, square) & targets).Count;
+            Bitboard reach = Attacks.Queen(occupied, square);
+            attacks |= reach;
+            mobility += QueenMobility * (reach & targets).Count;
+            zoneAttack += KingZoneQueenAttackPenalty * (reach & enemyZone).Count;
         }
-        return mobility;
+        return new SideAttacks(mobility, zoneAttack, attacks);
     }
 
     /// <summary>
