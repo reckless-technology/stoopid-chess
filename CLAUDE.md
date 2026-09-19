@@ -80,7 +80,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    two plies ago) taking one ply off the reverse futility margin and halving the late move pruning count when not
    improving +10 ± 57 (not kept), the same on the reverse futility margin alone -67 ± 47 (not kept), internal
    iterative reduction (one ply less at depth >= 4 without a table move) +21 ± 44 then +24 ± 49, +23 ± 33 over the
-   200 games (74 W, 61 L, 65 D; kept), a one-ply extension of every checking move -3 ± 47 (not kept). Evaluation experiments are logged in docs/EVALUATION.md;
+   200 games (74 W, 61 L, 65 D; kept), a one-ply extension of every checking move -3 ± 47 (not kept), one ply less LMR for quiet moves with any
+   cutoff history -17 ± 47 (not kept). A 100-game result between about +15 and +25 is neither kept nor rejected: a
+   second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
 
 ## Architecture notes
