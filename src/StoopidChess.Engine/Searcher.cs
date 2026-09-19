@@ -31,7 +31,7 @@ public sealed class Searcher
     private const int LmrMinimumDepth = 3;
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
-    private const int AspirationWindow = 40;
+    private const int AspirationWindow = 20;
     private const int HistoryCap = 79_999;
 
     private readonly TranspositionTable table;
