@@ -28,3 +28,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Tempo bonus, 10 cp for the side to move | +30 ± 60 (32 W, 25 L, 23 D) | yes |
 | Knight outposts: a knight on ranks 4 to 6 defended by an own pawn where no enemy pawn can ever attack it, +20 | +44 ± 55 (31 W, 21 L, 28 D) | yes |
 | Passed pawn bonus doubled in the endgame | -4 ± 55 (28 W, 29 L, 23 D) | no |
+| Tapered evaluation: king tables interpolated and king safety scaled by a 0-24 material phase instead of the binary endgame rule | -70 ± 58 (20 W, 36 L, 24 D) | no |
