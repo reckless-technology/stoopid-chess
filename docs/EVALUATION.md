@@ -54,3 +54,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Candidate passers after Crafty: no enemy pawn ahead on the file and at least as many own pawns beside or behind as enemy pawns guarding the files ahead, half the passer bonus | -7 ± 61 (38 W, 40 L, 22 D) | no |
 | Passed pawn king distance divisor 6 instead of 8 | -21 ± 49 (31 W, 37 L, 32 D) | no |
 | Endgame king activity: 6 cp per square of the king'''s distance beyond one from the nearest pawn of either colour | -42 ± 51 (24 W, 36 L, 40 D) | no |
+| Tempo bonus 20 cp instead of 10 | -38 ± 54 (30 W, 41 L, 29 D) | no |
