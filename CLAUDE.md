@@ -129,6 +129,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   `ArgumentNullException.ThrowIfNull` on public entry points, `CancellationToken` last, nullable
   returns rather than `Try`/`out` pairs. No static mutable state; counters live in `SearchStatistics`.
 - Formatting follows `.editorconfig` (Allman braces, braces on every block, `var` only when the type
-  is apparent, LF line endings); its rules are suggestions, not build errors, so match them by hand.
+  is apparent, LF line endings). **All code is formatted with `dotnet format StoopidChess.slnx`
+  before it is committed.** The pre-commit hook in `.githooks/pre-commit` refuses a commit that
+  `dotnet format --verify-no-changes` would change; enable it once per clone with
+  `git config core.hooksPath .githooks`. The style rules it does not enforce (they are suggestions,
+  not errors) are matched by hand.
 - Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only APIs.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
