@@ -60,9 +60,9 @@ namespace StoopidChess.Gui
             this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.statusStrip = new System.Windows.Forms.StatusStrip();
             this.youArePlayingLabel = new System.Windows.Forms.ToolStripStatusLabel();
-            this.humanColourLabel = new System.Windows.Forms.ToolStripStatusLabel();
-            this.colourToMoveAnnotationLabel = new System.Windows.Forms.ToolStripStatusLabel();
-            this.colourToMoveLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.humanColorLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.colorToMoveAnnotationLabel = new System.Windows.Forms.ToolStripStatusLabel();
+            this.colorToMoveLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.timeElapsedLabel = new System.Windows.Forms.ToolStripStatusLabel();
             this.toolStripStatusLabel1 = new System.Windows.Forms.ToolStripStatusLabel();
             this.difficultyLabel = new System.Windows.Forms.ToolStripStatusLabel();
@@ -327,7 +327,7 @@ namespace StoopidChess.Gui
             // 
             this.flipBoardToolStripMenuItem.Name = "flipBoardToolStripMenuItem";
             this.flipBoardToolStripMenuItem.Size = new System.Drawing.Size(127, 22);
-            this.flipBoardToolStripMenuItem.Text = "Flip board";
+            this.flipBoardToolStripMenuItem.Text = "Flip position";
             this.flipBoardToolStripMenuItem.Click += new System.EventHandler(this.OnFlipBoard);
             // 
             // helpToolStripMenuItem
@@ -368,9 +368,9 @@ namespace StoopidChess.Gui
             // 
             this.statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.youArePlayingLabel,
-            this.humanColourLabel,
-            this.colourToMoveAnnotationLabel,
-            this.colourToMoveLabel,
+            this.humanColorLabel,
+            this.colorToMoveAnnotationLabel,
+            this.colorToMoveLabel,
             this.timeElapsedLabel,
             this.toolStripStatusLabel1,
             this.difficultyLabel,
@@ -390,23 +390,23 @@ namespace StoopidChess.Gui
             this.youArePlayingLabel.Size = new System.Drawing.Size(92, 17);
             this.youArePlayingLabel.Text = "You are playing:";
             // 
-            // humanColourLabel
+            // humanColorLabel
             // 
-            this.humanColourLabel.Name = "humanColourLabel";
-            this.humanColourLabel.Size = new System.Drawing.Size(43, 17);
-            this.humanColourLabel.Text = "WHITE";
+            this.humanColorLabel.Name = "humanColorLabel";
+            this.humanColorLabel.Size = new System.Drawing.Size(43, 17);
+            this.humanColorLabel.Text = "WHITE";
             // 
-            // colourToMoveAnnotationLabel
+            // colorToMoveAnnotationLabel
             // 
-            this.colourToMoveAnnotationLabel.Name = "colourToMoveAnnotationLabel";
-            this.colourToMoveAnnotationLabel.Size = new System.Drawing.Size(93, 17);
-            this.colourToMoveAnnotationLabel.Text = "Colour to move:";
+            this.colorToMoveAnnotationLabel.Name = "colorToMoveAnnotationLabel";
+            this.colorToMoveAnnotationLabel.Size = new System.Drawing.Size(93, 17);
+            this.colorToMoveAnnotationLabel.Text = "Color to move:";
             // 
-            // colourToMoveLabel
+            // colorToMoveLabel
             // 
-            this.colourToMoveLabel.Name = "colourToMoveLabel";
-            this.colourToMoveLabel.Size = new System.Drawing.Size(43, 17);
-            this.colourToMoveLabel.Text = "WHITE";
+            this.colorToMoveLabel.Name = "colorToMoveLabel";
+            this.colorToMoveLabel.Size = new System.Drawing.Size(43, 17);
+            this.colorToMoveLabel.Text = "WHITE";
             // 
             // timeElapsedLabel
             // 
@@ -580,7 +580,7 @@ namespace StoopidChess.Gui
             // 
             this.clearEntireBoardToolStripMenuItem.Name = "clearEntireBoardToolStripMenuItem";
             this.clearEntireBoardToolStripMenuItem.Size = new System.Drawing.Size(168, 22);
-            this.clearEntireBoardToolStripMenuItem.Text = "Clear entire board";
+            this.clearEntireBoardToolStripMenuItem.Text = "Clear entire position";
             this.clearEntireBoardToolStripMenuItem.Click += new System.EventHandler(this.OnClearBoard);
             // 
             // stopThinkingButton
@@ -654,9 +654,9 @@ namespace StoopidChess.Gui
         private System.Windows.Forms.StatusStrip statusStrip;
         private System.Windows.Forms.SplitContainer boardCaptureSplitContainer;
         private System.Windows.Forms.ToolStripStatusLabel youArePlayingLabel;
-        private System.Windows.Forms.ToolStripStatusLabel humanColourLabel;
-        private System.Windows.Forms.ToolStripStatusLabel colourToMoveAnnotationLabel;
-        private System.Windows.Forms.ToolStripStatusLabel colourToMoveLabel;
+        private System.Windows.Forms.ToolStripStatusLabel humanColorLabel;
+        private System.Windows.Forms.ToolStripStatusLabel colorToMoveAnnotationLabel;
+        private System.Windows.Forms.ToolStripStatusLabel colorToMoveLabel;
         private System.Windows.Forms.ToolStripStatusLabel timeElapsedLabel;
         private System.Windows.Forms.ToolStripMenuItem whiteToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem blackToolStripMenuItem;

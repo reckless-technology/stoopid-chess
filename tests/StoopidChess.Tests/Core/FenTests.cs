@@ -5,53 +5,53 @@ namespace StoopidChess.Tests.Core;
 public class FenTests
 {
     [Theory]
-    [InlineData(Board.StartFen)]
+    [InlineData(Position.StartFen)]
     [InlineData("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1")]
     [InlineData("rnbqkbnr/pppp1ppp/8/3Pp3/8/8/PPP1PPPP/RNBQKBNR w KQkq e6 0 3")]
     [InlineData("8/8/8/8/8/8/8/K6k b - - 99 150")]
     [InlineData("r2q1rk1/pP1p2pp/Q4n2/bbp1p3/Np6/1B3NBn/pPPP1PPP/R3K2R b KQ - 0 1")]
     public void RoundTrips(string fen)
     {
-        Assert.Equal(fen, Board.FromFen(fen).ToFen());
+        Assert.Equal(fen, Position.FromFen(fen).ToFen());
     }
 
     [Fact]
     public void ParsesFields()
     {
-        var board = Board.FromFen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b Kq e3 7 12");
-        Assert.Equal(Colour.Black, board.SideToMove);
-        Assert.Equal(CastlingRights.WhiteKingSide | CastlingRights.BlackQueenSide, board.CastlingRights);
-        Assert.Equal(Square.Parse("e3"), board.EnPassantSquare);
-        Assert.Equal(7, board.HalfMoveClock);
-        Assert.Equal(12, board.FullMoveNumber);
-        Assert.Equal((Colour.White, PieceType.Pawn), board[Square.Parse("e4")]);
-        Assert.Equal((Colour.Black, PieceType.King), board[Square.E8]);
-        Assert.Equal(32, board.PieceCount);
+        var position = Position.FromFen("rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b Kq e3 7 12");
+        Assert.Equal(Color.Black, position.SideToMove);
+        Assert.Equal(CastlingRights.WhiteKingSide | CastlingRights.BlackQueenSide, position.CastlingRights);
+        Assert.Equal(Square.Parse("e3"), position.EnPassantSquare);
+        Assert.Equal(7, position.HalfMoveClock);
+        Assert.Equal(12, position.FullMoveNumber);
+        Assert.Equal((Color.White, Piece.Pawn), position[Square.Parse("e4")]);
+        Assert.Equal((Color.Black, Piece.King), position[Square.E8]);
+        Assert.Equal(32, position.PieceCount);
     }
 
     [Fact]
     public void EnPassantSquareIsKeptOnlyWhenACaptureIsPossible()
     {
         // No white pawn beside e5, so the square is dropped and the key equals the plain position
-        var dropped = Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
+        var dropped = Position.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
         Assert.Equal(Square.None, dropped.EnPassantSquare);
-        Assert.Equal(Board.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").Key, dropped.Key);
+        Assert.Equal(Position.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").Key, dropped.Key);
         // The same applies to double pushes made on the board
-        var board = Board.StartPosition();
-        board.MakeMove(BoardTests.FindMove(board, "e2e4")!.Value);
-        Assert.Equal(Square.None, board.EnPassantSquare);
-        board.MakeMove(BoardTests.FindMove(board, "d7d5")!.Value);
-        Assert.Equal(Square.None, board.EnPassantSquare);
-        board.MakeMove(BoardTests.FindMove(board, "e4e5")!.Value);
-        board.MakeMove(BoardTests.FindMove(board, "f7f5")!.Value);
-        Assert.Equal(Square.Parse("f6"), board.EnPassantSquare);
+        var position = Position.Start();
+        position.MakeMove(BoardTests.FindMove(position, "e2e4")!.Value);
+        Assert.Equal(Square.None, position.EnPassantSquare);
+        position.MakeMove(BoardTests.FindMove(position, "d7d5")!.Value);
+        Assert.Equal(Square.None, position.EnPassantSquare);
+        position.MakeMove(BoardTests.FindMove(position, "e4e5")!.Value);
+        position.MakeMove(BoardTests.FindMove(position, "f7f5")!.Value);
+        Assert.Equal(Square.Parse("f6"), position.EnPassantSquare);
         // Reaching the same position by a different order gives the same key
-        var other = Board.StartPosition();
+        var other = Position.Start();
         foreach (string uci in new[] { "e2e4", "g8f6", "g1f3", "f6g8", "f3g1" })
         {
             other.MakeMove(BoardTests.FindMove(other, uci)!.Value);
         }
-        var direct = Board.StartPosition();
+        var direct = Position.Start();
         direct.MakeMove(BoardTests.FindMove(direct, "e2e4")!.Value);
         Assert.Equal(direct.Key, other.Key);
         Assert.Equal(1, other.RepetitionCount());
@@ -60,23 +60,23 @@ public class FenTests
     [Fact]
     public void HugeClockValuesAreClampedNotOverflowed()
     {
-        var board = Board.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 2147483647 99999999999");
-        Assert.Equal(Board.MaxHalfMoveClock, board.HalfMoveClock);
-        Assert.Equal(int.MaxValue, board.FullMoveNumber);
-        var game = new Game(board);
+        var position = Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 2147483647 99999999999");
+        Assert.Equal(Position.MaxHalfMoveClock, position.HalfMoveClock);
+        Assert.Equal(int.MaxValue, position.FullMoveNumber);
+        var game = new Game(position);
         Assert.True(game.TryMakeMove("g1f3"));
         Assert.Equal(GameStatus.DrawByFiftyMoveRule, game.Status);
-        Assert.Equal(Board.MaxHalfMoveClock, game.Board.HalfMoveClock);
-        Assert.Equal(board.ToFen(), Board.FromFen(board.ToFen()).ToFen());
+        Assert.Equal(Position.MaxHalfMoveClock, game.Position.HalfMoveClock);
+        Assert.Equal(position.ToFen(), Position.FromFen(position.ToFen()).ToFen());
     }
 
     [Fact]
     public void ClockFieldsAreOptional()
     {
-        var board = Board.FromFen("4k3/8/8/8/8/8/8/4K3 w - -");
-        Assert.Equal(0, board.HalfMoveClock);
-        Assert.Equal(1, board.FullMoveNumber);
-        Assert.Equal("4k3/8/8/8/8/8/8/4K3 w - - 0 1", board.ToFen());
+        var position = Position.FromFen("4k3/8/8/8/8/8/8/4K3 w - -");
+        Assert.Equal(0, position.HalfMoveClock);
+        Assert.Equal(1, position.FullMoveNumber);
+        Assert.Equal("4k3/8/8/8/8/8/8/4K3 w - - 0 1", position.ToFen());
     }
 
     [Theory]
@@ -98,14 +98,14 @@ public class FenTests
     [InlineData("4k3/8/4p3/8/4P3/8/8/4K3 w - e6 0 1")]                   // En passant square occupied
     public void RejectsInvalidFen(string fen)
     {
-        Assert.Throws<FormatException>(() => Board.FromFen(fen));
+        Assert.Throws<FormatException>(() => Position.FromFen(fen));
         Assert.Null(Fen.TryParse(fen));
     }
 
     [Fact]
     public void BoardToStringShowsRankEightAtTop()
     {
-        string text = Board.StartPosition().ToString();
+        string text = Position.Start().ToString();
         Assert.StartsWith("8 rnbqkbnr", text, StringComparison.Ordinal);
         Assert.EndsWith("  abcdefgh", text, StringComparison.Ordinal);
     }

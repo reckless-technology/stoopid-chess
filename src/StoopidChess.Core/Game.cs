@@ -24,43 +24,43 @@ public sealed class Game
     /// A game from the standard starting position.
     /// </summary>
     public Game()
-        : this(Board.StartPosition())
+        : this(Position.Start())
     {
     }
 
     /// <summary>
     /// A game starting from the given position, which must be legal (see
-    /// <see cref="MoveGenerator.IsPositionLegal"/>) and must not have any moves made on it yet;
+    /// <see cref="Position.IsLegal"/>) and must not have any moves made on it yet;
     /// use <see cref="MakeMove"/> to replay moves. The game owns the board from here on: make moves
     /// only through the game, or the move history will not match.
     /// </summary>
-    public Game(Board board)
+    public Game(Position position)
     {
-        ArgumentNullException.ThrowIfNull(board);
-        if (!MoveGenerator.IsPositionLegal(board))
+        ArgumentNullException.ThrowIfNull(position);
+        if (!position.IsLegal)
         {
-            throw new ArgumentException("the position is not legal: each side needs one king and the side not to move may not be in check", nameof(board));
+            throw new ArgumentException("the position is not legal: each side needs one king and the side not to move may not be in check", nameof(position));
         }
-        if (board.Ply != 0)
+        if (position.Ply != 0)
         {
-            throw new ArgumentException("the board already has moves made on it; a game starts from a fresh position", nameof(board));
+            throw new ArgumentException("the position already has moves made on it; a game starts from a fresh position", nameof(position));
         }
-        Board = board;
-        StartFen = board.ToFen();
-        StartSideToMove = board.SideToMove;
-        StartMoveNumber = board.FullMoveNumber;
+        Position = position;
+        StartFen = position.ToFen();
+        StartSideToMove = position.SideToMove;
+        StartMoveNumber = position.FullMoveNumber;
     }
 
-    public static Game FromFen(string fen) => new(Board.FromFen(fen));
+    public static Game FromFen(string fen) => new(Position.FromFen(fen));
 
-    public Board Board { get; }
+    public Position Position { get; }
 
     /// <summary>
     /// FEN of the position the game started from.
     /// </summary>
     public string StartFen { get; }
 
-    public Colour StartSideToMove { get; }
+    public Color StartSideToMove { get; }
 
     public int StartMoveNumber { get; }
 
@@ -74,19 +74,19 @@ public sealed class Game
     {
         get
         {
-            (ulong, int) current = (Board.Key, Board.Ply);
+            (ulong, int) current = (Position.Key, Position.Ply);
             if (legalMoves is null || legalMovesFor != current)
             {
-                legalMoves = [.. MoveGenerator.GenerateLegalMoves(Board)];
+                legalMoves = [.. Position.GenerateLegalMoves()];
                 legalMovesFor = current;
             }
             return legalMoves;
         }
     }
 
-    public Colour SideToMove => Board.SideToMove;
+    public Color SideToMove => Position.SideToMove;
 
-    public bool IsInCheck => MoveGenerator.IsInCheck(Board);
+    public bool IsInCheck => Position.IsInCheck;
 
     public GameStatus Status
     {
@@ -96,15 +96,15 @@ public sealed class Game
             {
                 return IsInCheck ? GameStatus.Checkmate : GameStatus.Stalemate;
             }
-            if (Board.HalfMoveClock >= 100)
+            if (Position.HalfMoveClock >= 100)
             {
                 return GameStatus.DrawByFiftyMoveRule;
             }
-            if (Board.RepetitionCount() >= 2)
+            if (Position.RepetitionCount() >= 2)
             {
                 return GameStatus.DrawByRepetition;
             }
-            if (Board.IsInsufficientMaterial())
+            if (Position.IsInsufficientMaterial())
             {
                 return GameStatus.DrawByInsufficientMaterial;
             }
@@ -127,7 +127,7 @@ public sealed class Game
     /// <summary>
     /// Find the legal move between two squares, promoting to the given piece if it is a promotion.
     /// </summary>
-    public Move? FindMove(Square from, Square to, PieceType promotion = PieceType.None)
+    public Move? FindMove(Square from, Square to, Piece promotion = Piece.None)
     {
         foreach (Move move in LegalMoves)
         {
@@ -144,7 +144,7 @@ public sealed class Game
     /// </summary>
     public Move? FindMove(string uci)
     {
-        return MoveNotation.ParseUci(uci) is (Square from, Square to, PieceType promotion) ? FindMove(from, to, promotion) : null;
+        return Move.ParseUci(uci) is (Square from, Square to, Piece promotion) ? FindMove(from, to, promotion) : null;
     }
 
     /// <summary>
@@ -155,9 +155,9 @@ public sealed class Game
     {
         if (!LegalMoves.Contains(move))
         {
-            throw new ArgumentException($"{move} is not a legal move in {Board.ToFen()}", nameof(move));
+            throw new ArgumentException($"{move} is not a legal move in {Position.ToFen()}", nameof(move));
         }
-        Board.MakeMove(move);
+        Position.MakeMove(move);
         moves.Add(move);
         legalMoves = null;
     }
@@ -185,22 +185,22 @@ public sealed class Game
         {
             return false;
         }
-        Board.UnmakeMove();
+        Position.UnmakeMove();
         moves.RemoveAt(moves.Count - 1);
         legalMoves = null;
         return true;
     }
 
     /// <summary>
-    /// The pieces of the given colour that have been captured during the game, in order of capture.
+    /// The pieces of the given color that have been captured during the game, in order of capture.
     /// </summary>
-    public IReadOnlyList<PieceType> CapturedPieces(Colour colour)
+    public IReadOnlyList<Piece> CapturedPieces(Color color)
     {
-        var captured = new List<PieceType>();
-        Colour mover = StartSideToMove;
+        var captured = new List<Piece>();
+        Color mover = StartSideToMove;
         foreach (Move move in moves)
         {
-            if (move.IsCapture && mover.Opponent() == colour)
+            if (move.IsCapture && mover.Opponent() == color)
             {
                 captured.Add(move.Captured);
             }

@@ -89,20 +89,20 @@ public static class Attacks
     public static Bitboard King(Square square) => KingTable[square];
 
     /// <summary>
-    /// The squares a pawn of the colour on the square attacks (the two diagonally forward squares).
-    /// The same set, read the other way, is the squares from which a pawn of the opposite colour
+    /// The squares a pawn of the color on the square attacks (the two diagonally forward squares).
+    /// The same set, read the other way, is the squares from which a pawn of the opposite color
     /// attacks the square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Pawn(Colour colour, Square square) => (colour == Colour.White ? WhitePawnTable : BlackPawnTable)[square];
+    public static Bitboard Pawn(Color color, Square square) => (color == Color.White ? WhitePawnTable : BlackPawnTable)[square];
 
     /// <summary>
-    /// The squares attacked by a whole set of pawns of the colour.
+    /// The squares attacked by a whole set of pawns of the color.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Pawns(Colour colour, Bitboard pawns)
+    public static Bitboard Pawns(Color color, Bitboard pawns)
     {
-        return colour == Colour.White ? pawns.NorthWest() | pawns.NorthEast() : pawns.SouthWest() | pawns.SouthEast();
+        return color == Color.White ? pawns.NorthWest() | pawns.NorthEast() : pawns.SouthWest() | pawns.SouthEast();
     }
 
     /// <summary>

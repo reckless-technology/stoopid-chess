@@ -30,7 +30,7 @@ public class PerftTests
     public void StandardPositionsAreEmbedded()
     {
         Assert.Equal(128, Perft.StandardPositions.Count);
-        Assert.Equal(Board.StartFen, Perft.StandardPositions[0].Fen);
+        Assert.Equal(Position.StartFen, Perft.StandardPositions[0].Fen);
         Assert.Equal((6, 119060324L), Perft.StandardPositions[0].Depths[^1]);
     }
 
@@ -38,18 +38,18 @@ public class PerftTests
     [MemberData(nameof(Positions))]
     public void LeafNodeCountMatchesReference(string fen, int depth, long expected)
     {
-        var board = Board.FromFen(fen);
-        string normalisedFen = board.ToFen();
-        Assert.Equal(expected, Perft.Count(board, depth));
+        var position = Position.FromFen(fen);
+        string normalisedFen = position.ToFen();
+        Assert.Equal(expected, Perft.Count(position, depth));
         // The board must be restored exactly by the make/unmake pairs
-        Assert.Equal(normalisedFen, board.ToFen());
+        Assert.Equal(normalisedFen, position.ToFen());
     }
 
     [Fact]
     public void DivideSumsToTheFullCount()
     {
-        var board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-        List<(Move Move, long Nodes)> divided = [.. Perft.Divide(board, 3)];
+        var position = Position.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+        List<(Move Move, long Nodes)> divided = [.. Perft.Divide(position, 3)];
         Assert.Equal(48, divided.Count);
         Assert.Equal(97862, divided.Sum(d => d.Nodes));
     }
@@ -62,7 +62,7 @@ public class PerftTests
     [InlineData("")]
     public void RejectsMalformedEpd(string suffix)
     {
-        Assert.Throws<FormatException>(() => Perft.ParseEpd([Board.StartFen + suffix]).ToList());
+        Assert.Throws<FormatException>(() => Perft.ParseEpd([Position.StartFen + suffix]).ToList());
         Assert.Throws<FormatException>(() => Perft.ParseEpd([";D1 20"]).ToList());
     }
 }

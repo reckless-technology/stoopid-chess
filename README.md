@@ -11,7 +11,7 @@ restructured in 2026.
 
 | Project | Purpose |
 |---|---|
-| `src/StoopidChess.Core` | The rules of chess: the `Square`, `Bitboard`, `Move` and `MoveList` value types (a coloured piece is a `(Colour, PieceType)` pair), `Board` (bitboards plus a square array, with incremental Zobrist keys), `Attacks` (attack tables and magic bitboards), FEN, legal move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
+| `src/StoopidChess.Core` | The rules of chess: the `Square`, `Bitboard`, `Move` and `MoveList` value types (a colored piece is a `(Color, Piece)` pair), `Position` (bitboards plus a square array, with incremental Zobrist keys), `Attacks` (attack tables and magic bitboards), FEN, legal move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
@@ -38,7 +38,7 @@ the above and launch configurations for debugging the GUI and the engine.
 
 ## The engine
 
-- Bitboard board representation (a set of squares per piece type and per colour, plus a square
+- Bitboard board representation (a set of squares per piece type and per color, plus a square
   array), magic bitboards for the sliding pieces, and a fully legal move generator that resolves
   pins, checks, en passant and castling during generation rather than by make/test/unmake. Modelled
   on pawnstar; the design and measurements are in `docs/BITBOARDS.md`.

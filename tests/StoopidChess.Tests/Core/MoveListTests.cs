@@ -4,9 +4,9 @@ namespace StoopidChess.Tests.Core;
 
 public class MoveListTests
 {
-    private static readonly Move E2E4 = new(Square.Parse("e2"), Square.Parse("e4"), PieceType.Pawn, PieceType.None, MoveKind.DoublePawnPush);
-    private static readonly Move G1F3 = new(Square.G1, Square.Parse("f3"), PieceType.Knight);
-    private static readonly Move E1G1 = new(Square.E1, Square.G1, PieceType.King, PieceType.None, MoveKind.CastleKingSide);
+    private static readonly Move E2E4 = new(Square.Parse("e2"), Square.Parse("e4"), Piece.Pawn, Piece.None, MoveKind.DoublePawnPush);
+    private static readonly Move G1F3 = new(Square.G1, Square.Parse("f3"), Piece.Knight);
+    private static readonly Move E1G1 = new(Square.E1, Square.G1, Piece.King, Piece.None, MoveKind.CastleKingSide);
 
     [Fact]
     public void AddsIndexesEnumeratesAndClears()
@@ -51,7 +51,7 @@ public class MoveListTests
     public void HoldsTheMostMobilePosition()
     {
         // 218 legal moves, the most known for any position
-        MoveList moves = MoveGenerator.GenerateLegalMoves(Board.FromFen("R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1"));
+        MoveList moves = Position.FromFen("R6R/3Q4/1Q4Q1/4Q3/2Q4Q/Q4Q2/pp1Q4/kBNN1KB1 w - - 0 1").GenerateLegalMoves();
         Assert.Equal(218, moves.Count);
         Assert.True(moves.Count <= MoveList.Capacity);
     }

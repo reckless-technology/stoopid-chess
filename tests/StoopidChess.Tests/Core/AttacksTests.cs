@@ -12,11 +12,11 @@ public class AttacksTests
         Assert.Equal(Bitboard.Of(Square.Parse("b3")) | Bitboard.Of(Square.Parse("c2")), Attacks.Knight(Square.A1));
         Assert.Equal(3, Attacks.King(Square.H8).Count);
         Assert.Equal(8, Attacks.King(Square.Parse("e4")).Count);
-        Assert.Equal(Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("f5")), Attacks.Pawn(Colour.White, Square.Parse("e4")));
-        Assert.Equal(Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("f3")), Attacks.Pawn(Colour.Black, Square.Parse("e4")));
-        Assert.Equal(Bitboard.Of(Square.Parse("b2")), Attacks.Pawn(Colour.White, Square.A1));   // No wrap around the edge
-        Assert.Equal(Bitboard.Of(Square.Parse("g7")), Attacks.Pawn(Colour.Black, Square.H8));
-        Assert.Equal(Bitboard.Rank3 & (Bitboard.FileA | Bitboard.FileC | Bitboard.FileG), Attacks.Pawns(Colour.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH)));
+        Assert.Equal(Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("f5")), Attacks.Pawn(Color.White, Square.Parse("e4")));
+        Assert.Equal(Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("f3")), Attacks.Pawn(Color.Black, Square.Parse("e4")));
+        Assert.Equal(Bitboard.Of(Square.Parse("b2")), Attacks.Pawn(Color.White, Square.A1));   // No wrap around the edge
+        Assert.Equal(Bitboard.Of(Square.Parse("g7")), Attacks.Pawn(Color.Black, Square.H8));
+        Assert.Equal(Bitboard.Rank3 & (Bitboard.FileA | Bitboard.FileC | Bitboard.FileG), Attacks.Pawns(Color.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH)));
     }
 
     [Fact]
@@ -103,8 +103,8 @@ public class AttacksTests
         Assert.Equal(Bitboard.Empty, Bitboard.Of(Square.A1).NorthWest());
         Assert.Equal(Bitboard.Empty, Bitboard.Of(Square.H1).SouthEast());
         Assert.Equal(Bitboard.Of(Square.Parse("g7")), Bitboard.Of(Square.H8).SouthWest());
-        Assert.Equal(Bitboard.Rank3, Bitboard.Rank2.Forward(Colour.White));
-        Assert.Equal(Bitboard.Rank1, Bitboard.Rank2.Forward(Colour.Black));
+        Assert.Equal(Bitboard.Rank3, Bitboard.Rank2.Forward(Color.White));
+        Assert.Equal(Bitboard.Rank1, Bitboard.Rank2.Forward(Color.Black));
         Assert.Equal(32, Bitboard.LightSquares.Count);
         Assert.Equal(Bitboard.Full, Bitboard.LightSquares | Bitboard.DarkSquares);
         Assert.Equal(Bitboard.Empty, Bitboard.LightSquares & Bitboard.DarkSquares);

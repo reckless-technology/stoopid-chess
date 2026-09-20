@@ -1,5 +1,9 @@
 # Code review of Stoopid Chess (September 2026)
 
+> Names have changed since this was written (September 2026): `Board` is now `Position`, which also holds
+> move generation and position editing; `Colour` is `Color` and `PieceType` is `Piece`; `MoveGenerator`,
+> `MoveNotation` and `PositionBuilder` no longer exist. The text below keeps the names of its time.
+
 Review of the code as it stood after the .NET 10 port (commit `5a89d68`): a single Windows Forms
 project of about 5,400 lines written in 2009. The findings below drove the refactoring that
 followed; each item notes what was done about it.
@@ -18,15 +22,15 @@ followed; each item notes what was done about it.
    were static, so two engines in one process would corrupt each other and nothing was testable in
    isolation. *Resolved:* all state lives in `Searcher`, `Evaluator` and `TranspositionTable`
    instances; counters are a `SearchStatistics` object.
-3. **The board had no side to move.** Colour was threaded through every method as a parameter, and
+3. **The board had no side to move.** Color was threaded through every method as a parameter, and
    the Zobrist key had the side XORed in on demand. There was no FEN support, so positions could not
-   be set up, exchanged or tested. *Resolved:* `Board` tracks side to move, castling rights, en
+   be set up, exchanged or tested. *Resolved:* `Position` tracks side to move, castling rights, en
    passant square, half-move clock and move number, and reads and writes FEN.
 4. **Threading by hand.** A raw `Thread` per move, a `System.Timers.Timer` to set a non-volatile
    `bool doCancelSearch`, and cross-thread UI updates via `Invoke`. *Resolved:* the search takes a
    `CancellationToken` and a `SearchLimits` (depth, nodes, move time, clock); the UCI session runs it
    on a `Task`; the GUI uses `async`/`await` and never touches engine threads.
-5. **Persistence coupled to object layout.** Save games serialised the whole `Board` graph with
+5. **Persistence coupled to object layout.** Save games serialised the whole `Position` graph with
    `BinaryFormatter`, so any change to a private field broke old files (and BinaryFormatter is gone
    from .NET). *Resolved:* save files are JSON holding a FEN and UCI moves, both open standards.
 
@@ -62,7 +66,7 @@ followed; each item notes what was done about it.
     are verified with two independent 64-bit keys, and the pseudo-legality of the ordered move list
     is what is searched, with the table move merely sorted first.
 15. **Position editing left the undo stacks inconsistent.** `EditSquare` cleared the move stack but
-    not the castling, en passant or capture stacks. *Fixed:* `Board.SetPiece` resets the history.
+    not the castling, en passant or capture stacks. *Fixed:* `Position.SetPiece` resets the history.
 16. **`Move.CompareTo` subtracted hash codes**, which can overflow; and `GetHashCode` doubled as a
     unique key in a `SortedDictionary`, an invariant that held only by careful bit layout. *Fixed:*
     `Move` is a record struct with value equality and no ordering; ordering is a search concern.
@@ -73,8 +77,8 @@ followed; each item notes what was done about it.
     was used for move ordering, allocating heavily in the hottest loop. *Now:* `Piece` and `Move`
     are readonly record structs; moves go into per-ply reusable lists sorted by a stable insertion
     sort on a score.
-18. Enum members were `UPPER_CASE`, fields `camelCase` public, and `Colour.XOR` was an enum member
-    used to switch sides. *Now:* .NET naming, `Colour.Opponent()`.
+18. Enum members were `UPPER_CASE`, fields `camelCase` public, and `Color.XOR` was an enum member
+    used to switch sides. *Now:* .NET naming, `Color.Opponent()`.
 19. `MoveType` conflated what happened (`EN_PASSANT` meant a double pawn push) with castling
     flag bookkeeping (`KING`, `ROOK`). *Now:* `MoveKind` describes the move; rights are derived.
 20. `IsDrawn` returned a bool and set a `reasonForDraw` string as a side effect. *Now:*
@@ -121,11 +125,11 @@ move-generation tests over millions of random plies, and traced race and state s
 client and GUI. Everything they reproduced was fixed (commit after `2f9c593`):
 
 32. **A FEN half-move clock near `int.MaxValue` overflowed on the next move** and crashed
-    repetition detection. *Fixed:* clocks are clamped to `Board.MaxHalfMoveClock` (999) on parse
+    repetition detection. *Fixed:* clocks are clamped to `Position.MaxHalfMoveClock` (999) on parse
     and saturate on make; `RepetitionCount` clamps its lookback.
-33. **`Game` cached its legal moves while exposing a mutable `Board`**, so an edit made through the
+33. **`Game` cached its legal moves while exposing a mutable `Position`**, so an edit made through the
     board let a stale move corrupt the position. *Fixed:* the cache is keyed on key, ply and a new
-    `Board.EditCount`; `Game` also refuses boards that already have moves made on them.
+    `Position.EditCount`; `Game` also refuses boards that already have moves made on them.
 34. **Unmaking a move did not restore piece-list order**, so move generation order, and therefore
     node counts under a time limit, depended on how a position was reached. *Fixed:* the searcher
     normalises piece order on its private copy; a test reaches the same position by two move orders
@@ -146,7 +150,7 @@ client and GUI. Everything they reproduced was fixed (commit after `2f9c593`):
 43. **Clocks stayed stopped after editing a finished game back into play**; the dragged-piece
     image could reference an empty square after an undo or load.
 44. **Tabs between UCI tokens were not accepted**; `perft 0`/`bench 0` printed nonsense.
-45. `Board.SetPiece` accepted invalid pieces; `board[...]` indexers did not range-check;
+45. `Position.SetPiece` accepted invalid pieces; `board[...]` indexers did not range-check;
     `Perft.ParseEpd` threw `OverflowException`; move generation on an unplayable board threw
     `IndexOutOfRangeException` rather than a clear `InvalidOperationException`.
 

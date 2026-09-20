@@ -31,6 +31,6 @@ public class EvaluatorRegressionTests
     [InlineData("8/pp3k2/2p2p2/3p2p1/3P2P1/2P2P2/PP3K2/8 w - - 0 1", 10)]
     public void ScoresMatchTheRecordedValues(string fen, int expected)
     {
-        Assert.Equal(expected, new Evaluator().Evaluate(Board.FromFen(fen)));
+        Assert.Equal(expected, new Evaluator().Evaluate(Position.FromFen(fen)));
     }
 }

@@ -16,7 +16,7 @@ public static class Bench
 
     public static readonly IReadOnlyList<string> Positions =
     [
-        Board.StartFen,
+        Position.StartFen,
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
         "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
         "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
@@ -43,7 +43,7 @@ public static class Bench
         for (int i = 0; i < Positions.Count; i++)
         {
             table.Clear();
-            SearchResult result = searcher.Search(Board.FromFen(Positions[i]), SearchLimits.ForDepth(depth));
+            SearchResult result = searcher.Search(Position.FromFen(Positions[i]), SearchLimits.ForDepth(depth));
             totalNodes += result.Nodes;
             log?.WriteLine(string.Create(CultureInfo.InvariantCulture, $"position {i + 1,2}: bestmove {result.BestMove,-5} score {result.Score,6} nodes {result.Nodes,10}"));
         }

@@ -16,7 +16,7 @@ public class GameTests
         Assert.True(game.IsOver);
         Assert.True(game.IsInCheck);
         Assert.Empty(game.LegalMoves);
-        Assert.Equal(Colour.White, game.SideToMove);
+        Assert.Equal(Color.White, game.SideToMove);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class GameTests
         Assert.False(game.TryMakeMove("e2e5"));
         Assert.False(game.TryMakeMove("e7e5"));
         Assert.False(game.TryMakeMove("nonsense"));
-        Assert.Throws<ArgumentException>(() => game.MakeMove(new Move(Square.Parse("e2"), Square.Parse("e5"), PieceType.Pawn)));
+        Assert.Throws<ArgumentException>(() => game.MakeMove(new Move(Square.Parse("e2"), Square.Parse("e5"), Piece.Pawn)));
         Assert.Empty(game.Moves);
         Assert.True(game.TryMakeMove("e2e4"));
         Assert.Single(game.Moves);
@@ -85,9 +85,9 @@ public class GameTests
         var to = Square.Parse("b8");
         Assert.Equal(4, game.LegalMovesBetween(from, to).Count());
         Assert.Null(game.FindMove(from, to));
-        Assert.Equal(PieceType.Rook, game.FindMove(from, to, PieceType.Rook)!.Value.Promotion);
+        Assert.Equal(Piece.Rook, game.FindMove(from, to, Piece.Rook)!.Value.Promotion);
         Assert.True(game.TryMakeMove("b7b8r"));
-        Assert.Equal((Colour.White, PieceType.Rook), game.Board[to]);
+        Assert.Equal((Color.White, Piece.Rook), game.Position[to]);
     }
 
     [Fact]
@@ -100,20 +100,20 @@ public class GameTests
         game.TryMakeMove("e4d5");
         Assert.True(game.UndoMove());
         // No white pawn can capture on d6, so no en passant square is recorded
-        Assert.Equal("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", game.Board.ToFen());
+        Assert.Equal("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", game.Position.ToFen());
         Assert.Equal(2, game.Moves.Count);
     }
 
     [Fact]
-    public void CapturedPiecesAreListedByColour()
+    public void CapturedPiecesAreListedByColor()
     {
         var game = new Game();
         foreach (string uci in new[] { "e2e4", "d7d5", "e4d5", "d8d5", "d1g4", "d5g2", "g4g2" })
         {
             Assert.True(game.TryMakeMove(uci), uci);
         }
-        Assert.Equal([PieceType.Pawn, PieceType.Queen], game.CapturedPieces(Colour.Black));
-        Assert.Equal([PieceType.Pawn, PieceType.Pawn], game.CapturedPieces(Colour.White));
+        Assert.Equal([Piece.Pawn, Piece.Queen], game.CapturedPieces(Color.Black));
+        Assert.Equal([Piece.Pawn, Piece.Pawn], game.CapturedPieces(Color.White));
     }
 
     [Fact]
@@ -121,23 +121,23 @@ public class GameTests
     {
         var game = Game.FromFen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1");
         Assert.True(game.TryMakeMove("a8a1"));
-        Assert.Equal([PieceType.Rook], game.CapturedPieces(Colour.White));
+        Assert.Equal([Piece.Rook], game.CapturedPieces(Color.White));
         Assert.Equal("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1", game.StartFen);
     }
 
     [Fact]
     public void RejectsBoardsThatAlreadyHaveMoves()
     {
-        var board = Board.StartPosition();
-        board.MakeMove(MoveGenerator.GenerateLegalMoves(board)[0]);
-        Assert.Throws<ArgumentException>(() => new Game(board));
+        var position = Position.Start();
+        position.MakeMove(position.GenerateLegalMoves()[0]);
+        Assert.Throws<ArgumentException>(() => new Game(position));
     }
 
     [Fact]
     public void RejectsPositionsWithoutKings()
     {
-        var builder = PositionBuilder.From(Board.StartPosition());
-        builder[Square.E8] = default;
-        Assert.Throws<InvalidOperationException>(() => new Game(builder.Build()));
+        Position edited = Position.Setup(Position.Start());
+        edited.Clear(Square.E8);
+        Assert.Throws<ArgumentException>(() => new Game(edited));
     }
 }

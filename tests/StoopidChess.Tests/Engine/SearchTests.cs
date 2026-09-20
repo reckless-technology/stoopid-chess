@@ -14,7 +14,7 @@ public class SearchTests
     [InlineData("k7/8/1K6/8/8/8/8/7R w - - 0 1", "h1h8")]                              // Rook and king mate
     public void FindsMateInOne(string fen, string mate)
     {
-        SearchResult result = NewSearcher().Search(Board.FromFen(fen), SearchLimits.ForDepth(3));
+        SearchResult result = NewSearcher().Search(Position.FromFen(fen), SearchLimits.ForDepth(3));
         Assert.Equal(mate, result.BestMove.ToUci());
         Assert.True(result.IsMateScore);
         Assert.Equal(1, result.MateIn);
@@ -24,7 +24,7 @@ public class SearchTests
     public void FindsMateInTwo()
     {
         // Nf6+ gxf6 Bxf7#
-        SearchResult result = NewSearcher().Search(Board.FromFen("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1"), SearchLimits.ForDepth(4));
+        SearchResult result = NewSearcher().Search(Position.FromFen("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1"), SearchLimits.ForDepth(4));
         Assert.True(result.IsMateScore);
         Assert.Equal(2, result.MateIn);
         Assert.Equal("d5f6", result.BestMove.ToUci());
@@ -34,7 +34,7 @@ public class SearchTests
     public void ReportsBeingMated()
     {
         // Black to move has only Kb8, after which Rg8 is mate
-        SearchResult result = NewSearcher().Search(Board.FromFen("k7/8/1K6/8/8/8/8/6R1 b - - 0 1"), SearchLimits.ForDepth(4));
+        SearchResult result = NewSearcher().Search(Position.FromFen("k7/8/1K6/8/8/8/8/6R1 b - - 0 1"), SearchLimits.ForDepth(4));
         Assert.True(result.IsMateScore);
         Assert.Equal(-1, result.MateIn);
         Assert.Equal("a8b8", result.BestMove.ToUci());
@@ -43,10 +43,10 @@ public class SearchTests
     [Fact]
     public void ReturnsNoMoveWhenGameIsOver()
     {
-        SearchResult mated = NewSearcher().Search(Board.FromFen("7k/6Q1/6K1/8/8/8/8/8 b - - 0 1"), SearchLimits.ForDepth(3));
+        SearchResult mated = NewSearcher().Search(Position.FromFen("7k/6Q1/6K1/8/8/8/8/8 b - - 0 1"), SearchLimits.ForDepth(3));
         Assert.True(mated.BestMove.IsNone);
         Assert.Equal(-Searcher.MateScore, mated.Score);
-        SearchResult stalemated = NewSearcher().Search(Board.FromFen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"), SearchLimits.ForDepth(3));
+        SearchResult stalemated = NewSearcher().Search(Position.FromFen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"), SearchLimits.ForDepth(3));
         Assert.True(stalemated.BestMove.IsNone);
         Assert.Equal(Searcher.DrawScore, stalemated.Score);
     }
@@ -55,7 +55,7 @@ public class SearchTests
     public void AvoidsStalematingWhenWinning()
     {
         // White has a queen against a bare king; Qf7 would be stalemate
-        SearchResult result = NewSearcher().Search(Board.FromFen("7k/8/6K1/8/8/8/8/5Q2 w - - 0 1"), SearchLimits.ForDepth(4));
+        SearchResult result = NewSearcher().Search(Position.FromFen("7k/8/6K1/8/8/8/8/5Q2 w - - 0 1"), SearchLimits.ForDepth(4));
         Assert.NotEqual("f1f7", result.BestMove.ToUci());
         Assert.True(result.Score > 0);
     }
@@ -66,13 +66,13 @@ public class SearchTests
         // White has a rook against a queen. The kings have shuffled a1-b1-a1 and a8-b8-a8 once, so
         // Kb1 now recreates an earlier position, which the search treats as a draw: better than the
         // material deficit of every other move.
-        var board = Board.FromFen("k7/8/8/8/8/8/6q1/K6R w - - 0 1");
+        var position = Position.FromFen("k7/8/8/8/8/8/6q1/K6R w - - 0 1");
         foreach (string uci in new[] { "a1b1", "a8b8", "b1a1", "b8a8" })
         {
-            board.MakeMove(BoardTestHelpers.Move(board, uci));
+            position.MakeMove(BoardTestHelpers.Move(position, uci));
         }
-        Assert.Equal(1, board.RepetitionCount());
-        SearchResult result = NewSearcher().Search(board, SearchLimits.ForDepth(3));
+        Assert.Equal(1, position.RepetitionCount());
+        SearchResult result = NewSearcher().Search(position, SearchLimits.ForDepth(3));
         Assert.Equal("a1b1", result.BestMove.ToUci());
         Assert.Equal(Searcher.DrawScore, result.Score);
     }
@@ -81,19 +81,19 @@ public class SearchTests
     public void InsufficientMaterialIsScoredAsADraw()
     {
         // A lone knight cannot mate; add a pawn and the position is worth something again
-        Assert.Equal(Searcher.DrawScore, NewSearcher().Search(Board.FromFen("7k/8/8/8/8/8/8/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score);
-        Assert.True(NewSearcher().Search(Board.FromFen("7k/8/8/8/8/8/P7/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score > 0);
+        Assert.Equal(Searcher.DrawScore, NewSearcher().Search(Position.FromFen("7k/8/8/8/8/8/8/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score);
+        Assert.True(NewSearcher().Search(Position.FromFen("7k/8/8/8/8/8/P7/K6N w - - 0 1"), SearchLimits.ForDepth(3)).Score > 0);
     }
 
     [Fact]
     public void FiftyMoveRuleDoesNotHideAMate()
     {
         // The hundredth half-move is checkmate, which takes precedence over the fifty-move rule
-        SearchResult result = NewSearcher().Search(Board.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 99 1"), SearchLimits.ForDepth(3));
+        SearchResult result = NewSearcher().Search(Position.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 99 1"), SearchLimits.ForDepth(3));
         Assert.Equal("d1d8", result.BestMove.ToUci());
         Assert.True(result.IsMateScore);
         // Without the mate (and without pawn moves to reset the clock) every line is a draw
-        SearchResult drawn = NewSearcher().Search(Board.FromFen("6k1/8/8/8/8/8/8/R5K1 w - - 99 1"), SearchLimits.ForDepth(3));
+        SearchResult drawn = NewSearcher().Search(Position.FromFen("6k1/8/8/8/8/8/8/R5K1 w - - 99 1"), SearchLimits.ForDepth(3));
         Assert.Equal(Searcher.DrawScore, drawn.Score);
     }
 
@@ -115,7 +115,7 @@ public class SearchTests
     {
         // With a node budget too small to finish depth 1, the mating move is found early enough
         // (captures and checks are ordered first) that it must still be the answer
-        SearchResult result = NewSearcher().Search(Board.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"), new SearchLimits { Nodes = 12 });
+        SearchResult result = NewSearcher().Search(Position.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1"), new SearchLimits { Nodes = 12 });
         Assert.False(result.BestMove.IsNone);
         Assert.Equal(0, result.Depth);
     }
@@ -123,9 +123,9 @@ public class SearchTests
     [Fact]
     public void SearchIsDeterministic()
     {
-        var board = Board.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-        SearchResult first = NewSearcher().Search(board, SearchLimits.ForDepth(4));
-        SearchResult second = NewSearcher().Search(board, SearchLimits.ForDepth(4));
+        var position = Position.FromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+        SearchResult first = NewSearcher().Search(position, SearchLimits.ForDepth(4));
+        SearchResult second = NewSearcher().Search(position, SearchLimits.ForDepth(4));
         Assert.Equal(first.BestMove, second.BestMove);
         Assert.Equal(first.Score, second.Score);
         Assert.Equal(first.Nodes, second.Nodes);
@@ -135,12 +135,12 @@ public class SearchTests
     [Fact]
     public void SearchDependsOnlyOnThePositionNotOnHowItWasReached()
     {
-        var viaOneOrder = Board.StartPosition();
+        var viaOneOrder = Position.Start();
         foreach (string uci in new[] { "e2e4", "e7e6", "d2d4", "d7d5", "b1c3", "f8b4", "e4e5", "c7c5" })
         {
             viaOneOrder.MakeMove(BoardTestHelpers.Move(viaOneOrder, uci));
         }
-        var viaOtherOrder = Board.StartPosition();
+        var viaOtherOrder = Position.Start();
         foreach (string uci in new[] { "d2d4", "e7e6", "b1c3", "d7d5", "e2e4", "f8b4", "e4e5", "c7c5" })
         {
             viaOtherOrder.MakeMove(BoardTestHelpers.Move(viaOtherOrder, uci));
@@ -157,7 +157,7 @@ public class SearchTests
     {
         for (int nodes = 1; nodes <= 40; nodes += 13)
         {
-            SearchResult result = NewSearcher().Search(Board.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq d3 0 3"), new SearchLimits { Nodes = nodes });
+            SearchResult result = NewSearcher().Search(Position.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq d3 0 3"), new SearchLimits { Nodes = nodes });
             Assert.Equal(result.BestMove, result.PrincipalVariation[0]);
         }
     }
@@ -165,24 +165,24 @@ public class SearchTests
     [Fact]
     public void LeavesTheCallersBoardUntouched()
     {
-        var board = Board.StartPosition();
-        board.MakeMove(BoardTestHelpers.Move(board, "e2e4"));
-        string fen = board.ToFen();
-        NewSearcher().Search(board, SearchLimits.ForDepth(3));
-        Assert.Equal(fen, board.ToFen());
-        Assert.Equal(1, board.Ply);
+        var position = Position.Start();
+        position.MakeMove(BoardTestHelpers.Move(position, "e2e4"));
+        string fen = position.ToFen();
+        NewSearcher().Search(position, SearchLimits.ForDepth(3));
+        Assert.Equal(fen, position.ToFen());
+        Assert.Equal(1, position.Ply);
     }
 
     [Fact]
     public void PrincipalVariationIsLegal()
     {
-        var board = Board.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
-        SearchResult result = NewSearcher().Search(board, SearchLimits.ForDepth(4));
+        var position = Position.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3");
+        SearchResult result = NewSearcher().Search(position, SearchLimits.ForDepth(4));
         Assert.Equal(result.BestMove, result.PrincipalVariation[0]);
-        Board replay = board.Clone();
+        Position replay = position.Clone();
         foreach (Move move in result.PrincipalVariation)
         {
-            Assert.Contains(move, MoveGenerator.GenerateLegalMoves(replay));
+            Assert.Contains(move, replay.GenerateLegalMoves());
             replay.MakeMove(move);
         }
     }
@@ -191,7 +191,7 @@ public class SearchTests
     public void HonoursDepthLimitAndReportsProgress()
     {
         var depths = new List<int>();
-        SearchResult result = NewSearcher().Search(Board.StartPosition(), SearchLimits.ForDepth(3), onProgress: p => depths.Add(p.Depth));
+        SearchResult result = NewSearcher().Search(Position.Start(), SearchLimits.ForDepth(3), onProgress: p => depths.Add(p.Depth));
         Assert.Equal([1, 2, 3], depths);
         Assert.Equal(3, result.Depth);
         Assert.True(result.Nodes > 0);
@@ -200,7 +200,7 @@ public class SearchTests
     [Fact]
     public void HonoursNodeLimit()
     {
-        SearchResult result = NewSearcher().Search(Board.StartPosition(), new SearchLimits { Nodes = 5000, Depth = 20 });
+        SearchResult result = NewSearcher().Search(Position.Start(), new SearchLimits { Nodes = 5000, Depth = 20 });
         Assert.InRange(result.Nodes, 1, 5000 + 1);
         Assert.False(result.BestMove.IsNone);
         Assert.True(result.Depth < 20);
@@ -210,7 +210,7 @@ public class SearchTests
     public void HonoursMoveTime()
     {
         var started = System.Diagnostics.Stopwatch.StartNew();
-        SearchResult result = NewSearcher().Search(Board.StartPosition(), SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(150)));
+        SearchResult result = NewSearcher().Search(Position.Start(), SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(150)));
         started.Stop();
         Assert.False(result.BestMove.IsNone);
         Assert.InRange(started.ElapsedMilliseconds, 0, 1500);
@@ -221,7 +221,7 @@ public class SearchTests
     {
         using var cancellation = new CancellationTokenSource();
         Searcher searcher = NewSearcher();
-        Task<SearchResult> search = Task.Run(() => searcher.Search(Board.StartPosition(), new SearchLimits { Infinite = true }, cancellationToken: cancellation.Token));
+        Task<SearchResult> search = Task.Run(() => searcher.Search(Position.Start(), new SearchLimits { Infinite = true }, cancellationToken: cancellation.Token));
         await Task.Delay(100);
         Assert.False(search.IsCompleted);
         cancellation.Cancel();
@@ -233,7 +233,7 @@ public class SearchTests
     public void FindsMateInTwoAtDepthThree()
     {
         // Nf6+ gxf6 Bxf7#: three plies, with the mated side's lack of moves seen by the check extension
-        SearchResult result = NewSearcher().Search(Board.FromFen("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1"), SearchLimits.ForDepth(3));
+        SearchResult result = NewSearcher().Search(Position.FromFen("r2qkb1r/pp2nppp/3p4/2pNN1B1/2BnP3/3P4/PPP2PPP/R2bK2R w KQkq - 1 1"), SearchLimits.ForDepth(3));
         Assert.True(result.IsMateScore, $"score was {result.Score}");
         Assert.Equal(2, result.MateIn);
         Assert.Equal("d5f6", result.BestMove.ToUci());
@@ -242,7 +242,7 @@ public class SearchTests
     [Fact]
     public void EitherBackRankMateIsFound()
     {
-        SearchResult result = NewSearcher().Search(Board.FromFen("6k1/5ppp/8/8/8/8/5PPP/3RR1K1 w - - 0 1"), SearchLimits.ForDepth(2));
+        SearchResult result = NewSearcher().Search(Position.FromFen("6k1/5ppp/8/8/8/8/5PPP/3RR1K1 w - - 0 1"), SearchLimits.ForDepth(2));
         Assert.True(result.IsMateScore, $"score was {result.Score}");
         Assert.Contains(result.BestMove.ToUci(), new[] { "d1d8", "e1e8" });
     }
@@ -263,8 +263,8 @@ public class SearchTests
 
 internal static class BoardTestHelpers
 {
-    public static Move Move(Board board, string uci)
+    public static Move Move(Position position, string uci)
     {
-        return MoveGenerator.GenerateLegalMoves(board).Single(m => m.ToUci() == uci);
+        return position.GenerateLegalMoves().Single(m => m.ToUci() == uci);
     }
 }

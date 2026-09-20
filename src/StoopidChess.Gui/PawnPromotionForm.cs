@@ -1,4 +1,5 @@
 using StoopidChess.Core;
+using Color = StoopidChess.Core.Color;   // The chess colour, not System.Drawing.Color
 
 namespace StoopidChess.Gui;
 
@@ -11,7 +12,7 @@ internal sealed class PawnPromotionForm : Form
     private const int ImageSize = 64;
     private const int Gap = 12;
 
-    public PawnPromotionForm(Colour colour)
+    public PawnPromotionForm(Color color)
     {
         Text = "Promote pawn to";
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -23,11 +24,11 @@ internal sealed class PawnPromotionForm : Form
         AutoScaleMode = AutoScaleMode.Dpi;
 
         int x = Gap;
-        foreach (PieceType type in PieceTypeExtensions.PromotionTypes)
+        foreach (Piece type in PieceExtensions.PromotionTypes)
         {
             var picture = new PictureBox
             {
-                Image = PieceImages.Get(colour, type),
+                Image = PieceImages.Get(color, type),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Location = new Point(x, Gap),
                 Size = new Size(ImageSize, ImageSize),
@@ -46,5 +47,5 @@ internal sealed class PawnPromotionForm : Form
         ClientSize = new Size(x, ImageSize + (2 * Gap));
     }
 
-    public PieceType Choice { get; private set; } = PieceType.Queen;
+    public Piece Choice { get; private set; } = Piece.Queen;
 }

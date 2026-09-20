@@ -160,10 +160,10 @@ public readonly record struct Bitboard
     public Bitboard SouthWest() => new((bits & ~FileAMask) >> 9);
 
     /// <summary>
-    /// The set shifted one rank towards the colour's opponent: north for white, south for black.
+    /// The set shifted one rank towards the color's opponent: north for white, south for black.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard Forward(Colour colour) => colour == Colour.White ? North() : South();
+    public Bitboard Forward(Color color) => color == Color.White ? North() : South();
 
     public Enumerator GetEnumerator() => new(bits);
 

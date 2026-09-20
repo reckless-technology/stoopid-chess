@@ -41,21 +41,21 @@ static int RunPerft(int maxMillionNodes)
     var stopwatch = Stopwatch.StartNew();
     long totalNodes = 0;
     int failures = 0;
-    foreach (PerftPosition position in Perft.StandardPositions)
+    foreach (PerftPosition entry in Perft.StandardPositions)
     {
-        var board = Board.FromFen(position.Fen);
-        foreach ((int depth, long expected) in position.Depths)
+        var position = Position.FromFen(entry.Fen);
+        foreach ((int depth, long expected) in entry.Depths)
         {
             if (expected > budget)
             {
                 break;
             }
-            long actual = Perft.Count(board, depth);
+            long actual = Perft.Count(position, depth);
             totalNodes += actual;
             if (actual != expected)
             {
                 failures++;
-                Console.WriteLine($"FAIL {position.Fen} depth {depth}: expected {expected} got {actual}");
+                Console.WriteLine($"FAIL {entry.Fen} depth {depth}: expected {expected} got {actual}");
             }
         }
     }

@@ -1,5 +1,9 @@
 # Architecture review and proposals (September 2026)
 
+> Names have changed since this was written (September 2026): `Board` is now `Position`, which also holds
+> move generation and position editing; `Colour` is `Color` and `PieceType` is `Piece`; `MoveGenerator`,
+> `MoveNotation` and `PositionBuilder` no longer exist. The text below keeps the names of its time.
+
 A high-level review of the restructured code (commit `b23d537`), combining the author's own
 assessment with an independent architect's pass. The verdict first: the four-project cut is right,
 every dependency points the right way, and the 0-40 result against pawnstar is a search-technique
@@ -31,9 +35,9 @@ without structural change:
 
 | Feature | Where it goes | What it needs |
 |---|---|---|
-| Null-move pruning | top of `AlphaBeta` after the TT probe | `Board.MakeNullMove`/`UnmakeNullMove` (~30 lines in Core) |
+| Null-move pruning | top of `AlphaBeta` after the TT probe | `Position.MakeNullMove`/`UnmakeNullMove` (~30 lines in Core) |
 | Late move reductions, late move pruning | the move loop | a move index and `IsQuiet` |
-| History heuristic | `ScoreMove` | `int[colour, from, to]` updated beside `RecordKiller` |
+| History heuristic | `ScoreMove` | `int[color, from, to]` updated beside `RecordKiller` |
 | Aspiration windows | the iterative deepening loop | `SearchRoot` taking alpha/beta |
 | TT probe and delta pruning in quiescence | `Quiescence` | nothing |
 | Check extension by "gives check" | move loop | `MoveGenerator.GivesCheck` |
@@ -45,22 +49,22 @@ About 280 lines. Every step changes the bench signature (expected) and must be j
 
 Cheap speed within the current design (~40 lines, guarded by perft and bench):
 
-- `Board.SquaresOf` returns `IReadOnlyList<int>`, so every `foreach` in generation, evaluation and
+- `Position.SquaresOf` returns `IReadOnlyList<int>`, so every `foreach` in generation, evaluation and
   attack detection boxes an enumerator at every node. Return `ReadOnlySpan<int>` via
   `CollectionsMarshal.AsSpan`.
 - The public indexer range-checks on every ray step; add an internal unchecked accessor for the
   generator and evaluator.
 - `Squares.IsOnBoard` tests two masks where `(square & ~0x77) == 0` already implies the second.
-- Maintain the material and piece-square score incrementally in `Board.MakeMove` rather than
+- Maintain the material and piece-square score incrementally in `Position.MakeMove` rather than
   summing the piece lists at every evaluation.
 
 ## Simplifications (do now, low risk)
 
-1. **`PositionBuilder` replaces editing on `Board`.** `SetPiece`, `SetSideToMove`, `Empty()` and
+1. **`PositionBuilder` replaces editing on `Position`.** `SetPiece`, `SetSideToMove`, `Empty()` and
    `EditCount` exist only for the GUI's position editor, yet they sit on the search workhorse and
    forced `Game` to defend itself three ways (refusing `Ply != 0`, a cache keyed on key, ply and
-   edit count, and review item 33). A Core `PositionBuilder` with `From(Board)`, `Set(square,
-   piece)`, `SideToMove`, `CastlingRights`, `IsLegal` and `Build()` leaves `Board` mutable only by
+   edit count, and review item 33). A Core `PositionBuilder` with `From(Position)`, `Set(square,
+   piece)`, `SideToMove`, `CastlingRights`, `IsLegal` and `Build()` leaves `Position` mutable only by
    `MakeMove`/`UnmakeMove`, collapses `Game`'s cache to plain invalidation on its own moves, and
    turns the GUI's `editedBoard` into `PositionBuilder? editing`. Roughly line-neutral; removes a
    whole class of invariant bugs.
@@ -89,7 +93,7 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
 8. **`GameController` in a cross-platform `StoopidChess.Play` project** (done: `MainForm` is now ~470 lines of drawing, mouse and menus; 13 controller tests run on the Linux CI job). `MainForm.cs` (860 lines)
    mixes engine lifecycle, the game state machine, editing, drawing, mouse and menus, and every GUI
    bug the adversarial passes found lived in the untested state machine. A controller owning
-   `Game`, the engine client, `humanColour`, `level`, the thinking state and generation counter,
+   `Game`, the engine client, `humanColor`, `level`, the thinking state and generation counter,
    the clocks and the editor, with events for changes and engine loss, leaves `MainForm` as paint,
    drag and menus (~400 lines). Putting it, `Level` and `SavedGame` in a small non-Windows project
    lets the Linux CI job test it against the in-process engine: new game and undo during a search,
@@ -106,10 +110,10 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
 
 ## Not recommended
 
-- **Bitboards now.** (Superseded: done in September 2026 once the search work below had landed; see `BITBOARDS.md`.) Rewriting `Board`, `MoveGenerator` and `Evaluator` (~1,000 lines) with perft
+- **Bitboards now.** (Superseded: done in September 2026 once the search work below had landed; see `BITBOARDS.md`.) Rewriting `Position`, `MoveGenerator` and `Evaluator` (~1,000 lines) with perft
   as the safety net is feasible but returns about one ply. Revisit only if profiling after the
   search work shows attack detection dominating, or when SEE, mobility and king-safety terms are
-  wanted, which is where attack maps genuinely pay. The Core boundary means a bitboard `Board`
+  wanted, which is where attack maps genuinely pay. The Core boundary means a bitboard `Position`
   could replace the current one without touching Engine, UCI or GUI code beyond the generator API.
 - **A separate UCI client project, an in-process engine interface, or replacing the pipes.** See
   "what is right".
@@ -118,7 +122,7 @@ Cheap speed within the current design (~40 lines, guarded by perft and bench):
 
 ## Testing and CI
 
-The structure is right and needs no change now. Evaluation symmetry under colour flip and the
+The structure is right and needs no change now. Evaluation symmetry under color flip and the
 `FormatGo`/`ParseGo` round trip are already tested. Add `GameControllerTests` when item 8 lands. A
 nightly fastchess job is worth it only once opponent binaries are checked in or fetched.
 
@@ -128,7 +132,7 @@ nightly fastchess job is worth it only once opponent binaries are checked in or 
 |---|---|---|---|---|---|
 | 1 | Null move, LMR, history, TT in quiescence (done); aspiration windows (tried, no gain) | capability | ~280 lines | signature churn; judge by match | done |
 | 2 | Span piece lists, unchecked indexer (done; incremental PST score not done, it would couple Core to the evaluator) | capability | ~60 | low | done |
-| 3 | `PositionBuilder`; strip editing from `Board` and `Game` | simplification | neutral | low | done |
+| 3 | `PositionBuilder`; strip editing from `Position` and `Game` | simplification | neutral | low | done |
 | 4 | Merge result records, trim statistics, dialogs to `MessageBox`, Designer names | simplification | about -300 | low | done |
 | 5 | Compact `Move`, 16-byte TT entry, drop secondary key | capability | ~200 | medium | done |
 | 6 | `GameController` in `StoopidChess.Play` with tests | capability | ~550 | medium | done |

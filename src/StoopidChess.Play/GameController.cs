@@ -31,12 +31,12 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// The position being edited while it is not yet legal; null otherwise.
     /// </summary>
-    public PositionBuilder? Editing { get; private set; }
+    public Position? Editing { get; private set; }
 
     /// <summary>
-    /// The side the human plays; <see cref="Colour.None"/> when the engine plays itself.
+    /// The side the human plays; <see cref="Color.None"/> when the engine plays itself.
     /// </summary>
-    public Colour HumanColour { get; private set; } = Colour.White;
+    public Color HumanColor { get; private set; } = Color.White;
 
     public Level Level { get; set; } = Level.Easy;
 
@@ -75,13 +75,13 @@ public sealed class GameController : IDisposable
 
     public bool IsEditing => Editing is not null;
 
-    public bool IsEngineTurn => !IsEditing && !Game.IsOver && (HumanColour == Colour.None || Game.SideToMove != HumanColour);
+    public bool IsEngineTurn => !IsEditing && !Game.IsOver && (HumanColor == Color.None || Game.SideToMove != HumanColor);
 
-    public bool IsHumanTurn => !IsEditing && !Game.IsOver && Game.SideToMove == HumanColour && !IsThinking;
+    public bool IsHumanTurn => !IsEditing && !Game.IsOver && Game.SideToMove == HumanColor && !IsThinking;
 
-    public Colour SideToMove => Editing?.SideToMove ?? Game.SideToMove;
+    public Color SideToMove => Editing?.SideToMove ?? Game.SideToMove;
 
-    public (Colour Colour, PieceType Type) PieceAt(Square square) => Editing is null ? Game.Board[square] : Editing[square];
+    public (Color Color, Piece Type) PieceAt(Square square) => Editing is null ? Game.Position[square] : Editing[square];
 
     /// <summary>
     /// Raised after any change to the game, the editor, the engine or the thinking state.
@@ -287,14 +287,14 @@ public sealed class GameController : IDisposable
     // Playing
     // ---------------------------------------------------------------------------------------------
 
-    public void NewGame(Colour human)
+    public void NewGame(Color human)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         CancelThinking(discardResult: true);
         Game = new Game();
         Editing = null;
-        HumanColour = human;
-        IsBoardFlipped = human == Colour.Black;
+        HumanColor = human;
+        IsBoardFlipped = human == Color.Black;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
         Resume();
@@ -311,7 +311,7 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// Make the human's move if it is legal and it is the human's turn.
     /// </summary>
-    public bool TryHumanMove(Square from, Square to, PieceType promotion = PieceType.None)
+    public bool TryHumanMove(Square from, Square to, Piece promotion = Piece.None)
     {
         if (!IsHumanTurn)
         {
@@ -353,7 +353,7 @@ public sealed class GameController : IDisposable
         }
         CancelThinking(discardResult: true);
         Game.UndoMove();
-        if (HumanColour != Colour.None && Game.SideToMove != HumanColour)
+        if (HumanColor != Color.None && Game.SideToMove != HumanColor)
         {
             Game.UndoMove();
         }
@@ -361,16 +361,16 @@ public sealed class GameController : IDisposable
     }
 
     /// <summary>
-    /// The human takes over the other colour. Nothing happens in an engine-versus-engine game.
+    /// The human takes over the other color. Nothing happens in an engine-versus-engine game.
     /// </summary>
     public void SwitchSides()
     {
-        if (HumanColour == Colour.None)
+        if (HumanColor == Color.None)
         {
             return;
         }
-        HumanColour = HumanColour.Opponent();
-        IsBoardFlipped = HumanColour == Colour.Black;
+        HumanColor = HumanColor.Opponent();
+        IsBoardFlipped = HumanColor == Color.Black;
         if (IsEngineTurn)
         {
             Resume();
@@ -391,40 +391,42 @@ public sealed class GameController : IDisposable
     // Position editing
     // ---------------------------------------------------------------------------------------------
 
-    public void EditSquare(Square square, (Colour Colour, PieceType Type) piece)
+    public void EditSquare(Square square, (Color Color, Piece Type) piece)
     {
-        PositionBuilder builder = Editing ?? PositionBuilder.From(Game.Board);
-        builder[square] = piece;
-        ApplyEdit(builder);
+        Position editing = Editing ?? Position.Setup(Game.Position);
+        editing.Place(square, piece);
+        ApplyEdit(editing);
     }
 
-    public void SetSideToMove(Colour colour)
+    public void SetSideToMove(Color color)
     {
-        if (SideToMove == colour)
+        if (SideToMove == color)
         {
             return;
         }
-        PositionBuilder builder = Editing ?? PositionBuilder.From(Game.Board);
-        builder.SideToMove = colour;
-        ApplyEdit(builder);
+        Position editing = Editing ?? Position.Setup(Game.Position);
+        editing.SetSideToMove(color);
+        ApplyEdit(editing);
     }
 
     public void ClearBoard()
     {
-        ApplyEdit(new PositionBuilder { SideToMove = SideToMove });
+        Position empty = Position.Empty();
+        empty.SetSideToMove(SideToMove);
+        ApplyEdit(empty);
     }
 
-    private void ApplyEdit(PositionBuilder builder)
+    private void ApplyEdit(Position editing)
     {
         CancelThinking(discardResult: true);
-        if (builder.TryBuild() is Board board)
+        if (editing.IsLegal)
         {
-            Game = new Game(board);
+            Game = new Game(editing);
             Editing = null;
         }
         else
         {
-            Editing = builder;
+            Editing = editing;
         }
         Resume();
     }
@@ -443,7 +445,7 @@ public sealed class GameController : IDisposable
         {
             return;
         }
-        if (Game.SideToMove == Colour.White)
+        if (Game.SideToMove == Color.White)
         {
             WhiteClock += elapsed;
         }
@@ -464,7 +466,7 @@ public sealed class GameController : IDisposable
     /// </summary>
     public SavedGame? Save()
     {
-        return IsEditing ? null : SavedGame.FromGame(Game, HumanColour, IsBoardFlipped, Level);
+        return IsEditing ? null : SavedGame.FromGame(Game, HumanColor, IsBoardFlipped, Level);
     }
 
     /// <summary>
@@ -481,7 +483,7 @@ public sealed class GameController : IDisposable
         CancelThinking(discardResult: true);
         Game = loaded;
         Editing = null;
-        HumanColour = saved.HumanColour;
+        HumanColor = saved.HumanColor;
         IsBoardFlipped = saved.IsBoardFlipped;
         Level = saved.Level;
         ResetClocks();

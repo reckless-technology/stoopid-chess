@@ -15,22 +15,22 @@ public sealed record PerftPosition(string Fen, IReadOnlyList<(int Depth, long No
 /// </summary>
 public static class Perft
 {
-    public static long Count(Board board, int depth)
+    public static long Count(Position position, int depth)
     {
-        ArgumentNullException.ThrowIfNull(board);
+        ArgumentNullException.ThrowIfNull(position);
         if (depth <= 0)
         {
             return 1;
         }
         // One move list per depth, reused across the whole tree
-        return Count(board, depth, new MoveList[depth]);
+        return Count(position, depth, new MoveList[depth]);
     }
 
-    private static long Count(Board board, int depth, MoveList[] lists)
+    private static long Count(Position position, int depth, MoveList[] lists)
     {
         ref MoveList moves = ref lists[depth - 1];
         moves.Clear();
-        MoveGenerator.GenerateLegalMoves(board, ref moves);
+        position.GenerateLegalMoves(ref moves);
         if (depth == 1)
         {
             return moves.Count;
@@ -38,9 +38,9 @@ public static class Perft
         long nodes = 0;
         foreach (Move move in moves)
         {
-            board.MakeMove(move);
-            nodes += Count(board, depth - 1, lists);
-            board.UnmakeMove();
+            position.MakeMove(move);
+            nodes += Count(position, depth - 1, lists);
+            position.UnmakeMove();
         }
         return nodes;
     }
@@ -48,14 +48,14 @@ public static class Perft
     /// <summary>
     /// The node count beneath each root move, as printed by "go perft" in most engines.
     /// </summary>
-    public static IEnumerable<(Move Move, long Nodes)> Divide(Board board, int depth)
+    public static IEnumerable<(Move Move, long Nodes)> Divide(Position position, int depth)
     {
-        ArgumentNullException.ThrowIfNull(board);
-        foreach (Move move in MoveGenerator.GenerateLegalMoves(board).ToArray())
+        ArgumentNullException.ThrowIfNull(position);
+        foreach (Move move in position.GenerateLegalMoves().ToArray())
         {
-            board.MakeMove(move);
-            long nodes = Count(board, depth - 1);
-            board.UnmakeMove();
+            position.MakeMove(move);
+            long nodes = Count(position, depth - 1);
+            position.UnmakeMove();
             yield return (move, nodes);
         }
     }

@@ -50,7 +50,7 @@ public sealed record SearchLimits
     /// the increment added, less a small allowance for communication overhead, and never more than
     /// most of the clock.
     /// </summary>
-    public TimeSpan? TimeBudget(Colour sideToMove)
+    public TimeSpan? TimeBudget(Color sideToMove)
     {
         if (Infinite)
         {
@@ -60,13 +60,13 @@ public sealed record SearchLimits
         {
             return MoveTime;
         }
-        TimeSpan? remaining = sideToMove == Colour.White ? WhiteTime : BlackTime;
+        TimeSpan? remaining = sideToMove == Color.White ? WhiteTime : BlackTime;
         if (remaining is null)
         {
             return null;
         }
         TimeSpan clock = AtLeastZero(remaining.Value);
-        TimeSpan increment = AtLeastZero((sideToMove == Colour.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero);
+        TimeSpan increment = AtLeastZero((sideToMove == Color.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero);
         int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 20;
         TimeSpan budget = (clock / movesToGo) + (increment * 0.8);
         TimeSpan cap = clock * 0.8;
@@ -81,7 +81,7 @@ public sealed record SearchLimits
     /// <summary>
     /// The most a single move may take when the search is extended: most of the clock, so that it never flags.
     /// </summary>
-    public TimeSpan? TimeCap(Colour sideToMove)
+    public TimeSpan? TimeCap(Color sideToMove)
     {
         if (Infinite)
         {
@@ -91,7 +91,7 @@ public sealed record SearchLimits
         {
             return MoveTime;
         }
-        TimeSpan? remaining = sideToMove == Colour.White ? WhiteTime : BlackTime;
+        TimeSpan? remaining = sideToMove == Color.White ? WhiteTime : BlackTime;
         if (remaining is null)
         {
             return null;

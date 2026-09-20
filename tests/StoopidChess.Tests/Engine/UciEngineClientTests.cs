@@ -58,7 +58,7 @@ public class UciEngineClientTests
     {
         using var client = UciEngineClient.StartInProcess();
         await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
-        client.SetPosition(Board.StartFen, []);
+        client.SetPosition(Position.StartFen, []);
         using var cancellation = new CancellationTokenSource();
         Task<string> search = client.GoAsync(new SearchLimits { Infinite = true }, cancellation.Token);
         await Task.Delay(100);
@@ -73,7 +73,7 @@ public class UciEngineClientTests
     {
         using var client = UciEngineClient.StartInProcess();
         await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
-        client.SetPosition(Board.StartFen, []);
+        client.SetPosition(Position.StartFen, []);
         Task<string> search = client.GoAsync(new SearchLimits { Infinite = true });
         Assert.Throws<InvalidOperationException>(() => { _ = client.GoAsync(SearchLimits.ForDepth(1)); });
         client.Stop();
@@ -98,7 +98,7 @@ public class UciEngineClientTests
         using var client = UciEngineClient.StartInProcess();
         await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         client.InfoReceived += (_, _) => throw new FormatException("handler bug");
-        client.SetPosition(Board.StartFen, []);
+        client.SetPosition(Position.StartFen, []);
         string best = await client.GoAsync(SearchLimits.ForDepth(2)).WaitAsync(Timeout);
         Assert.NotEqual("0000", best);
         Assert.False(client.HasExited);
@@ -110,8 +110,8 @@ public class UciEngineClientTests
         // Format check through the session parser: startpos and fen forms both reproduce the position
         using var session = new UciSession(new StringReader(""), new StringWriter());
         session.HandleCommand("position startpos moves d2d4 d7d5");
-        string viaStartpos = session.Board.ToFen();
-        session.HandleCommand($"position fen {Board.StartFen} moves d2d4 d7d5");
-        Assert.Equal(viaStartpos, session.Board.ToFen());
+        string viaStartpos = session.Position.ToFen();
+        session.HandleCommand($"position fen {Position.StartFen} moves d2d4 d7d5");
+        Assert.Equal(viaStartpos, session.Position.ToFen());
     }
 }

@@ -26,7 +26,7 @@ public sealed class UciSession : IDisposable
     private readonly TranspositionTable table = new();
     private readonly Searcher searcher;
     private readonly Evaluator evaluator = new();
-    private Board board = Board.StartPosition();
+    private Position position = Position.Start();
     private Task? searchTask;
     private CancellationTokenSource? searchCancellation;
     private bool disposed;
@@ -46,7 +46,7 @@ public sealed class UciSession : IDisposable
     /// <summary>
     /// The current position, as set by the last "position" command.
     /// </summary>
-    public Board Board => board;
+    public Position Position => position;
 
     public bool IsSearching => searchTask is { IsCompleted: false };
 
@@ -112,13 +112,13 @@ public sealed class UciSession : IDisposable
                 return false;
             case "d":
                 StopSearch();
-                WriteLine(board.ToString());
-                WriteLine($"fen {board.ToFen()}");
-                WriteLine($"key {board.Key:X16}");
+                WriteLine(position.ToString());
+                WriteLine($"fen {position.ToFen()}");
+                WriteLine($"key {position.Key:X16}");
                 break;
             case "eval":
                 StopSearch();
-                WriteLine($"eval {evaluator.Evaluate(board)} cp (side to move)");
+                WriteLine($"eval {evaluator.Evaluate(position)} cp (side to move)");
                 break;
             case "perft":
                 StopSearch();
@@ -160,20 +160,20 @@ public sealed class UciSession : IDisposable
     {
         int movesIndex = Array.IndexOf(tokens, "moves");
         int fenEnd = movesIndex < 0 ? tokens.Length : movesIndex;
-        Board start;
+        Position start;
         if (tokens.Length > 1 && tokens[1] == "startpos")
         {
-            start = Board.StartPosition();
+            start = Position.Start();
         }
         else if (tokens.Length > 2 && tokens[1] == "fen")
         {
             string fen = string.Join(' ', tokens, 2, fenEnd - 2);
-            if (Fen.TryParse(fen) is not Board parsed)
+            if (Fen.TryParse(fen) is not Position parsed)
             {
                 WriteLine($"info string invalid fen '{fen}'");
                 return;
             }
-            if (!MoveGenerator.IsPositionLegal(parsed))
+            if (!parsed.IsLegal)
             {
                 WriteLine($"info string illegal position '{fen}'");
                 return;
@@ -193,19 +193,19 @@ public sealed class UciSession : IDisposable
                 break;
             }
         }
-        board = game.Board;
+        position = game.Position;
     }
 
     private void Go(SearchLimits limits)
     {
-        Board position = board.Clone();
+        Position root = position.Clone();
         searchCancellation = new CancellationTokenSource();
         CancellationToken token = searchCancellation.Token;
         searchTask = Task.Run(() =>
         {
             try
             {
-                SearchResult result = searcher.Search(position, limits, WriteProgress, token);
+                SearchResult result = searcher.Search(root, limits, WriteProgress, token);
                 WriteLine($"bestmove {result.BestMove}");
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -281,7 +281,7 @@ public sealed class UciSession : IDisposable
     {
         var stopwatch = Stopwatch.StartNew();
         long total = 0;
-        foreach ((Move move, long nodes) in Perft.Divide(board, depth))
+        foreach ((Move move, long nodes) in Perft.Divide(position, depth))
         {
             WriteLine($"{move}: {nodes}");
             total += nodes;

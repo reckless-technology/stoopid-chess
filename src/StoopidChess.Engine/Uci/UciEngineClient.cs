@@ -133,7 +133,7 @@ public sealed class UciEngineClient : IDisposable
     public void SetPosition(string startFen, IEnumerable<string> uciMoves)
     {
         ArgumentNullException.ThrowIfNull(uciMoves);
-        string position = startFen == Board.StartFen ? "startpos" : $"fen {startFen}";
+        string position = startFen == Position.StartFen ? "startpos" : $"fen {startFen}";
         string moves = string.Join(' ', uciMoves);
         Send(moves.Length == 0 ? $"position {position}" : $"position {position} moves {moves}");
     }

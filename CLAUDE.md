@@ -22,7 +22,7 @@ dotnet build src/StoopidChess.Uci -c Release                      # engine only,
 dotnet test tests/StoopidChess.Tests -c Release                   # the xunit suite, a few seconds
 dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
 dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
-dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Board and Searcher on
+dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Position and Searcher on
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Gui                         # the GUI
@@ -38,7 +38,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 1. **Move generation is guarded by perft.** `tests/.../PerftTests.cs` runs every one of the 128
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
-   perft count changes, the move generator is wrong, not the reference. `MoveGeneratorTests` also
+   perft count changes, the move generator is wrong, not the reference. `MoveGenerationTests` also
    cross-checks the legal generator against a naive reference generator and pins the en passant,
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
@@ -51,10 +51,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    variable `DOTNET_TieredCompilation=0`: the sub-second default bench is dominated by JIT warm-up and can invert a
    real speed difference. `EvaluatorRegressionTests` pins the static
    evaluation of eighteen positions, so a refactoring of the evaluator can prove it changed nothing.
-3. **Make/unmake must be exact.** `BoardTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
-   recomputes the keys after every random move. Anything that touches `Board`'s state must keep the
+3. **Make/unmake must be exact.** `PositionTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
+   recomputes the keys after every random move. Anything that touches `Position`'s state must keep the
    incremental keys, the bitboards, the square array and the history consistent;
-   `Board.ComputeKeys()` and `Board.IsConsistent()` are the oracles.
+   `Position.ComputeKeys()` and `Position.IsConsistent()` are the oracles.
 4. Strength changes should be checked by self-play or a match against another engine with
    `fastchess`: `tools/match.ps1 -Opponent <uci engine exe>` builds the engine and runs paired
    games from an openings file (defaults point at the copies under `C:\Users\jonny\tools`; both
@@ -117,30 +117,33 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   for table lookups and only an explicit one back (`new Square(i)`), so an `int` can never be
   mistaken for a square; `Square.Unchecked` is the internal no-validation constructor for hot
   paths. `Bitboard` is a readonly record struct over `ulong` with `& | ^ ~`, `Count`, `IsEmpty`,
-  `IsSingle`, `First`, `Contains`, the shifts (`North()`, `NorthEast()`, `Forward(colour)`), the
+  `IsSingle`, `First`, `Contains`, the shifts (`North()`, `NorthEast()`, `Forward(color)`), the
   file/rank/light-square constants, `Bitboard.Of(square)` and `foreach (Square s in set)` (a struct
   enumerator the JIT inlines; `Bitboard.PopFirst(ref set)` is the explicit form). `MoveList` is a
   fixed-capacity (256) struct holding its moves inline (an `[InlineArray]`), so generation
   allocates nothing: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`), order
   it through `AsSpan()`; it also implements `IEnumerable<Move>` for LINQ in tests. `Move` is a
-  readonly record struct (32 bits, `From`/`To` are `Square`s). There is no coloured-piece type: the
-  engine only ever needs `Colour` and `PieceType` separately, so where a caller wants both at once
-  (`Board[square]`, `PositionBuilder[square]`, `GameController.PieceAt`/`EditSquare`) it is a
-  `(Colour Colour, PieceType Type)` tuple whose default is an empty square, and
-  `PieceType.ToChar(colour)` gives the FEN letter. No `int` squares or raw `ulong` sets appear in
+  readonly record struct (32 bits, `From`/`To` are `Square`s). There is no colored-piece type: the
+  engine only ever needs `Color` and `Piece` separately, so where a caller wants both at once
+  (`Position[square]`, `Position.Place`, `GameController.PieceAt`/`EditSquare`) it is a
+  `(Color Color, Piece Type)` tuple whose default is an empty square, and
+  `Piece.ToChar(color)` gives the FEN letter. No `int` squares or raw `ulong` sets appear in
   any public API, including Play and the GUI.
-- **Core.** `Board` is a mutable position held as `Bitboard`s (per piece type and per colour plus
-  the occupancy) and a 64-entry `PieceType` array (a piece's colour comes from the colour
-  bitboards; make/unmake pass colour and type explicitly), with `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist
+- **Core.** `Position` is a mutable position held as `Bitboard`s (per piece type and per color plus
+  the occupancy) and a 64-entry `Piece` array (a piece's color comes from the color
+  bitboards; make/unmake pass color and type explicitly), with `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist
   and pawn keys, side to move, castling rights (lost by any move from or to a king or rook home
   square, see `CastlingRightsExtensions.LostBySquare`), en passant square, clocks, and `Checkers`
   (the pieces giving check, computed lazily and cached until the next move). `Attacks` holds the
   knight/king/pawn tables, `Between`/`Line` and the magic bitboard slider tables (pawnstar's magic
-  numbers; built at startup and verified). `MoveGenerator` is static, deterministic and generates
-  only legal moves into a `ref MoveList` (pins, check masks, en passant and castling resolved
-  during generation, following pawnstar); `GenerateLegalCaptures` serves quiescence. `Game` layers
+  numbers; built at startup and verified). Move generation is part of `Position` (`GenerateLegalMoves`,
+  `GenerateLegalCaptures` for quiescence, `IsLegal`): deterministic, and only legal moves into a `ref MoveList`
+  (pins, check masks, en passant and castling resolved during generation, following pawnstar). Everything
+  about a position, including make/unmake and the editing methods (`Empty`, `Setup`, `Place`, `Clear`,
+  `SetSideToMove`, `SetCastlingRights`, usable only before a move is made), lives in the single file
+  `Position.cs`. `Game` layers
   a legal-moves-only API, move history and `GameStatus` on top and is what the controller uses.
-  `Fen` and `MoveNotation` do text; `PositionBuilder` edits positions.
+  `Fen` does FEN text; `Move.ParseUci` and `Move.ToLongAlgebraic` do move text.
 - **Engine.** `Searcher` owns per-search state (killers, history, per-ply move lists, statistics) and
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
@@ -158,7 +161,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   `perft`.
 - **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the engine client,
   whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
-  position editing via `PositionBuilder`, clocks and save/load, and raises `Changed`,
+  position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), clocks and save/load, and raises `Changed`,
   `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
   caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. `Level` maps
   difficulty to `SearchLimits`; `SavedGame` is JSON with FEN + UCI moves.
@@ -172,6 +175,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 - .NET naming and idioms: PascalCase members, file-scoped namespaces, records for data,
   `ArgumentNullException.ThrowIfNull` on public entry points, `CancellationToken` last, nullable
   returns rather than `Try`/`out` pairs. No static mutable state; counters live in `SearchStatistics`.
+- American spelling in identifiers and comments: `Color`, not `Colour`.
 - Formatting follows `.editorconfig` (Allman braces, braces on every block, `var` only when the type
   is apparent, LF line endings). **All code is formatted with `dotnet format StoopidChess.slnx`
   before it is committed.** The pre-commit hook in `.githooks/pre-commit` refuses a commit that

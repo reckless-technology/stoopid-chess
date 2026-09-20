@@ -12,9 +12,9 @@ public static class Zobrist
     private const ulong Increment = 0x00000000B504F32D;
 
     private const int PieceTypes = 7;
-    private const int Colours = 3;
+    private const int Colors = 3;
 
-    private static readonly ulong[] Pieces = new ulong[Colours * PieceTypes * Square.Count];
+    private static readonly ulong[] Pieces = new ulong[Colors * PieceTypes * Square.Count];
     private static readonly ulong[] CastlingKeys = new ulong[16];
     private static readonly ulong[] EnPassantKeys = new ulong[Square.Count];
 
@@ -48,9 +48,9 @@ public static class Zobrist
     /// </summary>
     public static ulong SideToMove { get; }
 
-    public static ulong Piece(Colour colour, PieceType type, Square square)
+    public static ulong Piece(Color color, Piece type, Square square)
     {
-        return Pieces[((((int)colour * PieceTypes) + (int)type) * Square.Count) + square];
+        return Pieces[((((int)color * PieceTypes) + (int)type) * Square.Count) + square];
     }
 
     public static ulong Castling(CastlingRights rights) => CastlingKeys[(int)rights];

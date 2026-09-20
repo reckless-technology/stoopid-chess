@@ -23,24 +23,24 @@ public sealed class SavedGame
 
     public int Version { get; set; } = CurrentVersion;
 
-    public string StartFen { get; set; } = Board.StartFen;
+    public string StartFen { get; set; } = Position.StartFen;
 
     public IList<string> Moves { get; init; } = [];
 
-    public Colour HumanColour { get; set; } = Colour.White;
+    public Color HumanColor { get; set; } = Color.White;
 
     public bool IsBoardFlipped { get; set; }
 
     public Level Level { get; set; } = Level.Easy;
 
-    public static SavedGame FromGame(Game game, Colour humanColour, bool isBoardFlipped, Level level)
+    public static SavedGame FromGame(Game game, Color humanColor, bool isBoardFlipped, Level level)
     {
         ArgumentNullException.ThrowIfNull(game);
         return new SavedGame
         {
             StartFen = game.StartFen,
             Moves = [.. game.UciMoves],
-            HumanColour = humanColour,
+            HumanColor = humanColor,
             IsBoardFlipped = isBoardFlipped,
             Level = level,
         };
@@ -68,7 +68,7 @@ public sealed class SavedGame
             {
                 return null;
             }
-            if (saved.HumanColour is not (Colour.White or Colour.Black or Colour.None) || !Enum.IsDefined(saved.Level))
+            if (saved.HumanColor is not (Color.White or Color.Black or Color.None) || !Enum.IsDefined(saved.Level))
             {
                 return null;
             }
@@ -85,11 +85,11 @@ public sealed class SavedGame
     /// </summary>
     public Game? ToGame()
     {
-        if (Fen.TryParse(StartFen) is not Board board || !MoveGenerator.IsPositionLegal(board))
+        if (Fen.TryParse(StartFen) is not Position position || !position.IsLegal)
         {
             return null;
         }
-        var game = new Game(board);
+        var game = new Game(position);
         foreach (string move in Moves)
         {
             if (!game.TryMakeMove(move))

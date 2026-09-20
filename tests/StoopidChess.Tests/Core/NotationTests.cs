@@ -5,12 +5,12 @@ namespace StoopidChess.Tests.Core;
 public class NotationTests
 {
     [Theory]
-    [InlineData("e2e4", "e2", "e4", PieceType.None)]
-    [InlineData("e7e8q", "e7", "e8", PieceType.Queen)]
-    [InlineData("a2a1n", "a2", "a1", PieceType.Knight)]
-    public void ParsesUciMoves(string text, string from, string to, PieceType promotion)
+    [InlineData("e2e4", "e2", "e4", Piece.None)]
+    [InlineData("e7e8q", "e7", "e8", Piece.Queen)]
+    [InlineData("a2a1n", "a2", "a1", Piece.Knight)]
+    public void ParsesUciMoves(string text, string from, string to, Piece promotion)
     {
-        Assert.Equal((Square.Parse(from), Square.Parse(to), promotion), MoveNotation.ParseUci(text));
+        Assert.Equal((Square.Parse(from), Square.Parse(to), promotion), Move.ParseUci(text));
     }
 
     [Theory]
@@ -22,22 +22,22 @@ public class NotationTests
     [InlineData("0000")]
     public void RejectsMalformedUciMoves(string text)
     {
-        Assert.Null(MoveNotation.ParseUci(text));
+        Assert.Null(Move.ParseUci(text));
     }
 
     [Fact]
     public void WritesUciAndLongAlgebraic()
     {
-        var board = Board.FromFen("r3k2r/1P2p3/8/3pP3/8/8/8/R3K2R w KQkq d6 0 1");
-        var moves = MoveGenerator.GenerateLegalMoves(board).ToDictionary(m => m.ToUci());
-        Assert.Equal("O-O", MoveNotation.ToLongAlgebraic(moves["e1g1"]));
-        Assert.Equal("O-O-O", MoveNotation.ToLongAlgebraic(moves["e1c1"]));
-        Assert.Equal("e5xd6 e.p.", MoveNotation.ToLongAlgebraic(moves["e5d6"]));
-        Assert.Equal("b7xa8=Q", MoveNotation.ToLongAlgebraic(moves["b7a8q"]));
-        Assert.Equal("b7-b8=N", MoveNotation.ToLongAlgebraic(moves["b7b8n"]));
-        Assert.Equal("Ra1-b1", MoveNotation.ToLongAlgebraic(moves["a1b1"]));
-        Assert.Equal("Ke1-d2", MoveNotation.ToLongAlgebraic(moves["e1d2"]));
-        Assert.Equal("e5-e6", MoveNotation.ToLongAlgebraic(moves["e5e6"]));
+        var position = Position.FromFen("r3k2r/1P2p3/8/3pP3/8/8/8/R3K2R w KQkq d6 0 1");
+        var moves = position.GenerateLegalMoves().ToDictionary(m => m.ToUci());
+        Assert.Equal("O-O", moves["e1g1"].ToLongAlgebraic());
+        Assert.Equal("O-O-O", moves["e1c1"].ToLongAlgebraic());
+        Assert.Equal("e5xd6 e.p.", moves["e5d6"].ToLongAlgebraic());
+        Assert.Equal("b7xa8=Q", moves["b7a8q"].ToLongAlgebraic());
+        Assert.Equal("b7-b8=N", moves["b7b8n"].ToLongAlgebraic());
+        Assert.Equal("Ra1-b1", moves["a1b1"].ToLongAlgebraic());
+        Assert.Equal("Ke1-d2", moves["e1d2"].ToLongAlgebraic());
+        Assert.Equal("e5-e6", moves["e5e6"].ToLongAlgebraic());
         Assert.Equal("0000", Move.None.ToString());
     }
 
@@ -46,15 +46,15 @@ public class NotationTests
     {
         foreach (Square from in Square.All)
         {
-            foreach (PieceType promotion in new[] { PieceType.None, PieceType.Queen, PieceType.Knight })
+            foreach (Piece promotion in new[] { Piece.None, Piece.Queen, Piece.Knight })
             {
-                var move = new Move(from, Square.H8 - from + Square.A1, PieceType.Pawn, PieceType.Rook, MoveKind.Promotion, promotion);
+                var move = new Move(from, Square.H8 - from + Square.A1, Piece.Pawn, Piece.Rook, MoveKind.Promotion, promotion);
                 var unpacked = Move.FromBits(move.ToBits());
                 Assert.Equal(move, unpacked);
                 Assert.Equal(from, unpacked.From);
                 Assert.Equal(Square.H8 - from, unpacked.To);
-                Assert.Equal(PieceType.Pawn, unpacked.Piece);
-                Assert.Equal(PieceType.Rook, unpacked.Captured);
+                Assert.Equal(Piece.Pawn, unpacked.Piece);
+                Assert.Equal(Piece.Rook, unpacked.Captured);
                 Assert.Equal(MoveKind.Promotion, unpacked.Kind);
                 Assert.Equal(promotion, unpacked.Promotion);
             }
@@ -88,12 +88,12 @@ public class NotationTests
     {
         foreach (char c in "PNBRQKpnbrqk")
         {
-            PieceType type = PieceTypeExtensions.FromChar(c);
-            Assert.NotEqual(PieceType.None, type);
-            Assert.Equal(c, type.ToChar(char.IsUpper(c) ? Colour.White : Colour.Black));
+            Piece type = PieceExtensions.FromChar(c);
+            Assert.NotEqual(Piece.None, type);
+            Assert.Equal(c, type.ToChar(char.IsUpper(c) ? Color.White : Color.Black));
         }
-        Assert.Equal(PieceType.None, PieceTypeExtensions.FromChar('x'));
-        Assert.Equal('.', PieceType.None.ToChar(Colour.None));
-        Assert.Equal('.', PieceType.None.ToChar());
+        Assert.Equal(Piece.None, PieceExtensions.FromChar('x'));
+        Assert.Equal('.', Piece.None.ToChar(Color.None));
+        Assert.Equal('.', Piece.None.ToChar());
     }
 }

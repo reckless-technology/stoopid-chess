@@ -26,14 +26,14 @@ board cannot provide cheaply. Baseline before the change, single thread, Release
 `Name`, `Parse`, the `A1`..`H8` constants, `None = -1`) but a1 is 0, h1 is 7 and h8 is 63, so a
 square is a bit index. Everything that did 0x88 arithmetic (`PawnDirection` is now ±8, the
 generator's deltas, `Zobrist`'s 128-entry tables, the evaluator's 128-entry tables,
-`PositionBuilder`'s array, `Move`'s 7-bit square fields) follows. Callers that only use the
+the position editor's array, `Move`'s 7-bit square fields) follows. Callers that only use the
 `Squares` helpers (the GUI, the controller, FEN, notation) do not change.
 
-### Board: eight bitboards plus a mailbox
+### Position: eight bitboards plus a mailbox
 
 ```
-ulong[] byType    (indexed by PieceType, both colours)
-ulong[] byColour  (indexed by Colour)
+ulong[] byType    (indexed by Piece, both colors)
+ulong[] byColor  (indexed by Color)
 ulong   occupied
 Piece[] squares   (64-entry mailbox: what is on a square, for captures, FEN and the GUI)
 ```
@@ -41,8 +41,8 @@ Piece[] squares   (64-entry mailbox: what is on a square, for captures, FEN and 
 `PutPiece`/`RemovePiece` toggle the three bitboards, write the mailbox and XOR the Zobrist keys,
 exactly as before but without the `List<int>` piece lists. Public accessors:
 
-- `Pieces(colour, type)`, `Pieces(colour)`, `Pieces(type)`, `Occupied`, `Count(colour, type)`
-  (population count), `KingSquare(colour)`, `PieceCount`.
+- `Pieces(color, type)`, `Pieces(color)`, `Pieces(type)`, `Occupied`, `Count(color, type)`
+  (population count), `KingSquare(color)`, `PieceCount`.
 - `Checkers`: the enemy pieces attacking the side to move's king, computed lazily and cached until
   the next make/unmake. `IsInCheck => Checkers != 0`. `AttackersTo(square, by)`.
 - Gone: `SquaresOf` (iterate a bitboard instead) and `NormalisePieceOrder` (bitboard iteration is
@@ -63,7 +63,7 @@ exactly as before but without the `List<int>` piece lists. Public accessors:
 
 ### Fully legal move generation
 
-`MoveGenerator.GenerateLegalMoves` produces only legal moves, so the searcher's make/test/unmake
+`Position.GenerateLegalMoves` produces only legal moves, so the searcher's make/test/unmake
 filter (`TryMakeLegal`) and `GeneratePseudoLegalMoves` go. Following pawnstar:
 
 1. King moves: target squares minus every square the enemy attacks with our king removed from
@@ -84,7 +84,7 @@ filter (`TryMakeLegal`) and `GeneratePseudoLegalMoves` go. Following pawnstar:
 
 Same terms, same values, computed from bitboards: piece-square sums iterate each bitboard; bishop
 mobility is `PopCount(Bishop(occupied, sq) & ~own)`; pawn structure uses precomputed forward-file
-and forward-adjacent-file masks per colour and square. The evaluation of every position is
+and forward-adjacent-file masks per color and square. The evaluation of every position is
 unchanged, and a test pins the scores of eighteen positions recorded from the 0x88 evaluator.
 
 ### Search
@@ -107,11 +107,11 @@ CLAUDE.md as the testing discipline requires.
 2. `Squares` to 0..63; `Bitboards` helpers and `Attacks` tables with unit tests against naive
    ray-walking implementations.
 3. `Move` with 6-bit squares, `Zobrist` with 64-square tables.
-4. `Board` and `Board.MakeMove` on bitboards with a lazily cached `Checkers`.
-5. `MoveGenerator` rewritten as a legal generator; `Perft` unchanged.
-6. `Fen` and `PositionBuilder` for 64 squares.
+4. `Position` and `Position.MakeMove` on bitboards with a lazily cached `Checkers`.
+5. Move generation rewritten as a legal generator (since folded into `Position`); `Perft` unchanged.
+6. `Fen` and position editing for 64 squares.
 7. `Evaluator` and `Searcher` on bitboards.
-8. Tests: update the few that hard-code 0x88 indices, add `AttacksTests`, `MoveGeneratorTests`
+8. Tests: update the few that hard-code 0x88 indices, add `AttacksTests`, `MoveGenerationTests`
    (a slow reference generator cross-checked on random positions plus the classic en passant,
    pin and double-check cases) and the frozen evaluation scores; record the new bench signature.
 9. Measure perft and bench speed, self-play against the pre-change build with
@@ -165,11 +165,11 @@ pawnstar does in C++, with the constraint that they cost nothing at run time:
 - `Square`: one byte, a1 = 0 .. h8 = 63 plus `Square.None` (64). It converts implicitly to `int`
   so tables index by it directly, but only explicitly from `int` (`new Square(i)`, range checked;
   `Square.Unchecked` internally where the index is known good), so an index can never be passed
-  where a square is meant. `Move.From`/`To`, `Board.KingSquare`, `EnPassantSquare`, the attack
+  where a square is meant. `Move.From`/`To`, `Position.KingSquare`, `EnPassantSquare`, the attack
   tables, `Game`, `GameController` and the GUI all take and return `Square`.
 - `Bitboard`: a readonly record struct over `ulong` with the set operators, `Count`, `IsEmpty`,
   `IsSingle`, `First`, `Contains`, the shifts and constants, and `foreach (Square s in set)` via a
-  two-field struct enumerator. `Board.Pieces`, `Occupied`, `Checkers`, `AttackersTo` and every
+  two-field struct enumerator. `Position.Pieces`, `Occupied`, `Checkers`, `AttackersTo` and every
   `Attacks` method use it.
 - `MoveList`: 256 moves inline (`[InlineArray]`) plus a count, so a generated list lives on the
   stack or in a preallocated per-ply array and never touches the heap. The generator appends to a
@@ -190,24 +190,24 @@ signature is identical, so the trees searched are identical):
 The struct wrappers are free, as the JIT promotes single-field structs to registers and inlines
 the enumerator; the perft gain comes from `MoveList` replacing a heap-allocated list per node.
 
-### No coloured-piece type
+### No colored-piece type
 
-`Piece` (a `(Colour, PieceType)` record struct) went next. With a bitboard per colour the colour
-half of "what is on this square" is redundant, so the mailbox holds `PieceType` alone and make/unmake
-pass colour and type explicitly from the move (the mover is the side to move, a capture is the
+`Piece` (a `(Color, Piece)` record struct) went next. With a bitboard per color the color
+half of "what is on this square" is redundant, so the mailbox holds `Piece` alone and make/unmake
+pass color and type explicitly from the move (the mover is the side to move, a capture is the
 opponent's, a promotion is the mover's), exactly as pawnstar does. Callers that want both at once
-get a `(Colour Colour, PieceType Type)` tuple from `Board[square]`, `PositionBuilder[square]` and
+get a `(Color Color, Piece Type)` tuple from `Position[square]`, `Position.Place` and
 `GameController.PieceAt`, with the default tuple meaning an empty square; `Game.CapturedPieces`
-returns `PieceType`s since its argument is the colour; `PieceType.ToChar(colour)` produces the FEN
+returns `Piece`s since its argument is the color; `Piece.ToChar(color)` produces the FEN
 letter. Measured against the build before the value types: bench within noise (2.0M vs 2.1M nps on
 a 280 ms run), perft 85.7M vs 81.4M nps at the 1M-node budget and 254M vs 195M nps over every
 depth, timed searches identical in nodes and within 3% in nps either way.
 
 ### What the next steps can now use
 
-- `Board.AttackersTo(square, colour)` and the `Attacks` tables make static exchange evaluation,
+- `Position.AttackersTo(square, color)` and the `Attacks` tables make static exchange evaluation,
   mobility and king-safety terms and a `GivesCheck` test cheap.
-- `Board.Checkers` is cached per position, so the searcher's in-check tests cost nothing after the
+- `Position.Checkers` is cached per position, so the searcher's in-check tests cost nothing after the
   first one.
 - The searcher no longer needs to make a move to know it is legal, so late move pruning and
   move-count based decisions can count moves before making them.

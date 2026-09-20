@@ -9,23 +9,23 @@ public class SearchLimitsTests
     [Fact]
     public void NoLimitsMeansNoTimeBudget()
     {
-        Assert.Null(new SearchLimits().TimeBudget(Colour.White));
-        Assert.Null(SearchLimits.ForDepth(5).TimeBudget(Colour.White));
-        Assert.Null(new SearchLimits { Infinite = true, MoveTime = TimeSpan.FromSeconds(1) }.TimeBudget(Colour.White));
+        Assert.Null(new SearchLimits().TimeBudget(Color.White));
+        Assert.Null(SearchLimits.ForDepth(5).TimeBudget(Color.White));
+        Assert.Null(new SearchLimits { Infinite = true, MoveTime = TimeSpan.FromSeconds(1) }.TimeBudget(Color.White));
     }
 
     [Fact]
     public void MoveTimeIsUsedExactly()
     {
-        Assert.Equal(TimeSpan.FromMilliseconds(1234), SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(1234)).TimeBudget(Colour.Black));
+        Assert.Equal(TimeSpan.FromMilliseconds(1234), SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(1234)).TimeBudget(Color.Black));
     }
 
     [Fact]
     public void ClockTimeIsSharedOverTheRemainingMoves()
     {
         var limits = new SearchLimits { WhiteTime = TimeSpan.FromSeconds(60), BlackTime = TimeSpan.FromSeconds(6), WhiteIncrement = TimeSpan.FromSeconds(1) };
-        TimeSpan white = limits.TimeBudget(Colour.White)!.Value;
-        TimeSpan black = limits.TimeBudget(Colour.Black)!.Value;
+        TimeSpan white = limits.TimeBudget(Color.White)!.Value;
+        TimeSpan black = limits.TimeBudget(Color.Black)!.Value;
         // 60s / 20 moves + 80% of the increment, less overhead
         Assert.InRange(white.TotalMilliseconds, 3700, 3800);
         Assert.InRange(black.TotalMilliseconds, 250, 300);
@@ -36,7 +36,7 @@ public class SearchLimitsTests
     public void MovesToGoShortensOrLengthensTheBudget()
     {
         var limits = new SearchLimits { WhiteTime = TimeSpan.FromSeconds(30), MovesToGo = 3 };
-        TimeSpan budget = limits.TimeBudget(Colour.White)!.Value;
+        TimeSpan budget = limits.TimeBudget(Color.White)!.Value;
         Assert.InRange(budget.TotalMilliseconds, 9900, 10000);
     }
 
@@ -44,9 +44,9 @@ public class SearchLimitsTests
     public void NeverSpendsMoreThanMostOfTheClock()
     {
         var limits = new SearchLimits { WhiteTime = TimeSpan.FromMilliseconds(100), WhiteIncrement = TimeSpan.FromSeconds(5) };
-        Assert.True(limits.TimeBudget(Colour.White)!.Value <= TimeSpan.FromMilliseconds(80));
+        Assert.True(limits.TimeBudget(Color.White)!.Value <= TimeSpan.FromMilliseconds(80));
         var tiny = new SearchLimits { WhiteTime = TimeSpan.FromMilliseconds(1) };
-        Assert.Equal(SearchLimits.MinimumThinkingTime, tiny.TimeBudget(Colour.White));
+        Assert.Equal(SearchLimits.MinimumThinkingTime, tiny.TimeBudget(Color.White));
     }
 
     [Theory]
@@ -62,7 +62,7 @@ public class SearchLimitsTests
             WhiteIncrement = TimeSpan.FromMilliseconds(incrementMs),
             MovesToGo = movesToGo,
         };
-        TimeSpan budget = limits.TimeBudget(Colour.White)!.Value;
+        TimeSpan budget = limits.TimeBudget(Color.White)!.Value;
         Assert.True(budget >= SearchLimits.MinimumThinkingTime);
         Assert.True(budget <= TimeSpan.FromMilliseconds(Math.Max(clockMs, 0) + SearchLimits.MinimumThinkingTime.TotalMilliseconds));
     }

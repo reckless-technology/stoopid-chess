@@ -41,10 +41,10 @@ public sealed class Searcher
     private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
     private readonly Move[,] counterMoves = new Move[7, Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
     private readonly int[,,,] continuationHistory = new int[7, Square.Count, 7, Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
-    private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [colour, from, to]: how often a quiet move caused a cutoff
+    private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
-    private Board board = Board.StartPosition();
+    private Position position = Position.Start();
     private SearchStatistics statistics = new();
     private CancellationToken cancellation;
     private TimeSpan? timeBudget;
@@ -82,16 +82,16 @@ public sealed class Searcher
     /// <param name="limits">When to stop.</param>
     /// <param name="onProgress">Called after each completed depth.</param>
     /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
-    public SearchResult Search(Board position, SearchLimits limits, Action<SearchResult>? onProgress = null, CancellationToken cancellationToken = default)
+    public SearchResult Search(Position root, SearchLimits limits, Action<SearchResult>? onProgress = null, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(position);
+        ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(limits);
 
-        board = position.Clone();
+        position = root.Clone();
         statistics = new SearchStatistics();
         cancellation = cancellationToken;
-        timeBudget = limits.TimeBudget(board.SideToMove);
-        timeCap = limits.TimeCap(board.SideToMove);
+        timeBudget = limits.TimeBudget(position.SideToMove);
+        timeCap = limits.TimeCap(position.SideToMove);
         bool extended = false;
         nodeLimit = limits.Infinite ? null : limits.Nodes;
         stopped = false;
@@ -101,10 +101,10 @@ public sealed class Searcher
         Array.Clear(continuationHistory);
         stopwatch.Restart();
 
-        MoveList rootMoves = MoveGenerator.GenerateLegalMoves(board);
+        MoveList rootMoves = position.GenerateLegalMoves();
         if (rootMoves.Count == 0)
         {
-            return new SearchResult(0, MoveGenerator.IsInCheck(board) ? -MateScore : DrawScore, 0, stopwatch.Elapsed, []);
+            return new SearchResult(0, position.IsInCheck ? -MateScore : DrawScore, 0, stopwatch.Elapsed, []);
         }
 
         int maxDepth = limits.Infinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
@@ -205,9 +205,9 @@ public sealed class Searcher
         bool first = true;
         foreach (Move move in rootMoves)
         {
-            board.MakeMove(move);
+            position.MakeMove(move);
             int score = SearchChild(alpha, beta, depth - 1, 1, first);
-            board.UnmakeMove();
+            position.UnmakeMove();
             first = false;
             if (stopped)
             {
@@ -224,7 +224,7 @@ public sealed class Searcher
             }
         }
         NodeType type = alpha >= beta ? NodeType.LowerBound : alpha <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(board.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
+        table.Store(position.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
         return (alpha, bestMove);
     }
 
@@ -261,7 +261,7 @@ public sealed class Searcher
             return alpha;
         }
 
-        if (board.RepetitionCount() >= 1 || board.IsInsufficientMaterial())
+        if (position.RepetitionCount() >= 1 || position.IsInsufficientMaterial())
         {
             return DrawScore;
         }
@@ -278,10 +278,10 @@ public sealed class Searcher
             return alpha;
         }
 
-        bool inCheck = MoveGenerator.IsInCheck(board);
+        bool inCheck = position.IsInCheck;
         // The fifty-move rule draws the game unless this is checkmate, so when in check it is
         // applied only once a legal move has been found
-        bool fiftyMoveRule = board.HalfMoveClock >= 100;
+        bool fiftyMoveRule = position.HalfMoveClock >= 100;
         if (fiftyMoveRule && !inCheck)
         {
             return DrawScore;
@@ -322,13 +322,13 @@ public sealed class Searcher
         // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
         // real move will almost certainly do so too, so the node is a fail-high. Skipped in check,
         // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
-        if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !board.LastMoveWasNull
-            && board.HasNonPawnMaterial(board.SideToMove) && staticEval >= beta)
+        if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !position.LastMoveWasNull
+            && position.HasNonPawnMaterial(position.SideToMove) && staticEval >= beta)
         {
             int reduction = NullMoveReduction + (depth / 4);
-            board.MakeNullMove();
+            position.MakeNullMove();
             int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
-            board.UnmakeMove();
+            position.UnmakeMove();
             if (stopped)
             {
                 return alpha;
@@ -342,7 +342,7 @@ public sealed class Searcher
 
         ref MoveList moves = ref moveLists[ply];
         moves.Clear();
-        MoveGenerator.GenerateLegalMoves(board, ref moves);
+        position.GenerateLegalMoves(ref moves);
         if (moves.Count == 0)
         {
             return inCheck ? -MateScore + ply : DrawScore;
@@ -368,13 +368,13 @@ public sealed class Searcher
                 statistics.PrunedMoves++;
                 continue;
             }
-            board.MakeMove(move);
+            position.MakeMove(move);
             // Late move reductions: quiet moves ordered this far down are searched shallower first
-            int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !board.IsInCheck
+            int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !position.IsInCheck
                 ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
                 : 0;
             int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction);
-            board.UnmakeMove();
+            position.UnmakeMove();
             if (stopped)
             {
                 return alpha;   // Do not store results from an incomplete search
@@ -391,21 +391,21 @@ public sealed class Searcher
                 {
                     RecordKiller(ply, move);
                     RecordHistory(move, depth);
-                    if (board.LastMove is { IsNone: false } previous)
+                    if (position.LastMove is { IsNone: false } previous)
                     {
                         counterMoves[(int)previous.Piece, previous.To] = move;
                         ref int continuation = ref continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
                         continuation = Math.Min(continuation + (depth * depth), HistoryCap);
                     }
                 }
-                table.Store(board.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
+                table.Store(position.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
         }
 
         NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(board.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
+        table.Store(position.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
         return bestScore;
     }
 
@@ -427,9 +427,9 @@ public sealed class Searcher
             return Evaluate();
         }
 
-        bool inCheck = MoveGenerator.IsInCheck(board);
-        bool fiftyMoveRule = board.HalfMoveClock >= 100;
-        if (!inCheck && (fiftyMoveRule || board.RepetitionCount() >= 1 || board.IsInsufficientMaterial()))
+        bool inCheck = position.IsInCheck;
+        bool fiftyMoveRule = position.HalfMoveClock >= 100;
+        if (!inCheck && (fiftyMoveRule || position.RepetitionCount() >= 1 || position.IsInsufficientMaterial()))
         {
             return DrawScore;
         }
@@ -458,7 +458,7 @@ public sealed class Searcher
         moves.Clear();
         if (inCheck)
         {
-            MoveGenerator.GenerateLegalMoves(board, ref moves);
+            position.GenerateLegalMoves(ref moves);
             if (moves.Count == 0)
             {
                 return -MateScore + ply;
@@ -470,21 +470,21 @@ public sealed class Searcher
         }
         else
         {
-            MoveGenerator.GenerateLegalCaptures(board, ref moves);
+            position.GenerateLegalCaptures(ref moves);
         }
         OrderMoves(ref moves, ply, tableMove);
 
         foreach (Move move in moves)
         {
             // A capture that the exchange evaluation says loses material is not worth searching
-            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(board, move) < 0)
+            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(position, move) < 0)
             {
                 statistics.PrunedMoves++;
                 continue;
             }
-            board.MakeMove(move);
+            position.MakeMove(move);
             int score = -Quiescence(-beta, -alpha, ply + 1);
-            board.UnmakeMove();
+            position.UnmakeMove();
             if (stopped)
             {
                 return alpha;
@@ -497,13 +497,13 @@ public sealed class Searcher
             if (score >= beta)
             {
                 statistics.BetaCutoffs++;
-                table.Store(board.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
+                table.Store(position.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
         }
 
-        table.Store(board.Key, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
+        table.Store(position.Key, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
         return bestScore;
     }
 
@@ -515,7 +515,7 @@ public sealed class Searcher
     {
         tableMove = Move.None;
         score = 0;
-        if (!table.TryGet(board.Key, out TranspositionEntry entry))
+        if (!table.TryGet(position.Key, out TranspositionEntry entry))
         {
             return false;
         }
@@ -540,7 +540,7 @@ public sealed class Searcher
         return cutoff;
     }
 
-    private int Evaluate() => evaluator.Evaluate(board);
+    private int Evaluate() => evaluator.Evaluate(position);
 
     /// <summary>
     /// Forget what was learnt in the previous game: the evaluation cache.
@@ -570,7 +570,7 @@ public sealed class Searcher
 
     private Move GetTableMove()
     {
-        return table.TryGet(board.Key, out TranspositionEntry entry) ? entry.BestMove : Move.None;
+        return table.TryGet(position.Key, out TranspositionEntry entry) ? entry.BestMove : Move.None;
     }
 
     /// <summary>
@@ -587,7 +587,7 @@ public sealed class Searcher
         {
             return;
         }
-        Move previous = board.LastMove is { IsNone: false } last ? last : Move.None;
+        Move previous = position.LastMove is { IsNone: false } last ? last : Move.None;
         Move counter = previous.IsNone ? Move.None : counterMoves[(int)previous.Piece, previous.To];
         counterAtPly[ply] = counter;
         Span<int> scores = stackalloc int[count];
@@ -643,7 +643,7 @@ public sealed class Searcher
         {
             return 70_000;
         }
-        int quiet = history[(int)board.SideToMove, move.From, move.To];
+        int quiet = history[(int)position.SideToMove, move.From, move.To];
         if (!previous.IsNone)
         {
             quiet += continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
@@ -665,7 +665,7 @@ public sealed class Searcher
     /// </summary>
     private void RecordHistory(Move move, int depth)
     {
-        ref int entry = ref history[(int)board.SideToMove, move.From, move.To];
+        ref int entry = ref history[(int)position.SideToMove, move.From, move.To];
         entry = Math.Min(entry + (depth * depth), HistoryCap);
     }
 
@@ -678,14 +678,14 @@ public sealed class Searcher
         }
     }
 
-    private static int PieceValue(PieceType type) => type switch
+    private static int PieceValue(Piece type) => type switch
     {
-        PieceType.Pawn => 1,
-        PieceType.Knight => 3,
-        PieceType.Bishop => 3,
-        PieceType.Rook => 5,
-        PieceType.Queen => 9,
-        PieceType.King => 20,
+        Piece.Pawn => 1,
+        Piece.Knight => 3,
+        Piece.Bishop => 3,
+        Piece.Rook => 5,
+        Piece.Queen => 9,
+        Piece.King => 20,
         _ => 0,
     };
 
@@ -713,21 +713,21 @@ public sealed class Searcher
     private List<Move> ExtractPrincipalVariation(Move bestMove, int maxLength)
     {
         var line = new List<Move> { bestMove };
-        board.MakeMove(bestMove);
-        while (line.Count < maxLength && board.RepetitionCount() == 0
-            && table.TryGet(board.Key, out TranspositionEntry entry) && !entry.BestMove.IsNone)
+        position.MakeMove(bestMove);
+        while (line.Count < maxLength && position.RepetitionCount() == 0
+            && table.TryGet(position.Key, out TranspositionEntry entry) && !entry.BestMove.IsNone)
         {
             Move move = entry.BestMove;
-            if (!MoveGenerator.GenerateLegalMoves(board).Contains(move))
+            if (!position.GenerateLegalMoves().Contains(move))
             {
                 break;
             }
             line.Add(move);
-            board.MakeMove(move);
+            position.MakeMove(move);
         }
         for (int i = 0; i < line.Count; i++)
         {
-            board.UnmakeMove();
+            position.UnmakeMove();
         }
         return line;
     }

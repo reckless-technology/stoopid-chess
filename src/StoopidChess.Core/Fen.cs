@@ -13,7 +13,7 @@ public static class Fen
     /// </summary>
     /// <exception cref="FormatException">The string is not valid FEN or describes a position without
     /// exactly one king per side.</exception>
-    public static Board Parse(string fen)
+    public static Position Parse(string fen)
     {
         ArgumentNullException.ThrowIfNull(fen);
         string[] fields = fen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -22,13 +22,13 @@ public static class Fen
             throw new FormatException("FEN must have between 4 and 6 fields");
         }
 
-        Board board = new();
-        ParsePlacement(fields[0], board);
+        Position position = new();
+        ParsePlacement(fields[0], position);
 
-        Colour sideToMove = fields[1] switch
+        Color sideToMove = fields[1] switch
         {
-            "w" => Colour.White,
-            "b" => Colour.Black,
+            "w" => Color.White,
+            "b" => Color.Black,
             _ => throw new FormatException($"invalid side to move '{fields[1]}'"),
         };
 
@@ -38,7 +38,7 @@ public static class Fen
         if (fields[3] != "-")
         {
             enPassant = Square.TryParse(fields[3]) ?? Square.None;
-            if (!enPassant.IsValid || !IsConsistentEnPassantSquare(board, sideToMove, enPassant))
+            if (!enPassant.IsValid || !IsConsistentEnPassantSquare(position, sideToMove, enPassant))
             {
                 throw new FormatException($"invalid en passant square '{fields[3]}'");
             }
@@ -47,28 +47,28 @@ public static class Fen
         int halfMoveClock = fields.Length > 4 ? ParseNumber(fields[4], "half-move clock") : 0;
         int fullMoveNumber = fields.Length > 5 ? Math.Max(1, ParseNumber(fields[5], "move number")) : 1;
 
-        if (!board.HasValidKings)
+        if (!position.HasValidKings)
         {
             throw new FormatException("each side must have exactly one king");
         }
-        if (MoveGenerator.HasPawnsOnBackRanks(board))
+        if (position.HasPawnsOnBackRanks)
         {
             throw new FormatException("pawns cannot stand on the first or last rank");
         }
 
-        board.SwitchSideToMove(sideToMove);
-        board.SetCastlingRights(rights);
+        position.SwitchSideToMove(sideToMove);
+        position.ApplyCastlingRights(rights);
         // An en passant square nobody can capture on is dropped, so that FIDE-identical positions
         // have identical keys whichever way they were reached
-        board.SetEnPassantSquare(enPassant.IsValid && board.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
-        board.SetClocks(halfMoveClock, fullMoveNumber);
-        return board;
+        position.SetEnPassantSquare(enPassant.IsValid && position.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
+        position.SetClocks(halfMoveClock, fullMoveNumber);
+        return position;
     }
 
     /// <summary>
     /// Parse a FEN string, returning null rather than throwing on invalid input.
     /// </summary>
-    public static Board? TryParse(string fen)
+    public static Position? TryParse(string fen)
     {
         try
         {
@@ -80,17 +80,17 @@ public static class Fen
         }
     }
 
-    public static string Write(Board board)
+    public static string Write(Position position)
     {
-        ArgumentNullException.ThrowIfNull(board);
+        ArgumentNullException.ThrowIfNull(position);
         var fen = new StringBuilder();
         for (int rank = 7; rank >= 0; rank--)
         {
             int empty = 0;
             for (int file = 0; file < 8; file++)
             {
-                (Colour colour, PieceType type) = board[file, rank];
-                if (type == PieceType.None)
+                (Color color, Piece type) = position[file, rank];
+                if (type == Piece.None)
                 {
                     empty++;
                     continue;
@@ -100,7 +100,7 @@ public static class Fen
                     fen.Append(empty);
                     empty = 0;
                 }
-                fen.Append(type.ToChar(colour));
+                fen.Append(type.ToChar(color));
             }
             if (empty != 0)
             {
@@ -111,11 +111,11 @@ public static class Fen
                 fen.Append('/');
             }
         }
-        fen.Append(' ').Append(board.SideToMove == Colour.White ? 'w' : 'b');
-        fen.Append(' ').Append(board.CastlingRights.ToFenString());
-        fen.Append(' ').Append(board.EnPassantSquare.Name);
-        fen.Append(' ').Append(board.HalfMoveClock);
-        fen.Append(' ').Append(board.FullMoveNumber);
+        fen.Append(' ').Append(position.SideToMove == Color.White ? 'w' : 'b');
+        fen.Append(' ').Append(position.CastlingRights.ToFenString());
+        fen.Append(' ').Append(position.EnPassantSquare.Name);
+        fen.Append(' ').Append(position.HalfMoveClock);
+        fen.Append(' ').Append(position.FullMoveNumber);
         return fen.ToString();
     }
 
@@ -123,18 +123,18 @@ public static class Fen
     /// The en passant square must be empty, on the rank behind the pawn that just made a double push,
     /// and that pawn must be there.
     /// </summary>
-    private static bool IsConsistentEnPassantSquare(Board board, Colour sideToMove, Square square)
+    private static bool IsConsistentEnPassantSquare(Position position, Color sideToMove, Square square)
     {
-        int expectedRank = sideToMove == Colour.White ? 5 : 2;
-        if (board[square].Type != PieceType.None || square.Rank != expectedRank)
+        int expectedRank = sideToMove == Color.White ? 5 : 2;
+        if (position[square].Type != Piece.None || square.Rank != expectedRank)
         {
             return false;
         }
-        Square pushedPawn = square - Board.PawnDirection(sideToMove);
-        return board[pushedPawn] == (sideToMove.Opponent(), PieceType.Pawn);
+        Square pushedPawn = square - Position.PawnDirection(sideToMove);
+        return position[pushedPawn] == (sideToMove.Opponent(), Piece.Pawn);
     }
 
-    private static void ParsePlacement(string placement, Board board)
+    private static void ParsePlacement(string placement, Position position)
     {
         string[] ranks = placement.Split('/');
         if (ranks.Length != 8)
@@ -151,13 +151,13 @@ public static class Fen
                 {
                     file += c - '0';
                 }
-                else if (PieceTypeExtensions.FromChar(c) is not PieceType.None and PieceType type)
+                else if (PieceExtensions.FromChar(c) is not Piece.None and Piece type)
                 {
                     if (file > 7)
                     {
                         throw new FormatException($"too many squares on rank {rank + 1}");
                     }
-                    board.PutPiece(Square.At(file, rank), char.IsUpper(c) ? Colour.White : Colour.Black, type);
+                    position.PutPiece(Square.At(file, rank), char.IsUpper(c) ? Color.White : Color.Black, type);
                     file++;
                 }
                 else
