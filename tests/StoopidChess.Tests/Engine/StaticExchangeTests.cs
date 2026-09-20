@@ -27,10 +27,10 @@ public class StaticExchangeTests
     public void SeesThroughXRays()
     {
         // Rook takes pawn; knight takes rook; the second rook, uncovered by the first, takes the knight:
-        // white loses 500, wins 100 + 320: net -80
+        // white loses a rook, wins a pawn and a knight
         var position = Position.FromFen("4k3/4n3/8/3p4/8/8/3R4/3RK3 w - - 0 1");
         Move move = position.GenerateLegalMoves().Single(m => m.ToUci() == "d2d5");
-        Assert.Equal(-80, StaticExchange.Evaluate(position, move));
+        Assert.Equal(Evaluator.PawnValue + Evaluator.KnightValue - Evaluator.RookValue, StaticExchange.Evaluate(position, move));
     }
 
     [Fact]
