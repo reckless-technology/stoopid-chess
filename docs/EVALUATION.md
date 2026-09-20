@@ -77,3 +77,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Rook 550 instead of 500 | +14 ± 53 then -14 ± 46, 0 ± 35 over 200 games (69 W, 69 L, 62 D) | no |
 | Knight 300 and bishop 310 instead of 320 and 330 | -24 ± 53 (31 W, 38 L, 31 D) | no |
 | Knight 340 and bishop 350 | +17 ± 47 then -38 ± 51, -10 ± 35 over 200 games (63 W, 69 L, 68 D) | no |
+| Knight, bishop, rook and queen piece-square tables at half strength | +7 ± 54 (41 W, 39 L, 20 D) | no |
