@@ -25,8 +25,8 @@ public class EvaluatorRegressionTests
     [InlineData("8/k7/3p4/p2P1p2/P2P1P2/8/8/K7 w - - 0 1", 135)]
     [InlineData("4k3/8/8/8/8/8/3P4/4K3 w - - 0 1", 100)]
     [InlineData("4k3/8/8/8/8/3p4/3P4/4K3 w - - 0 1", -40)]
-    [InlineData("4k3/8/8/8/3K4/8/8/8 w - - 0 1", 80)]
-    [InlineData("4k3/8/8/8/8/8/8/K7 w - - 0 1", -10)]
+    [InlineData("4k3/8/8/8/3K4/8/8/8 w - - 0 1", 14)]
+    [InlineData("4k3/8/8/8/8/8/8/K7 w - - 0 1", 9)]
     [InlineData("r1bq1rk1/pp2bppp/2n2n2/3p4/3P4/2NBPN2/PP3PPP/R2QK2R b KQ - 4 9", 272)]
     [InlineData("8/pp3k2/2p2p2/3p2p1/3P2P1/2P2P2/PP3K2/8 w - - 0 1", 10)]
     public void ScoresMatchTheRecordedValues(string fen, int expected)

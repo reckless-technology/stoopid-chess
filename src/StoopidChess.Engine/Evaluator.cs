@@ -243,7 +243,50 @@ public sealed class Evaluator
             }
             score += color == Color.White ? own : -own;
         }
+        score = ScaleDrawishness(position, score);
         return parameters.TempoBonus + (position.SideToMove == Color.White ? score : -score);
+    }
+
+    /// <summary>
+    /// Material configurations that cannot (or can barely) be won however far ahead the score says
+    /// the winner is, from classical Stockfish's material rules: a side with no pawns needs more
+    /// than a bishop of extra material to make progress at all, and two knights cannot force mate
+    /// against a bare king.
+    /// </summary>
+    private int ScaleDrawishness(Position position, int score)
+    {
+        if (score == 0)
+        {
+            return 0;
+        }
+        Color winner = score > 0 ? Color.White : Color.Black;
+        if (position.Pieces(winner, Piece.Pawn).IsNotEmpty)
+        {
+            return score;
+        }
+        Color loser = winner.Opponent();
+        int winnerMaterial = NonPawnMaterial(position, winner);
+        int loserMaterial = NonPawnMaterial(position, loser);
+        if (winnerMaterial - loserMaterial <= parameters.BishopValue)
+        {
+            // Up at most a minor with no pawns left: a lone minor can never win, and even a rook
+            // for a minor down wins only exceptionally
+            return winnerMaterial < parameters.RookValue ? score / 16 : score / 4;
+        }
+        if (loserMaterial == 0 && position.Pieces(loser, Piece.Pawn).IsEmpty
+            && winnerMaterial == 2 * parameters.KnightValue && position.Count(winner, Piece.Knight) == 2)
+        {
+            return score / 16;
+        }
+        return score;
+    }
+
+    private int NonPawnMaterial(Position position, Color color)
+    {
+        return (position.Count(color, Piece.Knight) * parameters.KnightValue)
+            + (position.Count(color, Piece.Bishop) * parameters.BishopValue)
+            + (position.Count(color, Piece.Rook) * parameters.RookValue)
+            + (position.Count(color, Piece.Queen) * parameters.QueenValue);
     }
 
     /// <summary>
