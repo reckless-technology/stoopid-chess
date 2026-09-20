@@ -63,3 +63,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Bishop pair 45 cp instead of 30 | +38 ± 49 (37 W, 26 L, 37 D) | yes |
 | Bishop pair 60 cp | -35 ± 47 (30 W, 40 L, 30 D) | no |
 | Knight outpost 30 cp instead of 20 | 0 ± 42 (31 W, 31 L, 38 D) | no |
+| Weak king square penalty 10 cp instead of 15 | +21 ± 53 then +7 ± 51, +14 ± 37 over 200 games (70 W, 62 L, 68 D) | no |
