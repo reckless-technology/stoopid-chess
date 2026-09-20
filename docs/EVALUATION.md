@@ -78,3 +78,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Knight 300 and bishop 310 instead of 320 and 330 | -24 ± 53 (31 W, 38 L, 31 D) | no |
 | Knight 340 and bishop 350 | +17 ± 47 then -38 ± 51, -10 ± 35 over 200 games (63 W, 69 L, 68 D) | no |
 | Knight, bishop, rook and queen piece-square tables at half strength | +7 ± 54 (41 W, 39 L, 20 D) | no |
+| Rook on the seventh rank after Crafty: 25 cp with the enemy king on the eighth or enemy pawns on the seventh | -31 ± 43 (30 W, 39 L, 31 D) | no |
