@@ -81,3 +81,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Rook on the seventh rank after Crafty: 25 cp with the enemy king on the eighth or enemy pawns on the seventh | -31 ± 43 (30 W, 39 L, 31 D) | no |
 | Blocked passers: a passed pawn with the square in front occupied is worth half | +53 ± 52 (40 W, 25 L, 35 D) | yes |
 | Protected passers: a passer defended by an own pawn worth half again | -3 ± 49 (31 W, 32 L, 37 D) | no |
+| Blocked passers worth a third instead of half | -10 ± 44 (33 W, 36 L, 31 D) | no |
