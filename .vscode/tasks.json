@@ -3,7 +3,7 @@
   "tasks": [
     {
       "label": "build",
-      "detail": "Debug build of the whole solution",
+      "detail": "Debug build of the whole solution (the GUI compiles everywhere, runs only on Windows)",
       "type": "process",
       "command": "dotnet",
       "args": ["build", "${workspaceFolder}/StoopidChess.slnx", "-c", "Debug", "/consoleloggerparameters:NoSummary"],
@@ -42,22 +42,47 @@
       "presentation": { "reveal": "always", "clear": true }
     },
     {
-      "label": "match vs pawnstar",
-      "detail": "40 paired games at 10+0.1 against pawnstar with fastchess (tools/match.ps1)",
+      "label": "selfplay vs baseline",
+      "detail": "100 paired games at 12+0.12 against the published baseline (tools/selfplay)",
       "type": "shell",
-      "command": "pwsh",
-      "args": [
-        "-NoProfile", "-File", "${workspaceFolder}/tools/match.ps1",
-        "-Opponent", "C:/Users/jonny/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
-        "-OpponentOptions", "option.Threads=1", "option.OwnBook=false",
-        "-Rounds", "20", "-TimeControl", "10+0.1", "-PgnOut", "${workspaceFolder}/match.pgn"
-      ],
+      "linux": {
+        "command": "${workspaceFolder}/tools/selfplay.sh",
+        "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
+      },
+      "windows": {
+        "command": "pwsh",
+        "args": ["-NoProfile", "-File", "${workspaceFolder}/tools/selfplay.ps1", "-PgnOut", "${workspaceFolder}/selfplay.pgn"]
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "match vs pawnstar",
+      "detail": "40 paired games at 10+0.1 against pawnstar with fastchess (tools/match)",
+      "type": "shell",
+      "linux": {
+        "command": "${workspaceFolder}/tools/match.sh",
+        "args": [
+          "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-linux-x86_64",
+          "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false",
+          "--rounds", "20", "--tc", "10+0.1", "--pgn", "${workspaceFolder}/match.pgn"
+        ]
+      },
+      "windows": {
+        "command": "pwsh",
+        "args": [
+          "-NoProfile", "-File", "${workspaceFolder}/tools/match.ps1",
+          "-Opponent", "C:/Users/jonny/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
+          "-OpponentOptions", "option.Threads=1", "option.OwnBook=false",
+          "-Rounds", "20", "-TimeControl", "10+0.1", "-PgnOut", "${workspaceFolder}/match.pgn"
+        ]
+      },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "clear": true }
     },
     {
       "label": "run gui",
-      "detail": "Build and run the Windows Forms GUI",
+      "detail": "Build and run the Windows Forms GUI (Windows only)",
       "type": "process",
       "command": "dotnet",
       "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Gui/StoopidChess.Gui.csproj", "-c", "Debug"],
@@ -93,9 +118,28 @@
     },
     {
       "label": "publish",
-      "detail": "Self-contained single-file Release builds of the GUI and the engine into publish/",
+      "detail": "Self-contained single-file Release build(s) into publish/ (GUI included on Windows)",
       "type": "shell",
-      "command": "dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui && dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine",
+      "linux": {
+        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine"
+      },
+      "windows": {
+        "command": "dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui && dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine"
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "publish baseline",
+      "detail": "Refresh the self-play baseline from HEAD (run after each accepted change)",
+      "type": "shell",
+      "linux": {
+        "command": "dotnet publish src/StoopidChess.Uci -c Release -o ~/tools/stoopid-baseline"
+      },
+      "windows": {
+        "command": "dotnet publish src/StoopidChess.Uci -c Release -o C:/Users/jonny/tools/stoopid-baseline"
+      },
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "clear": true }

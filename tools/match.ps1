@@ -17,7 +17,7 @@ param(
     [string] $Openings = "C:\Users\jonny\tools\openings-6ply.epd",
     [string] $TimeControl = "10+0.1",
     [int] $Rounds = 20,
-    [int] $Concurrency = 4,
+    [int] $Concurrency = 8,
     [string] $PgnOut = "match.pgn"
 )
 

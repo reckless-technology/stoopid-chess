@@ -17,15 +17,15 @@ project. Read [README.md](README.md) for the architecture and
 ## Build / test / run
 
 ```bash
-dotnet build StoopidChess.slnx -c Release                         # everything (Windows; the GUI targets net10.0-windows)
-dotnet build src/StoopidChess.Uci -c Release                      # engine only, works on Linux/macOS
+dotnet build StoopidChess.slnx -c Release                         # everything, on any OS (the GUI compiles via EnableWindowsTargeting but runs only on Windows)
+dotnet build src/StoopidChess.Uci -c Release                      # engine only
 dotnet test tests/StoopidChess.Tests -c Release                   # the xunit suite, a few seconds
 dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
 dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
 dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Position and Searcher on
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
-dotnet run --project src/StoopidChess.Gui                         # the GUI
+dotnet run --project src/StoopidChess.Gui                         # the GUI (Windows only)
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
@@ -56,11 +56,14 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    incremental keys, the bitboards, the square array and the history consistent;
    `Position.ComputeKeys()` and `Position.IsConsistent()` are the oracles.
 4. Strength changes should be checked by self-play or a match against another engine with
-   `fastchess`: `tools/match.ps1 -Opponent <uci engine exe>` builds the engine and runs paired
-   games from an openings file (defaults point at the copies under `C:\Users\jonny\tools`; both
-   engines are deterministic, so openings are essential). `tools/selfplay.ps1` plays the current
-   build against a snapshot in `C:\Users\jonny\tools\stoopid-baseline` (refresh it with
-   `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change).
+   `fastchess`: `tools/match.sh --opponent <uci engine>` (Linux/macOS) or
+   `tools/match.ps1 -Opponent <uci engine exe>` (Windows) builds the engine and runs paired
+   games from an openings file (defaults point at the copies under `~/tools` or
+   `C:\Users\jonny\tools`; both engines are deterministic, so openings are essential).
+   `tools/selfplay.sh` / `tools/selfplay.ps1` plays the current build against a snapshot in
+   `~/tools/stoopid-baseline` or `C:\Users\jonny\tools\stoopid-baseline` (refresh it with
+   `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change);
+   its defaults are the standard test setting, 100 games at 12+0.12.
    Results so far, all 40-60 games at 10+0.1, single-threaded, no book: pawnstar 0.13.593 beat
    the original search 40-0 and the improved search 40-0; self-play gains were null move
    +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
@@ -192,7 +195,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   (`.vscode/settings.json`), organising imports too. The style rules the hook does not enforce (they
   are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
   --severity info` pass.
-- Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only APIs.
+- Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only
+  APIs. `Gui` compiles on Linux too (`EnableWindowsTargeting`) but runs only on Windows.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.

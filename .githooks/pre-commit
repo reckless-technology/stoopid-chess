@@ -9,16 +9,11 @@
 
 if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(cs|csproj|props|editorconfig)$'; then
     echo "pre-commit: checking formatting with dotnet format..."
-    # The GUI project only loads on Windows; elsewhere check the cross-platform projects
-    case "$(uname -s)" in
-        MINGW*|MSYS*|CYGWIN*|Windows*) target=StoopidChess.slnx ;;
-        *) target="src/StoopidChess.Uci/StoopidChess.Uci.csproj tests/StoopidChess.Tests/StoopidChess.Tests.csproj" ;;
-    esac
-    for project in $target; do
-        if ! dotnet format "$project" --verify-no-changes; then
-            echo "pre-commit: formatting problems found. Run 'dotnet format StoopidChess.slnx', stage the result and commit again." >&2
-            exit 1
-        fi
-    done
+    # The whole solution loads on every OS (the GUI sets EnableWindowsTargeting to compile,
+    # though not run, off Windows).
+    if ! dotnet format StoopidChess.slnx --verify-no-changes; then
+        echo "pre-commit: formatting problems found. Run 'dotnet format StoopidChess.slnx', stage the result and commit again." >&2
+        exit 1
+    fi
 fi
 exit 0

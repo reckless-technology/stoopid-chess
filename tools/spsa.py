@@ -27,9 +27,13 @@ import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_ENGINE = REPO / "src" / "StoopidChess.Uci" / "bin" / "Release" / "net10.0" / "stoopid-chess.exe"
-DEFAULT_FASTCHESS = Path(r"C:\Users\jonny\tools\fastchess\fastchess-windows-x86-64\fastchess.exe")
-DEFAULT_OPENINGS = Path(r"C:\Users\jonny\tools\openings-6ply.epd")
+WINDOWS = os.name == "nt"
+TOOLS = Path(r"C:\Users\jonny\tools") if WINDOWS else Path.home() / "tools"
+DEFAULT_ENGINE = (REPO / "src" / "StoopidChess.Uci" / "bin" / "Release" / "net10.0"
+                  / ("stoopid-chess.exe" if WINDOWS else "stoopid-chess"))
+DEFAULT_FASTCHESS = TOOLS / "fastchess" / ("fastchess-windows-x86-64/fastchess.exe" if WINDOWS
+                                           else "fastchess-linux-x86-64/fastchess")
+DEFAULT_OPENINGS = TOOLS / "openings-6ply.epd"
 STATE = REPO / "tools" / "spsa-state.json"
 LOG = REPO / "tools" / "spsa-log.csv"
 

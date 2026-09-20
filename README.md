@@ -25,7 +25,7 @@ The GUI is Windows only; everything else builds and runs on Linux and macOS too.
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```bash
-dotnet build StoopidChess.slnx -c Release          # everything (Windows)
+dotnet build StoopidChess.slnx -c Release          # everything (any OS; the WinForms GUI compiles everywhere, runs on Windows)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
 dotnet test tests/StoopidChess.Tests -c Release    # the test suite
 dotnet run --project src/StoopidChess.Gui          # play
