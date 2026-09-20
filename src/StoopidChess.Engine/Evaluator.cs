@@ -310,13 +310,17 @@ public sealed class Evaluator
             {
                 continue;
             }
+            var next = new Square(square + (color == Color.White ? 8 : -8));
             int rankBonus = PassedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
+            if (position.Occupied.Contains(next))
+            {
+                rankBonus /= 2;   // A blocked passer is worth half until it can move again
+            }
             bonus += rankBonus;
             if (endgame)
             {
                 // Kings decide passed pawns in the endgame (after Crafty): the further the enemy king is
                 // from the square in front of the pawn, and the nearer our own, the better
-                var next = new Square(square + (color == Color.White ? 8 : -8));
                 bonus += rankBonus * ((2 * Distance(enemyKing, next)) - Distance(ownKing, next)) / 8;
             }
         }
