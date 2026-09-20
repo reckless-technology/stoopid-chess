@@ -105,7 +105,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    non-PV node from depth 5) -24 ± 48 (not kept), starting another iteration until 60% of the budget is used instead
    of 50% 0 ± 41 (not kept), the whole increment in the budget instead of 80% 0 ± 44 (not kept), singular extensions
    (from depth 8, the table move searched a ply deeper when every other move fails 2 cp per ply below the table score
-   at half depth; 53% more nodes at depth 10) +3 ± 50 (not kept). A
+   at half depth; 53% more nodes at depth 10) +3 ± 50 (not kept), a capture history (cutoffs by piece, square and victim,
+   an eighth of it added to the MVV/LVA order) -53 ± 50 (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
