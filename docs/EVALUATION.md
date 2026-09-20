@@ -72,3 +72,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King tropism after Crafty: knight 6/6/6/4/2, bishop 4/4/4/2, rook 8/8/6/4/2/2/2, queen 12/12/10/8/6/4/4 cp by distance from the enemy king, middlegame only | -31 ± 51 (28 W, 37 L, 35 D) | no |
 | Bad bishop after Crafty: 4 cp per own pawn on the bishop'''s colour | -31 ± 55 (31 W, 40 L, 29 D) | no |
 | Queen 950 instead of 900 | +49 ± 44 (38 W, 24 L, 38 D) | yes |
+| Queen 1000 | +45 ± 44 (39 W, 26 L, 35 D) | yes |
