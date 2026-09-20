@@ -15,7 +15,7 @@ param(
     [string[]] $OpponentOptions = @(),
     [string] $Fastchess = "C:\Users\jonny\tools\fastchess\fastchess-windows-x86-64\fastchess.exe",
     [string] $Openings = "C:\Users\jonny\tools\openings-6ply.epd",
-    [string] $TimeControl = "10+0.1",
+    [string] $TimeControl = "12+0.12",
     [int] $Rounds = 20,
     [int] $Concurrency = 8,
     [string] $PgnOut = "match.pgn"

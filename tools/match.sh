@@ -7,7 +7,7 @@
 #
 #   tools/match.sh --opponent ~/tools/pawnstar/pawnstar-0.13.593-linux-x86_64 \
 #       --opponent-option option.Threads=1 --opponent-option option.OwnBook=false \
-#       --rounds 20 --tc 10+0.1
+#       --rounds 20 --tc 12+0.12
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,14 +15,14 @@ opponent=""
 opponent_options=()
 fastchess="$HOME/tools/fastchess/fastchess-linux-x86-64/fastchess"
 openings="$HOME/tools/openings-6ply.epd"
-tc="10+0.1"
+tc="12+0.12"
 rounds=20
 concurrency=8
 pgnout="match.pgn"
 
 usage() {
     echo "usage: tools/match.sh --opponent <uci engine> [--opponent-option option.X=Y]..." >&2
-    echo "       [--fastchess <path>] [--openings <epd>] [--tc 10+0.1] [--rounds 20]" >&2
+    echo "       [--fastchess <path>] [--openings <epd>] [--tc 12+0.12] [--rounds 20]" >&2
     echo "       [--concurrency 8] [--pgn match.pgn]" >&2
     exit 2
 }

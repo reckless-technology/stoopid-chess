@@ -81,7 +81,7 @@ def main() -> None:
     parser.add_argument("--openings", type=Path, default=DEFAULT_OPENINGS)
     parser.add_argument("--iterations", type=int, default=600)
     parser.add_argument("--games", type=int, default=8, help="games per iteration (paired, so even)")
-    parser.add_argument("--tc", default="4+0.04")
+    parser.add_argument("--tc", default="12+0.12")
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--r-end", type=float, default=0.002, help="final learning rate (fishtest r_end)")
     parser.add_argument("--c-fraction", type=float, default=0.05, help="final perturbation as a fraction of the range")
