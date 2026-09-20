@@ -10,3 +10,7 @@ TestResults/
 /match.pgn
 /selfplay.pgn
 /config.json
+
+# SPSA tuner state and log (tools/spsa.py)
+tools/spsa-state.json
+tools/spsa-log.csv
