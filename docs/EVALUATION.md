@@ -84,3 +84,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Blocked passers worth a third instead of half | -10 ± 44 (33 W, 36 L, 31 D) | no |
 | Connected passers: a passer with another passer on an adjacent file worth half again | -21 ± 57 (32 W, 38 L, 30 D) | no |
 | King tables blended by a 0-24 material phase instead of switched by the endgame rule (everything else unchanged) | -45 ± 60 (29 W, 42 L, 29 D) | no |
+| SPSA retune of all 27 parameters (tools/spsa.py, 500 iterations of 8 games at 4+0.04, run of 2026-09-19/20, archived in tools/spsa-runs/2026-09-20-complete): knight 325, bishop 320, rook 510, queen 1002, mobility 5/6/6/2, outpost 26, shelter 15/12/0 and missing -16, storm 19/10/7, passers 5/9/19/39/73/115 | +49 ± 52 (40 W, 26 L, 34 D) | yes |

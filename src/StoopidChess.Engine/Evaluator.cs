@@ -11,18 +11,19 @@ namespace StoopidChess.Engine;
 /// </summary>
 public sealed class Evaluator
 {
-    // Material values from the Simplified Evaluation Function. The king carries no value: both
-    // kings are always present.
+    // Material values from the Simplified Evaluation Function, minor and rook values and everything
+    // below down to the passed pawn ladder retuned by SPSA (tools/spsa-runs/2026-09-20-complete).
+    // The king carries no value: both kings are always present.
     public const int PawnValue = 100;
-    public const int KnightValue = 320;
-    public const int BishopValue = 330;
-    public const int RookValue = 500;
-    public const int QueenValue = 1000;
+    public const int KnightValue = 325;
+    public const int BishopValue = 320;
+    public const int RookValue = 510;
+    public const int QueenValue = 1002;
 
     // Mobility: centipawns per square a piece can move to or capture on
-    public const int KnightMobility = 6;
-    public const int BishopMobility = 5;
-    public const int RookMobility = 4;
+    public const int KnightMobility = 5;
+    public const int BishopMobility = 6;
+    public const int RookMobility = 6;
     public const int QueenMobility = 2;
 
     // King safety (middlegame only): centipawns per square of the king zone (the king's square and
@@ -39,18 +40,18 @@ public sealed class Evaluator
 
     // A knight on an outpost: in the opponent's half (ranks 4 to 6 from its own side), defended by
     // an own pawn, on a square no enemy pawn can ever attack
-    public const int KnightOutpostBonus = 20;
+    public const int KnightOutpostBonus = 26;
 
     // King shelter and pawn storm (middlegame only), on the king's file and the two beside it. The
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    internal static readonly int[] DefaultShelterByRank = [0, 17, 10, 3, 0, 0, 0, 0];      // Pawn rank from its own side
-    public const int ShelterMissing = -20;
-    internal static readonly int[] DefaultStormByDistance = [0, 0, 20, 13, 7, 0, 0, 0];   // Ranks between the king and the pawn
+    internal static readonly int[] DefaultShelterByRank = [0, 15, 12, 0, 0, 0, 0, 0];      // Pawn rank from its own side
+    public const int ShelterMissing = -16;
+    internal static readonly int[] DefaultStormByDistance = [0, 0, 19, 10, 7, 0, 0, 0];   // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
-    internal static readonly int[] DefaultPassedPawnBonus = [0, 5, 10, 20, 35, 60, 100, 0];
+    internal static readonly int[] DefaultPassedPawnBonus = [0, 5, 9, 19, 39, 73, 115, 0];
 
     // The squares ahead of a pawn on its own file and the two beside it, indexed [color][square]:
     // an enemy pawn there stops it being passed

@@ -95,7 +95,7 @@ public class EvaluatorTests
         Assert.True(parameters.TrySet("KnightMobility", Evaluator.KnightMobility));
         Assert.Equal(before, evaluator.Evaluate(position));
         // Material changes rebuild the piece-square tables
-        Assert.True(parameters.TrySet("QueenValue", 1200));
+        Assert.True(parameters.TrySet("QueenValue", Evaluator.QueenValue + 200));
         Assert.Equal(before + 200, evaluator.Evaluate(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")) - new Evaluator().Evaluate(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")) + before);
         // Unknown names are refused, values are clamped, and every default matches the constant it came from
         Assert.False(parameters.TrySet("NoSuchParameter", 1));

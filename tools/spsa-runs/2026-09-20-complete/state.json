@@ -1,0 +1,32 @@
+{
+ "iteration": 500,
+ "values": {
+  "KnightValue": 324.99584922850397,
+  "BishopValue": 320.07828875035955,
+  "RookValue": 509.9736202460454,
+  "QueenValue": 1001.7666605421566,
+  "KnightMobility": 5.067718555433958,
+  "BishopMobility": 6.227403257031488,
+  "RookMobility": 6.2891396475259,
+  "QueenMobility": 1.7769011541992048,
+  "KingZoneAttackPenalty": 3.671066061934802,
+  "KingZoneQueenAttackPenalty": 8.019582839552177,
+  "WeakKingSquarePenalty": 14.64887228506858,
+  "BishopPairBonus": 44.63681179648616,
+  "TempoBonus": 9.716816243179593,
+  "KnightOutpostBonus": 26.042118731875824,
+  "ShelterRank2": 15.055128909077306,
+  "ShelterRank3": 12.030054990741695,
+  "ShelterRank4": 0.48930116646157384,
+  "ShelterMissing": -16.363830194112683,
+  "StormDistance2": 19.47344504454297,
+  "StormDistance3": 10.474043299226642,
+  "StormDistance4": 7.0703862290040185,
+  "PassedRank2": 4.823814863730693,
+  "PassedRank3": 8.936927762690924,
+  "PassedRank4": 18.726207342646976,
+  "PassedRank5": 38.58456374248999,
+  "PassedRank6": 73.35329046821283,
+  "PassedRank7": 114.70098087802924
+ }
+}
