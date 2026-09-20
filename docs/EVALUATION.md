@@ -68,3 +68,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Shelter and storm tables scaled by two thirds (shelter 17/10/3, missing -20, storm 20/13/7) | +31 ± 54 (39 W, 30 L, 31 D) | yes |
 | Shelter and storm tables at half the original values (12/8/3, -15, 15/10/5) | -21 ± 43 (24 W, 30 L, 46 D) | no |
 | King zone attack penalties 3 and 6 cp | -3 ± 51 (31 W, 32 L, 37 D) | no |
+| Evaluation cache: 65,536 entries of 48-bit key and 16-bit score, always replaced, cleared on a new game (exact, every score identical) | about 10% faster at bench depth 10 with JIT tiering off; 512 KB measured best of 128 KB to 8 MB | yes |

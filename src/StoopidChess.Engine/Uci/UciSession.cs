@@ -97,6 +97,7 @@ public sealed class UciSession : IDisposable
             case "ucinewgame":
                 StopSearch();
                 table.Clear();
+                searcher.NewGame();
                 break;
             case "position":
                 StopSearch();

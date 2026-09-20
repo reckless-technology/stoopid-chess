@@ -47,7 +47,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
-   decisions inside a fixed-depth search) is a bug. `EvaluatorRegressionTests` pins the static
+   decisions inside a fixed-depth search) is a bug. Speed is compared at bench depth 9 or more with the environment
+   variable `DOTNET_TieredCompilation=0`: the sub-second default bench is dominated by JIT warm-up and can invert a
+   real speed difference. `EvaluatorRegressionTests` pins the static
    evaluation of eighteen positions, so a refactoring of the evaluator can prove it changed nothing.
 3. **Make/unmake must be exact.** `BoardTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
    recomputes the keys after every random move. Anything that touches `Board`'s state must keep the
@@ -143,7 +145,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
   mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
-  with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance (so that terms may keep
+  with 16-byte entries verified by the full 64-bit key. `Evaluator` is an instance and keeps a 512 KB evaluation cache (Zobrist key to score, exact, cleared by `ucinewgame`
+  through `Searcher.NewGame`; about 10% faster; terms may keep further
   caches such as a pawn hash); it starts from the Simplified Evaluation Function, see docs/EVALUATION.md.
   `Bench` is the fixed position set behind the signature.
 - **UCI lives in Engine, not in the Uci project.** `src/StoopidChess.Engine/Uci/UciSession` handles

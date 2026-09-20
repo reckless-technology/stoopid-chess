@@ -150,13 +150,39 @@ public sealed class Evaluator
     private static readonly int[][][] PieceSquareValues = BuildPieceSquareValues();
     private const int KingEndgameIndex = 7;
 
+    // The evaluation cache: one 64-bit word per entry holding the top 48 bits of the Zobrist key and
+    // the 16-bit score, always replaced. Positions reached again by transposition, by a re-search or
+    // by the next iteration are not evaluated twice.
+    private const int CacheBits = 16;   // 65,536 entries, 512 KB: small enough to stay in the CPU cache, which measured best
+    private readonly ulong[] cache = new ulong[1 << CacheBits];
+
     /// <summary>
     /// The score of the position from the side to move's point of view, in centipawns.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "The evaluator is an instance so that terms may keep per-instance caches (a pawn hash, for one) without changing callers")]
     public int Evaluate(Board board)
     {
         ArgumentNullException.ThrowIfNull(board);
+        ulong key = board.Key;
+        ref ulong entry = ref cache[key & ((1UL << CacheBits) - 1)];
+        if ((entry >> 16) == (key >> 16))
+        {
+            return (short)(entry & 0xFFFF);
+        }
+        int score = Compute(board);
+        entry = (key & ~0xFFFFUL) | (ushort)(short)score;
+        return score;
+    }
+
+    /// <summary>
+    /// Forget every cached evaluation, for a new game.
+    /// </summary>
+    public void Clear()
+    {
+        Array.Clear(cache);
+    }
+
+    private static int Compute(Board board)
+    {
         int score = 0;
         bool endgame = IsEndgame(board);
         // One pass over each side's pieces serves mobility, the pressure on the enemy king and the

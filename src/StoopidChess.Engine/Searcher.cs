@@ -542,6 +542,14 @@ public sealed class Searcher
 
     private int Evaluate() => evaluator.Evaluate(board);
 
+    /// <summary>
+    /// Forget what was learnt in the previous game: the evaluation cache.
+    /// </summary>
+    public void NewGame()
+    {
+        evaluator.Clear();
+    }
+
     private void CheckLimits()
     {
         if (stopped)
