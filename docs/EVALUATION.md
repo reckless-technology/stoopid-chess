@@ -74,3 +74,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Queen 950 instead of 900 | +49 ± 44 (38 W, 24 L, 38 D) | yes |
 | Queen 1000 | +45 ± 44 (39 W, 26 L, 35 D) | yes |
 | Queen 1050 | +10 ± 50 (34 W, 31 L, 35 D) | no |
+| Rook 550 instead of 500 | +14 ± 53 then -14 ± 46, 0 ± 35 over 200 games (69 W, 69 L, 62 D) | no |
