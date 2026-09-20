@@ -116,7 +116,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    from the second iteration on -14 ± 52 (not kept), razoring (a non-PV node at depth <= 3 whose static evaluation
    is 250 cp per ply of depth below alpha is cut to the quiescence score when that score also stays at or below
    alpha) +31 ± 47 (36 W, 27 L, 37 D; kept), a razoring margin of 200 cp per ply -24 ± 56 (not kept), of
-   300 cp per ply -24 ± 47 (not kept). A
+   300 cp per ply -24 ± 47 (not kept), a profile-guided speed pass (both transposition tiers in one array so a
+   probe touches adjacent lines, aggressive inlining of Opponent and KingSquare, the killer/countermove/history
+   tables as flat arrays instead of multi-dimensional ones, and a prefetch of the child's table bucket after
+   every make) +8.6% nodes per second at bench 16 with tiering off, identical signature so the play is unchanged;
+   kept on speed evidence like the evaluation cache. A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.

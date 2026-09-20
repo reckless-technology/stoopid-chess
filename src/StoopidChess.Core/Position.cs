@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace StoopidChess.Core;
 
@@ -138,6 +139,7 @@ public sealed class Position
     /// </summary>
     public bool HasValidKings => Pieces(Color.White, Piece.King).IsSingle && Pieces(Color.Black, Piece.King).IsSingle;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Square KingSquare(Color color)
     {
         Bitboard kings = Pieces(color, Piece.King);

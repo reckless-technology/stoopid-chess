@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using StoopidChess.Core;
 
 namespace StoopidChess.Engine;
@@ -39,11 +40,13 @@ public sealed class Searcher
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator;
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
-    private readonly Move[,] killers = new Move[MaxPly + 1, 2];
+    // The heuristic tables are flat arrays with hand-rolled indexing: multi-dimensional array
+    // accesses go through a runtime helper on some shapes, which showed in the profile.
+    private readonly Move[] killers = new Move[(MaxPly + 1) * 2];   // [2 * ply] and [2 * ply + 1]
     private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
-    private readonly Move[,] counterMoves = new Move[7, Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
-    private readonly int[,,,] continuationHistory = new int[7, Square.Count, 7, Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
-    private readonly int[,,] history = new int[3, Square.Count, Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
+    private readonly Move[] counterMoves = new Move[7 * Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
+    private readonly int[] continuationHistory = new int[7 * Square.Count * 7 * Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
+    private readonly int[] history = new int[3 * Square.Count * Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
     private Position position = Position.Start();
@@ -219,6 +222,7 @@ public sealed class Searcher
         foreach (Move move in rootMoves)
         {
             position.MakeMove(move);
+            table.Prefetch(position.Key);
             int score = SearchChild(alpha, beta, depth - 1, 1, first);
             position.UnmakeMove();
             first = false;
@@ -358,6 +362,7 @@ public sealed class Searcher
         {
             int reduction = NullMoveReduction + (depth / 4);
             position.MakeNullMove();
+            table.Prefetch(position.Key);
             int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
             position.UnmakeMove();
             if (stopped)
@@ -400,6 +405,7 @@ public sealed class Searcher
                 continue;
             }
             position.MakeMove(move);
+            table.Prefetch(position.Key);
             // Late move reductions: quiet moves ordered this far down are searched shallower first
             int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !position.IsInCheck
                 ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
@@ -424,8 +430,8 @@ public sealed class Searcher
                     RecordHistory(move, depth);
                     if (position.LastMove is { IsNone: false } previous)
                     {
-                        counterMoves[(int)previous.Piece, previous.To] = move;
-                        ref int continuation = ref continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
+                        counterMoves[CounterIndex(previous)] = move;
+                        ref int continuation = ref continuationHistory[ContinuationIndex(previous, move)];
                         continuation = Math.Min(continuation + (depth * depth), HistoryCap);
                     }
                 }
@@ -514,6 +520,7 @@ public sealed class Searcher
                 continue;
             }
             position.MakeMove(move);
+            table.Prefetch(position.Key);
             int score = -Quiescence(-beta, -alpha, ply + 1);
             position.UnmakeMove();
             if (stopped)
@@ -619,7 +626,7 @@ public sealed class Searcher
             return;
         }
         Move previous = position.LastMove is { IsNone: false } last ? last : Move.None;
-        Move counter = previous.IsNone ? Move.None : counterMoves[(int)previous.Piece, previous.To];
+        Move counter = previous.IsNone ? Move.None : counterMoves[CounterIndex(previous)];
         counterAtPly[ply] = counter;
         Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
@@ -662,11 +669,11 @@ public sealed class Searcher
         {
             return score;
         }
-        if (move == killers[ply, 0])
+        if (move == killers[2 * ply])
         {
             return 90_000;
         }
-        if (move == killers[ply, 1])
+        if (move == killers[(2 * ply) + 1])
         {
             return 80_000;
         }
@@ -674,10 +681,10 @@ public sealed class Searcher
         {
             return 70_000;
         }
-        int quiet = history[(int)position.SideToMove, move.From, move.To];
+        int quiet = history[HistoryIndex(position.SideToMove, move)];
         if (!previous.IsNone)
         {
-            quiet += continuationHistory[(int)previous.Piece, previous.To, (int)move.Piece, move.To];
+            quiet += continuationHistory[ContinuationIndex(previous, move)];
         }
         return Math.Min(quiet, HistoryCap);
     }
@@ -687,7 +694,7 @@ public sealed class Searcher
     /// </summary>
     private bool IsReducible(Move move, int ply)
     {
-        return !move.IsCapture && !move.IsPromotion && move != killers[ply, 0] && move != killers[ply, 1] && move != counterAtPly[ply];
+        return !move.IsCapture && !move.IsPromotion && move != killers[2 * ply] && move != killers[(2 * ply) + 1] && move != counterAtPly[ply];
     }
 
     /// <summary>
@@ -696,18 +703,28 @@ public sealed class Searcher
     /// </summary>
     private void RecordHistory(Move move, int depth)
     {
-        ref int entry = ref history[(int)position.SideToMove, move.From, move.To];
+        ref int entry = ref history[HistoryIndex(position.SideToMove, move)];
         entry = Math.Min(entry + (depth * depth), HistoryCap);
     }
 
     private void RecordKiller(int ply, Move move)
     {
-        if (killers[ply, 0] != move)
+        if (killers[2 * ply] != move)
         {
-            killers[ply, 1] = killers[ply, 0];
-            killers[ply, 0] = move;
+            killers[(2 * ply) + 1] = killers[2 * ply];
+            killers[2 * ply] = move;
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int HistoryIndex(Color color, Move move) => ((((int)color * Square.Count) + move.From) * Square.Count) + move.To;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int CounterIndex(Move previous) => ((int)previous.Piece * Square.Count) + previous.To;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int ContinuationIndex(Move previous, Move move) =>
+        (((((int)previous.Piece * Square.Count) + previous.To) * 7 + (int)move.Piece) * Square.Count) + move.To;
 
     private static int PieceValue(Piece type) => type switch
     {

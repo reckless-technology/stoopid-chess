@@ -43,7 +43,8 @@ public readonly struct TranspositionEntry(ulong key, Move bestMove, int score, i
 /// A two-tier transposition table (https://www.chessprogramming.org/Transposition_Table). Each
 /// index has a depth-preferred slot, which keeps the deepest search result seen, and an
 /// always-replace slot, so that recent shallow results are not lost behind old deep ones.
-/// Entries are verified with the full 64-bit Zobrist key.
+/// Entries are verified with the full 64-bit Zobrist key. The two slots of an index sit next to
+/// each other in one array, so a probe reads one cache line instead of two random ones.
 /// </summary>
 public sealed class TranspositionTable
 {
@@ -53,14 +54,13 @@ public sealed class TranspositionTable
 
     private const int EntrySize = 16;
 
-    private TranspositionEntry[] depthPreferred;
-    private TranspositionEntry[] alwaysReplace;
+    private TranspositionEntry[] entries;   // [2 * index] depth-preferred, [2 * index + 1] always-replace
     private int shift;
+    private ulong touched;   // Accumulator that keeps the Prefetch read alive; never used
 
     public TranspositionTable(int sizeInMegabytes = DefaultSizeInMegabytes)
     {
-        depthPreferred = [];
-        alwaysReplace = [];
+        entries = [];
         Resize(sizeInMegabytes);
     }
 
@@ -69,7 +69,7 @@ public sealed class TranspositionTable
     /// <summary>
     /// Number of index positions; each holds two entries.
     /// </summary>
-    public int Capacity => depthPreferred.Length;
+    public int Capacity => entries.Length / 2;
 
     /// <summary>
     /// Discard all entries and allocate for the new size (rounded down to a power of two of entries).
@@ -82,40 +82,48 @@ public sealed class TranspositionTable
         int capacity = 1 << bits;
         SizeInMegabytes = sizeInMegabytes;
         shift = 64 - bits;
-        depthPreferred = new TranspositionEntry[capacity];
-        alwaysReplace = new TranspositionEntry[capacity];
+        entries = new TranspositionEntry[2L * capacity];
     }
 
     public void Clear()
     {
-        Array.Clear(depthPreferred);
-        Array.Clear(alwaysReplace);
+        Array.Clear(entries);
+    }
+
+    /// <summary>
+    /// Start fetching the bucket for the key, so its cache line is on the way while the caller does
+    /// other work before probing. The value read is never used; only the memory access matters.
+    /// </summary>
+    public void Prefetch(ulong key)
+    {
+        int index = (int)(key >> shift) << 1;
+        touched ^= entries[index].Key;
     }
 
     public bool TryGet(ulong key, out TranspositionEntry entry)
     {
-        int index = (int)(key >> shift);
-        entry = depthPreferred[index];
+        int index = (int)(key >> shift) << 1;
+        entry = entries[index];
         if (Matches(entry, key))
         {
             return true;
         }
-        entry = alwaysReplace[index];
+        entry = entries[index + 1];
         return Matches(entry, key);
     }
 
     public void Store(ulong key, Move bestMove, int score, int depth, NodeType type)
     {
-        int index = (int)(key >> shift);
+        int index = (int)(key >> shift) << 1;
         var entry = new TranspositionEntry(key, bestMove, score, depth, type);
-        ref TranspositionEntry preferred = ref depthPreferred[index];
+        ref TranspositionEntry preferred = ref entries[index];
         if (preferred.IsEmpty || preferred.Depth <= depth || preferred.Key == key)
         {
             preferred = entry;
         }
         else
         {
-            alwaysReplace[index] = entry;
+            entries[index + 1] = entry;
         }
     }
 
