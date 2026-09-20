@@ -2,8 +2,9 @@
 
 [![CI](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml/badge.svg)](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml)
 
-A chess engine and a Windows chess GUI in C#. The engine speaks [UCI](https://www.chessprogramming.org/UCI),
-so it can be used from any chess GUI and tested against other engines; the GUI can play against any
+A chess engine and two chess GUIs in C#: a cross-platform Avalonia GUI and the original Windows
+Forms one. The engine speaks [UCI](https://www.chessprogramming.org/UCI),
+so it can be used from any chess GUI and tested against other engines; both GUIs can play against any
 UCI engine, with the built-in one as the default. Originally written in 2009, ported to .NET 10 and
 restructured in 2026.
 
@@ -16,9 +17,11 @@ restructured in 2026.
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
 | `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. |
+| `src/StoopidChess.Desktop` | Avalonia GUI: the same drawing, mouse and menus over `GameController`, for Linux, macOS and Windows. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
-The GUI is Windows only; everything else builds and runs on Linux and macOS too.
+Everything builds on any OS and only the Windows Forms GUI is restricted to running on Windows;
+play on Linux or macOS with the Avalonia GUI.
 
 ## Build and test
 
@@ -28,7 +31,8 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 dotnet build StoopidChess.slnx -c Release          # everything (any OS; the WinForms GUI compiles everywhere, runs on Windows)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
 dotnet test tests/StoopidChess.Tests -c Release    # the test suite
-dotnet run --project src/StoopidChess.Gui          # play
+dotnet run --project src/StoopidChess.Desktop      # play (any OS, Avalonia)
+dotnet run --project src/StoopidChess.Gui          # play (Windows, WinForms)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # search signature and speed
 dotnet run --project src/StoopidChess.Uci -c Release -- perft      # move generation check
 ```

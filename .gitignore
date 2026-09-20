@@ -14,3 +14,4 @@ TestResults/
 # SPSA tuner state and log (tools/spsa.py)
 tools/spsa-state.json
 tools/spsa-log.csv
+tools/spsa-resume-console.log

@@ -1,0 +1,68 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:StoopidChess.Desktop"
+        x:Class="StoopidChess.Desktop.MainWindow"
+        Title="Stoopid Chess"
+        Width="860" Height="660"
+        Icon="avares://StoopidChess.Desktop/Assets/BlackQueen.png">
+  <DockPanel>
+    <Menu DockPanel.Dock="Top">
+      <MenuItem Header="_File">
+        <MenuItem Header="Save game" Click="OnSaveGame" />
+        <MenuItem Header="Load game" Click="OnLoadGame" />
+        <Separator />
+        <MenuItem Header="Exit" Click="OnExit" />
+      </MenuItem>
+      <MenuItem Header="_Game">
+        <MenuItem Header="New Game">
+          <MenuItem Header="White" Click="OnNewGameWhite" />
+          <MenuItem Header="Black" Click="OnNewGameBlack" />
+        </MenuItem>
+        <MenuItem Header="Undo last move" Click="OnUndoMove" />
+        <MenuItem Header="Switch sides" Click="OnSwitchSides" />
+        <MenuItem Header="Set level">
+          <MenuItem Header="Beginner" Click="OnLevelBeginner" />
+          <MenuItem Header="Easy" Click="OnLevelEasy" />
+          <MenuItem Header="Medium" Click="OnLevelMedium" />
+          <MenuItem Header="Hard" Click="OnLevelHard" />
+          <MenuItem Header="Best (slow)" Click="OnLevelBest" />
+        </MenuItem>
+      </MenuItem>
+      <MenuItem Header="_View">
+        <MenuItem Header="Flip position" Click="OnFlipBoard" />
+      </MenuItem>
+      <MenuItem Header="_Engine">
+        <MenuItem x:Name="builtInEngineMenuItem" Header="Use built-in engine" ToggleType="CheckBox" Click="OnUseBuiltInEngine" />
+        <MenuItem x:Name="chooseEngineMenuItem" Header="Choose UCI engine..." ToggleType="CheckBox" Click="OnChooseEngine" />
+        <MenuItem x:Name="showEngineOutputMenuItem" Header="Show engine output in move list" ToggleType="CheckBox" Click="OnShowEngineOutputToggled" />
+        <Separator />
+        <MenuItem Header="Play engine against itself" Click="OnEngineVersusEngine" />
+      </MenuItem>
+      <MenuItem Header="_Help" Click="OnHelp" />
+    </Menu>
+    <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+      <StackPanel Orientation="Horizontal" Spacing="6" Margin="8,4">
+        <TextBlock Text="You are playing:" VerticalAlignment="Center" />
+        <TextBlock x:Name="humanColorLabel" FontWeight="Bold" VerticalAlignment="Center" />
+        <TextBlock Text="   Color to move:" VerticalAlignment="Center" />
+        <TextBlock x:Name="colorToMoveLabel" FontWeight="Bold" VerticalAlignment="Center" />
+        <TextBlock Text="   Difficulty:" VerticalAlignment="Center" />
+        <TextBlock x:Name="difficultyLabel" FontWeight="Bold" VerticalAlignment="Center" />
+        <TextBlock Text="   White clock:" VerticalAlignment="Center" />
+        <TextBlock x:Name="whiteClockLabel" Text="00:00:00" FontWeight="Bold" VerticalAlignment="Center" />
+        <TextBlock Text="   Black clock:" VerticalAlignment="Center" />
+        <TextBlock x:Name="blackClockLabel" Text="00:00:00" FontWeight="Bold" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+    <Grid DockPanel.Dock="Right" Width="290" RowDefinitions="*,Auto" Margin="4">
+      <TextBox x:Name="moveListTextBox" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+               FontFamily="Consolas,DejaVu Sans Mono,Menlo,monospace" />
+      <Button x:Name="stopThinkingButton" Grid.Row="1" Content="Move now!" Margin="0,4,0,0"
+              HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Click="OnMoveNow" />
+    </Grid>
+    <Grid RowDefinitions="*,68" Margin="4">
+      <local:BoardControl x:Name="board" />
+      <local:CaptureBinControl x:Name="captureBin" Grid.Row="1" Margin="0,4,0,0" />
+    </Grid>
+  </DockPanel>
+</Window>

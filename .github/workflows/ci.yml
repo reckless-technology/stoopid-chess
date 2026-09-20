@@ -24,6 +24,8 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
+      - name: Build Avalonia GUI
+        run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --logger "trx;LogFileName=results.trx"
       - name: Perft (full standard set, depths up to 3M nodes)

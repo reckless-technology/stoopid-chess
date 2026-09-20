@@ -5,6 +5,7 @@
     <Project Path="src/StoopidChess.Play/StoopidChess.Play.csproj" />
     <Project Path="src/StoopidChess.Uci/StoopidChess.Uci.csproj" />
     <Project Path="src/StoopidChess.Gui/StoopidChess.Gui.csproj" />
+    <Project Path="src/StoopidChess.Desktop/StoopidChess.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/StoopidChess.Tests/StoopidChess.Tests.csproj" />

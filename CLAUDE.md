@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
-protocol, wrapped by the `StoopidChess.Uci` console) and a Windows Forms GUI (`StoopidChess.Gui` over
-the `StoopidChess.Play` controller) that plays against any UCI engine. .NET 10;
+protocol, wrapped by the `StoopidChess.Uci` console) and two GUIs over the `StoopidChess.Play`
+controller that play against any UCI engine: `StoopidChess.Desktop` (Avalonia, any OS) and
+`StoopidChess.Gui` (Windows Forms, Windows only). .NET 10;
 `Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
 project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
@@ -25,7 +26,8 @@ dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintained
 dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Position and Searcher on
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
-dotnet run --project src/StoopidChess.Gui                         # the GUI (Windows only)
+dotnet run --project src/StoopidChess.Desktop                     # the Avalonia GUI (any OS)
+dotnet run --project src/StoopidChess.Gui                         # the WinForms GUI (Windows only)
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
@@ -117,8 +119,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 ## Architecture notes
 
-- **Dependencies point one way:** Core ← Engine ← Play ← Gui (Gui also references Core directly),
-  and Uci ← Engine.
+- **Dependencies point one way:** Core ← Engine ← Play ← Gui/Desktop (both GUIs also reference
+  Core directly), and Uci ← Engine.
 - **Core value types** (zero-cost wrappers, like pawnstar's C++ classes; the bench signature and
   nps prove it): `Square` is a one-byte readonly record struct, a1 = 0 .. h8 = 63 so a square is its
   bit number, with `Square.None` (index 64, `IsValid` false), `File`/`Rank`/`Name`, `Square.At`,
@@ -180,6 +182,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for `*.Designer.cs`
   via `.editorconfig`); event handler names (`OnXxx`) there must stay in sync with `MainForm.cs`.
   The engine menu and promotion dialog are built in code.
+- **Desktop.** The Avalonia port of the same window: `MainWindow` (menus, status bar, dialogs and
+  the wiring, mirroring `MainForm`), `BoardControl` and `CaptureBinControl` (rendering and pointer
+  input), `PieceImages` (the same PNGs, copied to `Assets/`). Feature changes must go into both
+  GUIs; keep the two `MainForm`/`MainWindow` structures aligned so the diff stays reviewable.
 
 ## Conventions
 
@@ -195,8 +201,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   (`.vscode/settings.json`), organising imports too. The style rules the hook does not enforce (they
   are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
   --severity info` pass.
-- Everything except `Gui` must build and test on Linux (the CI job enforces it): no Windows-only
-  APIs. `Gui` compiles on Linux too (`EnableWindowsTargeting`) but runs only on Windows.
+- Everything except `Gui` must build, test and run on Linux (the CI job enforces the build): no
+  Windows-only APIs. `Gui` compiles on Linux too (`EnableWindowsTargeting`) but runs only on Windows.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.

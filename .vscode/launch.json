@@ -2,6 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Debug Desktop GUI (Avalonia)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/src/StoopidChess.Desktop/bin/Debug/net10.0/StoopidChess.Desktop.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
       "name": "Debug GUI (Windows only)",
       "type": "coreclr",
       "request": "launch",

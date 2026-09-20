@@ -81,6 +81,15 @@
       "presentation": { "reveal": "always", "clear": true }
     },
     {
+      "label": "run desktop gui",
+      "detail": "Build and run the Avalonia GUI (any OS)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Debug"],
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent" }
+    },
+    {
       "label": "run gui",
       "detail": "Build and run the Windows Forms GUI (Windows only)",
       "type": "process",
@@ -121,7 +130,7 @@
       "detail": "Self-contained single-file Release build(s) into publish/ (GUI included on Windows)",
       "type": "shell",
       "linux": {
-        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine"
+        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/desktop"
       },
       "windows": {
         "command": "dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui && dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine"
