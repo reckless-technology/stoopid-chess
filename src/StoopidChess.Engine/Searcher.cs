@@ -26,6 +26,8 @@ public sealed class Searcher
     private const int InternalIterativeReductionMinimumDepth = 4;
     private const int ReverseFutilityMaxDepth = 7;
     private const int ReverseFutilityMargin = 60;      // Per ply of remaining depth
+    private const int RazoringMaxDepth = 3;
+    private const int RazoringMargin = 250;            // Per ply of remaining depth
     private const int LateMovePruningMaxDepth = 4;
     private const int LateMovePruningBase = 5;         // Quiet moves after the (base + depth^2)th are skipped
     private const int LmrMinimumDepth = 3;
@@ -328,6 +330,24 @@ public sealed class Searcher
         {
             statistics.ReverseFutilityCutoffs++;
             return staticEval;
+        }
+
+        // Razoring: in a non-PV node at low depth, a static evaluation so far below alpha that quiet
+        // play cannot recover is checked against the quiescence search, and when the captures agree
+        // that alpha is out of reach the node is cut to the quiescence score.
+        if (depth <= RazoringMaxDepth && !inCheck && !pvNode && alpha > -MateThreshold
+            && staticEval + (RazoringMargin * depth) <= alpha)
+        {
+            int razorScore = Quiescence(alpha, alpha + 1, ply);
+            if (stopped)
+            {
+                return alpha;
+            }
+            if (razorScore <= alpha)
+            {
+                statistics.RazoringCutoffs++;
+                return razorScore;
+            }
         }
 
         // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
