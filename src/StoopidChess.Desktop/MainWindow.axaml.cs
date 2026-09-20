@@ -30,9 +30,25 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private static readonly FilePickerFileType ChessFileType = new("chess") { Patterns = ["*.chess"] };
 
+    private static readonly (string Header, TimeControl? Clock)[] TimeControls =
+    [
+        ("Untimed (play by level)", null),
+        ("1+1", TimeControl.OfMinutes(1, 1)),
+        ("3+2", TimeControl.OfMinutes(3, 2)),
+        ("5+3", TimeControl.OfMinutes(5, 3)),
+        ("10+5", TimeControl.OfMinutes(10, 5)),
+        ("15+10", TimeControl.OfMinutes(15, 10)),
+    ];
+
     private readonly GameController controller = new();
     private readonly DispatcherTimer clockTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly MenuFlyout editMenu;
+    private readonly EngineRoster roster;
+    private readonly List<(MenuItem Item, TimeControl? Clock)> timeControlItems = [];
+    private readonly List<(MenuItem Item, string Path)> rosterItems = [];
+    private readonly MenuItem builtInEngineItem = new() { Header = "Use built-in engine", ToggleType = MenuItemToggleType.CheckBox };
+    private readonly MenuItem removeEngineItem = new() { Header = "Remove current engine from the list" };
+    private readonly MenuItem showEngineOutputItem = new() { Header = "Show engine output in move list", ToggleType = MenuItemToggleType.CheckBox };
     private Square editSquare = Square.None;      // Square the edit context menu was opened on
 
     public MainWindow()
@@ -46,6 +62,12 @@ public sealed partial class MainWindow : Window, IDisposable
             "The position is not legal yet. Each side needs exactly one king, no pawns on the first or "
             + "last rank, and the side that is not to move may not be in check.");
         editMenu = BuildEditMenu();
+        roster = LoadRoster();
+        builtInEngineItem.Click += async (_, _) => await StartEngineSafelyAsync(null);
+        removeEngineItem.Click += async (_, _) => await RemoveCurrentEngineAsync();
+        showEngineOutputItem.Click += (_, _) => UpdateMoveList();
+        BuildTimeControlMenu();
+        BuildEngineMenu();
         controller.Changed += (_, _) => RefreshAll();
         controller.EngineFailed += (_, message) => _ = MessageDialog.ShowAsync(this, "Engine",
             message + "\n\nChoose an engine from the Engine menu to continue.");
@@ -55,6 +77,120 @@ public sealed partial class MainWindow : Window, IDisposable
         stopThinkingButton.IsEnabled = false;
         RefreshAll();
         clockTimer.Start();
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // The engine roster: registered external UCI engines, persisted per user
+    // ---------------------------------------------------------------------------------------------
+
+    private static string RosterPath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StoopidChess", "engines.json");
+
+    private static EngineRoster LoadRoster()
+    {
+        try
+        {
+            using FileStream stream = File.OpenRead(RosterPath);
+            return EngineRoster.Load(stream);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or FileNotFoundException)
+        {
+            return new EngineRoster();
+        }
+    }
+
+    private async Task SaveRosterAsync()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(RosterPath)!);
+            using FileStream stream = File.Create(RosterPath);
+            roster.Save(stream);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await MessageDialog.ShowAsync(this, "Engines", $"The engine list could not be saved:\n{ex.Message}");
+        }
+    }
+
+    private void BuildTimeControlMenu()
+    {
+        timeControlItems.Clear();
+        timeControlMenuItem.Items.Clear();
+        foreach ((string header, TimeControl? clock) in TimeControls)
+        {
+            var item = new MenuItem { Header = header, ToggleType = MenuItemToggleType.CheckBox };
+            item.Click += (_, _) => controller.SetTimeControl(clock);
+            timeControlItems.Add((item, clock));
+            timeControlMenuItem.Items.Add(item);
+        }
+    }
+
+    private void BuildEngineMenu()
+    {
+        engineMenuItem.Items.Clear();
+        rosterItems.Clear();
+        engineMenuItem.Items.Add(builtInEngineItem);
+        foreach (EngineEntry entry in roster.Engines)
+        {
+            var item = new MenuItem { Header = entry.Name, ToggleType = MenuItemToggleType.CheckBox };
+            string path = entry.Path;
+            item.Click += async (_, _) => await StartEngineSafelyAsync(path);
+            rosterItems.Add((item, path));
+            engineMenuItem.Items.Add(item);
+        }
+        engineMenuItem.Items.Add(new Separator());
+        engineMenuItem.Items.Add(EditMenuItem("Add UCI engine...", () => _ = AddEngineAsync()));
+        engineMenuItem.Items.Add(removeEngineItem);
+        engineMenuItem.Items.Add(new Separator());
+        engineMenuItem.Items.Add(showEngineOutputItem);
+        engineMenuItem.Items.Add(EditMenuItem("Play engine against itself", () => controller.NewGame(Color.None)));
+    }
+
+    private async Task AddEngineAsync()
+    {
+        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose a UCI engine",
+            AllowMultiple = false,
+            FileTypeFilter = [FilePickerFileTypes.All],
+        });
+        if (files.Count != 1 || files[0].TryGetLocalPath() is not string path)
+        {
+            return;
+        }
+        if (await StartEngineSafelyAsync(path) && controller.EnginePath == path)
+        {
+            roster.Add(controller.EngineName ?? Path.GetFileName(path), path);
+            await SaveRosterAsync();
+            BuildEngineMenu();
+            RefreshAll();
+        }
+    }
+
+    private async Task<bool> StartEngineSafelyAsync(string? path)
+    {
+        try
+        {
+            return await controller.StartEngineAsync(path);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            await MessageDialog.ShowAsync(this, "Engine", $"The engine could not be started:\n{ex.Message}");
+            return false;
+        }
+    }
+
+    private async Task RemoveCurrentEngineAsync()
+    {
+        if (controller.EnginePath is not string path)
+        {
+            return;
+        }
+        roster.Remove(path);
+        await SaveRosterAsync();
+        BuildEngineMenu();
+        await StartEngineSafelyAsync(null);
     }
 
     protected override async void OnOpened(EventArgs e)
@@ -94,10 +230,19 @@ public sealed partial class MainWindow : Window, IDisposable
         UpdateMoveList();
         colorToMoveLabel.Text = controller.SideToMove.ToString();
         humanColorLabel.Text = controller.HumanColor == Color.None ? "Nobody (engine vs engine)" : controller.HumanColor.ToString();
-        difficultyLabel.Text = controller.Level.ToString();
+        modeAnnotationLabel.Text = controller.TimeControl is null ? "   Difficulty:" : "   Clock:";
+        difficultyLabel.Text = controller.TimeControl?.ToString() ?? controller.Level.ToString();
         UpdateClockLabels();
-        builtInEngineMenuItem.IsChecked = controller.EnginePath is null;
-        chooseEngineMenuItem.IsChecked = controller.EnginePath is not null;
+        builtInEngineItem.IsChecked = controller.EnginePath is null;
+        foreach ((MenuItem item, string path) in rosterItems)
+        {
+            item.IsChecked = controller.EnginePath == path;
+        }
+        removeEngineItem.IsEnabled = controller.EnginePath is not null;
+        foreach ((MenuItem item, TimeControl? clock) in timeControlItems)
+        {
+            item.IsChecked = Equals(clock, controller.TimeControl);
+        }
         board.InvalidateVisual();
         captureBin.InvalidateVisual();
     }
@@ -167,7 +312,11 @@ public sealed partial class MainWindow : Window, IDisposable
                 }
                 break;
         }
-        if (showEngineOutputMenuItem.IsChecked && controller.LastEngineInfo.Length != 0)
+        if (controller.TimedOut != Color.None)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"GAME OVER: {controller.TimedOut} lost on time");
+        }
+        if (showEngineOutputItem.IsChecked && controller.LastEngineInfo.Length != 0)
         {
             text.AppendLine().Append(controller.LastEngineInfo);
         }
@@ -252,42 +401,6 @@ public sealed partial class MainWindow : Window, IDisposable
     // Menus
     // ---------------------------------------------------------------------------------------------
 
-    private async void OnUseBuiltInEngine(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            await controller.StartEngineAsync(null);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            await MessageDialog.ShowAsync(this, "Engine", $"The engine could not be started:\n{ex.Message}");
-        }
-    }
-
-    private async void OnChooseEngine(object? sender, RoutedEventArgs e)
-    {
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Choose a UCI engine",
-            AllowMultiple = false,
-            FileTypeFilter = [FilePickerFileTypes.All],
-        });
-        RefreshAll();   // The click ticked the checkbox; put it back until an engine really starts
-        if (files.Count == 1 && files[0].TryGetLocalPath() is string path)
-        {
-            try
-            {
-                await controller.StartEngineAsync(path);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                await MessageDialog.ShowAsync(this, "Engine", $"The engine could not be started:\n{ex.Message}");
-            }
-        }
-    }
-
-    private void OnShowEngineOutputToggled(object? sender, RoutedEventArgs e) => UpdateMoveList();
-
     private async void OnSaveGame(object? sender, RoutedEventArgs e)
     {
         SavedGame? saved = controller.Save();
@@ -356,7 +469,6 @@ public sealed partial class MainWindow : Window, IDisposable
     private void OnExit(object? sender, RoutedEventArgs e) => Close();
     private void OnNewGameWhite(object? sender, RoutedEventArgs e) => controller.NewGame(Color.White);
     private void OnNewGameBlack(object? sender, RoutedEventArgs e) => controller.NewGame(Color.Black);
-    private void OnEngineVersusEngine(object? sender, RoutedEventArgs e) => controller.NewGame(Color.None);
     private void OnUndoMove(object? sender, RoutedEventArgs e) => controller.Undo();
     private void OnSwitchSides(object? sender, RoutedEventArgs e) => controller.SwitchSides();
     private void OnMoveNow(object? sender, RoutedEventArgs e) => controller.MoveNow();

@@ -20,7 +20,8 @@
         </MenuItem>
         <MenuItem Header="Undo last move" Click="OnUndoMove" />
         <MenuItem Header="Switch sides" Click="OnSwitchSides" />
-        <MenuItem Header="Set level">
+        <MenuItem x:Name="timeControlMenuItem" Header="Time control" />
+        <MenuItem Header="Set level (untimed play)">
           <MenuItem Header="Beginner" Click="OnLevelBeginner" />
           <MenuItem Header="Easy" Click="OnLevelEasy" />
           <MenuItem Header="Medium" Click="OnLevelMedium" />
@@ -31,13 +32,7 @@
       <MenuItem Header="_View">
         <MenuItem Header="Flip position" Click="OnFlipBoard" />
       </MenuItem>
-      <MenuItem Header="_Engine">
-        <MenuItem x:Name="builtInEngineMenuItem" Header="Use built-in engine" ToggleType="CheckBox" Click="OnUseBuiltInEngine" />
-        <MenuItem x:Name="chooseEngineMenuItem" Header="Choose UCI engine..." ToggleType="CheckBox" Click="OnChooseEngine" />
-        <MenuItem x:Name="showEngineOutputMenuItem" Header="Show engine output in move list" ToggleType="CheckBox" Click="OnShowEngineOutputToggled" />
-        <Separator />
-        <MenuItem Header="Play engine against itself" Click="OnEngineVersusEngine" />
-      </MenuItem>
+      <MenuItem x:Name="engineMenuItem" Header="_Engine" />
       <MenuItem Header="_Help" Click="OnHelp" />
     </Menu>
     <Border DockPanel.Dock="Bottom" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
@@ -46,7 +41,7 @@
         <TextBlock x:Name="humanColorLabel" FontWeight="Bold" VerticalAlignment="Center" />
         <TextBlock Text="   Color to move:" VerticalAlignment="Center" />
         <TextBlock x:Name="colorToMoveLabel" FontWeight="Bold" VerticalAlignment="Center" />
-        <TextBlock Text="   Difficulty:" VerticalAlignment="Center" />
+        <TextBlock x:Name="modeAnnotationLabel" Text="   Difficulty:" VerticalAlignment="Center" />
         <TextBlock x:Name="difficultyLabel" FontWeight="Bold" VerticalAlignment="Center" />
         <TextBlock Text="   White clock:" VerticalAlignment="Center" />
         <TextBlock x:Name="whiteClockLabel" Text="00:00:00" FontWeight="Bold" VerticalAlignment="Center" />

@@ -189,15 +189,23 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), clocks and save/load, and raises `Changed`,
   `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
   caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. `Level` maps
-  difficulty to `SearchLimits`; `SavedGame` is JSON with FEN + UCI moves.
+  difficulty to `SearchLimits`; with a `TimeControl` set (`SetTimeControl`) the clocks count down
+  instead, the mover gains the Fischer increment, the engine budgets from the clocks
+  (wtime/btime/winc/binc) rather than the level, a side reaching zero loses on time (`TimedOut`,
+  `IsGameOver`), and a running game finishes under the clock it started with (`ActiveClock`).
+  `EngineRoster` is the JSON-persisted list of registered external engines (the GUI chooses the
+  file); `SavedGame` is JSON with FEN + UCI moves.
 - **GUI.** `MainForm` is drawing, mouse and menus over the controller and redraws on `Changed`.
   `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for `*.Designer.cs`
   via `.editorconfig`); event handler names (`OnXxx`) there must stay in sync with `MainForm.cs`.
   The engine menu and promotion dialog are built in code.
-- **Desktop.** The Avalonia port of the same window: `MainWindow` (menus, status bar, dialogs and
-  the wiring, mirroring `MainForm`), `BoardControl` and `CaptureBinControl` (rendering and pointer
-  input), `PieceImages` (the same PNGs, copied to `Assets/`). Feature changes must go into both
-  GUIs; keep the two `MainForm`/`MainWindow` structures aligned so the diff stays reviewable.
+- **Desktop.** The Avalonia GUI and the one new GUI features land in: `MainWindow` (menus, status
+  bar, dialogs and the wiring), `BoardControl` and `CaptureBinControl` (rendering and pointer
+  input), `PieceImages` (the same PNGs, copied to `Assets/`). Beyond the WinForms feature set it is
+  a small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
+  `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by
+  their UCI reply) and Fischer time controls (Game > Time control, clock play with flagging). The
+  WinForms `Gui` keeps the original feature set and is no longer extended.
 
 ## Conventions
 

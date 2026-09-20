@@ -17,7 +17,7 @@ restructured in 2026.
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
 | `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. |
-| `src/StoopidChess.Desktop` | Avalonia GUI: the same drawing, mouse and menus over `GameController`, for Linux, macOS and Windows. |
+| `src/StoopidChess.Desktop` | Avalonia GUI for Linux, macOS and Windows: the same drawing, mouse and menus over `GameController`, plus a small UCI host — registered external engines and Fischer time controls with flagging. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
 Everything builds on any OS and only the Windows Forms GUI is restricted to running on Windows;

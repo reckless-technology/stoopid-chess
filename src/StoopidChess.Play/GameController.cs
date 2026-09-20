@@ -41,13 +41,42 @@ public sealed class GameController : IDisposable
     public Level Level { get; set; } = Level.Easy;
 
     /// <summary>
+    /// The chosen clock for games, or null for untimed play. With a time control the clocks count
+    /// down, a side that reaches zero loses on time (<see cref="TimedOut"/>), and the engine
+    /// budgets its thinking from the clocks instead of <see cref="Level"/>. A game in progress
+    /// finishes under the clock it started with (<see cref="ActiveClock"/>).
+    /// </summary>
+    public TimeControl? TimeControl { get; private set; }
+
+    /// <summary>
+    /// The clock the current game is being played under; null when it is untimed.
+    /// </summary>
+    public TimeControl? ActiveClock { get; private set; }
+
+    /// <summary>
     /// Display preference carried with saved games; the controller does not use it.
     /// </summary>
     public bool IsBoardFlipped { get; set; }
 
+    /// <summary>
+    /// Time remaining (with a time control) or time used (without) for white.
+    /// </summary>
     public TimeSpan WhiteClock { get; private set; }
 
+    /// <summary>
+    /// Time remaining (with a time control) or time used (without) for black.
+    /// </summary>
     public TimeSpan BlackClock { get; private set; }
+
+    /// <summary>
+    /// The side that ran out of clock, or <see cref="Color.None"/> while nobody has.
+    /// </summary>
+    public Color TimedOut { get; private set; } = Color.None;
+
+    /// <summary>
+    /// Whether play has ended, over the board or on the clock.
+    /// </summary>
+    public bool IsGameOver => Game.IsOver || TimedOut != Color.None;
 
     /// <summary>
     /// Path of the external UCI engine in use, or null for the built-in engine.
@@ -75,9 +104,9 @@ public sealed class GameController : IDisposable
 
     public bool IsEditing => Editing is not null;
 
-    public bool IsEngineTurn => !IsEditing && !Game.IsOver && (HumanColor == Color.None || Game.SideToMove != HumanColor);
+    public bool IsEngineTurn => !IsEditing && !IsGameOver && (HumanColor == Color.None || Game.SideToMove != HumanColor);
 
-    public bool IsHumanTurn => !IsEditing && !Game.IsOver && Game.SideToMove == HumanColor && !IsThinking;
+    public bool IsHumanTurn => !IsEditing && !IsGameOver && Game.SideToMove == HumanColor && !IsThinking;
 
     public Color SideToMove => Editing?.SideToMove ?? Game.SideToMove;
 
@@ -190,7 +219,7 @@ public sealed class GameController : IDisposable
         string? failure = null;
         try
         {
-            bestMove = await client.GoAsync(LimitsFor(Level), cancellation.Token);
+            bestMove = await client.GoAsync(CurrentLimits(), cancellation.Token);
         }
         catch (InvalidOperationException ex)
         {
@@ -234,6 +263,24 @@ public sealed class GameController : IDisposable
             return;
         }
         MakeMove(move.Value);
+    }
+
+    /// <summary>
+    /// With a time control the engine plays on the clocks; otherwise the level decides.
+    /// </summary>
+    private SearchLimits CurrentLimits()
+    {
+        if (ActiveClock is { } clock)
+        {
+            return new SearchLimits
+            {
+                WhiteTime = WhiteClock,
+                BlackTime = BlackClock,
+                WhiteIncrement = clock.Increment,
+                BlackIncrement = clock.Increment,
+            };
+        }
+        return LimitsFor(Level);
     }
 
     /// <summary>
@@ -328,7 +375,20 @@ public sealed class GameController : IDisposable
 
     private void MakeMove(Move move)
     {
+        Color mover = Game.SideToMove;
         Game.MakeMove(move);
+        if (ActiveClock is { } clock)
+        {
+            // Fischer increment: the mover gains it after completing the move
+            if (mover == Color.White)
+            {
+                WhiteClock += clock.Increment;
+            }
+            else
+            {
+                BlackClock += clock.Increment;
+            }
+        }
         Resume();
     }
 
@@ -436,29 +496,71 @@ public sealed class GameController : IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
+    /// Choose the clock the next games are played under (null for untimed play). A game that has
+    /// not started yet picks it up at once; a running game finishes under its old clock.
+    /// </summary>
+    public void SetTimeControl(TimeControl? timeControl)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        TimeControl = timeControl;
+        if (!IsEditing && Game.Moves.Count == 0 && !IsThinking)
+        {
+            ResetClocks();
+        }
+        RaiseChanged();
+    }
+
+    /// <summary>
     /// Advance the clock of the side to move. Call regularly from a timer; nothing happens while
-    /// editing or after the game has ended.
+    /// editing or after the game has ended. Under a time control the clocks run down, and a side
+    /// reaching zero loses on time.
     /// </summary>
     public void Tick(TimeSpan elapsed)
     {
-        if (IsEditing || Game.IsOver)
+        if (IsEditing || IsGameOver)
         {
             return;
         }
-        if (Game.SideToMove == Color.White)
+        Color side = Game.SideToMove;
+        if (ActiveClock is null)
         {
-            WhiteClock += elapsed;
+            if (side == Color.White)
+            {
+                WhiteClock += elapsed;
+            }
+            else
+            {
+                BlackClock += elapsed;
+            }
+            return;
+        }
+        TimeSpan remaining = (side == Color.White ? WhiteClock : BlackClock) - elapsed;
+        if (remaining <= TimeSpan.Zero)
+        {
+            remaining = TimeSpan.Zero;
+            TimedOut = side;
+            CancelThinking(discardResult: true);
+        }
+        if (side == Color.White)
+        {
+            WhiteClock = remaining;
         }
         else
         {
-            BlackClock += elapsed;
+            BlackClock = remaining;
+        }
+        if (TimedOut != Color.None)
+        {
+            RaiseChanged();
         }
     }
 
     private void ResetClocks()
     {
-        WhiteClock = TimeSpan.Zero;
-        BlackClock = TimeSpan.Zero;
+        ActiveClock = TimeControl;
+        TimedOut = Color.None;
+        WhiteClock = ActiveClock?.Base ?? TimeSpan.Zero;
+        BlackClock = ActiveClock?.Base ?? TimeSpan.Zero;
     }
 
     /// <summary>

@@ -198,6 +198,66 @@ public class GameControllerTests
     }
 
     [Fact]
+    public void TimeControlCountsDownAndCreditsTheIncrementToTheMover()
+    {
+        using var controller = new GameController();
+        controller.SetTimeControl(TimeControl.OfMinutes(5, 3));
+        controller.NewGame(Color.White);
+        Assert.Equal(TimeSpan.FromMinutes(5), controller.WhiteClock);
+        Assert.Equal(TimeSpan.FromMinutes(5), controller.BlackClock);
+        controller.Tick(TimeSpan.FromSeconds(2));
+        Assert.Equal(TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(2), controller.WhiteClock);
+        Assert.Equal(TimeSpan.FromMinutes(5), controller.BlackClock);
+        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        Assert.Equal(TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(1), controller.WhiteClock);
+    }
+
+    [Fact]
+    public void RunningOutOfTimeLosesTheGame()
+    {
+        using var controller = new GameController();
+        controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(1), TimeSpan.Zero));
+        controller.NewGame(Color.White);
+        controller.Tick(TimeSpan.FromSeconds(2));
+        Assert.Equal(Color.White, controller.TimedOut);
+        Assert.Equal(TimeSpan.Zero, controller.WhiteClock);
+        Assert.True(controller.IsGameOver);
+        Assert.False(controller.IsHumanTurn);
+        Assert.False(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        controller.NewGame(Color.White);
+        Assert.Equal(Color.None, controller.TimedOut);
+        Assert.False(controller.IsGameOver);
+    }
+
+    [Fact]
+    public void ChangingTheTimeControlLeavesARunningGameOnItsOldClock()
+    {
+        using var controller = new GameController();
+        controller.SetTimeControl(TimeControl.OfMinutes(5, 3));
+        controller.NewGame(Color.White);
+        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        controller.SetTimeControl(null);
+        Assert.Equal(TimeControl.OfMinutes(5, 3), controller.ActiveClock);
+        controller.Tick(TimeSpan.FromSeconds(1));
+        Assert.Equal(TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(1), controller.BlackClock);
+        controller.NewGame(Color.White);
+        Assert.Null(controller.ActiveClock);
+        Assert.Equal(TimeSpan.Zero, controller.WhiteClock);
+    }
+
+    [Fact]
+    public async Task TheEnginePlaysOnTheClockWhenATimeControlIsSet()
+    {
+        using GameController controller = await StartAsync();
+        controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100)));
+        controller.NewGame(Color.Black);
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.Single(controller.Game.Moves);
+        // No timer ticked, so white's clock is its base plus the increment for the move it made
+        Assert.Equal(TimeSpan.FromSeconds(2.1), controller.WhiteClock);
+    }
+
+    [Fact]
     public async Task AMissingExternalEngineFallsBackToTheBuiltInOne()
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };
