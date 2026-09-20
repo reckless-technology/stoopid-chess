@@ -91,7 +91,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    cutoff history -17 ± 47 (not kept). Stopping the iterative deepening only on a mate proven within the searched depth, instead
    of on any mate score, -38 ± 54 then -24 ± 52: kept anyway, because in all 200 games the side that saw a mate won,
    so the rule could not have changed a result (noise), while fifty-move-rule draws, the one thing it can change,
-   fell from 21 in 500 games to 7 in 200. Half as much time again, within 80% of the clock, the first time the root
+   fell from 21 in 500 games to 7 in 200 (the keep-on-mechanism-evidence exception was reviewed and confirmed
+   on 20 September 2026). Half as much time again, within 80% of the clock, the first time the root
    score falls 30 cp or more between iterations from depth 4 +78 ± 48 (45 W, 23 L, 32 D), the same extension when the
    best move changes from depth 6 +45 ± 46 (43 W, 30 L, 27 D), stopping at 30% of the budget instead of 50% once the
    best move has stood for four iterations +10 ± 50 (not kept), doubling the budget on instability instead of adding
