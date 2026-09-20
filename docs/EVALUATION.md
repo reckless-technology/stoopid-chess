@@ -69,3 +69,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Shelter and storm tables at half the original values (12/8/3, -15, 15/10/5) | -21 ± 43 (24 W, 30 L, 46 D) | no |
 | King zone attack penalties 3 and 6 cp | -3 ± 51 (31 W, 32 L, 37 D) | no |
 | Evaluation cache: 65,536 entries of 48-bit key and 16-bit score, always replaced, cleared on a new game (exact, every score identical) | about 10% faster at bench depth 10 with JIT tiering off; 512 KB measured best of 128 KB to 8 MB | yes |
+| King tropism after Crafty: knight 6/6/6/4/2, bishop 4/4/4/2, rook 8/8/6/4/2/2/2, queen 12/12/10/8/6/4/4 cp by distance from the enemy king, middlegame only | -31 ± 51 (28 W, 37 L, 35 D) | no |
