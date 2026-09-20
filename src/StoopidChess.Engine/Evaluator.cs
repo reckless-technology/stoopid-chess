@@ -17,7 +17,7 @@ public sealed class Evaluator
     public const int KnightValue = 320;
     public const int BishopValue = 330;
     public const int RookValue = 500;
-    public const int QueenValue = 900;
+    public const int QueenValue = 950;
 
     // Mobility: centipawns per square a piece can move to or capture on
     public const int KnightMobility = 6;
