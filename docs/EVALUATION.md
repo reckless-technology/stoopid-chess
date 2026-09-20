@@ -66,3 +66,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Weak king square penalty 10 cp instead of 15 | +21 ± 53 then +7 ± 51, +14 ± 37 over 200 games (70 W, 62 L, 68 D) | no |
 | Shelter and storm tables scaled by 1.5 | -42 ± 54 (27 W, 39 L, 34 D) | no |
 | Shelter and storm tables scaled by two thirds (shelter 17/10/3, missing -20, storm 20/13/7) | +31 ± 54 (39 W, 30 L, 31 D) | yes |
+| Shelter and storm tables at half the original values (12/8/3, -15, 15/10/5) | -21 ± 43 (24 W, 30 L, 46 D) | no |
