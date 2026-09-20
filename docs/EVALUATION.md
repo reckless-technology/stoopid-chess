@@ -73,3 +73,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Bad bishop after Crafty: 4 cp per own pawn on the bishop'''s colour | -31 ± 55 (31 W, 40 L, 29 D) | no |
 | Queen 950 instead of 900 | +49 ± 44 (38 W, 24 L, 38 D) | yes |
 | Queen 1000 | +45 ± 44 (39 W, 26 L, 35 D) | yes |
+| Queen 1050 | +10 ± 50 (34 W, 31 L, 35 D) | no |
