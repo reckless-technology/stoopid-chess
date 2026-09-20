@@ -45,9 +45,9 @@ public sealed class Evaluator
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    private static readonly int[] ShelterByRank = [0, 25, 15, 5, 0, 0, 0, 0];      // Pawn rank from its own side
-    private const int ShelterMissing = -30;
-    private static readonly int[] StormByDistance = [0, 0, 30, 20, 10, 0, 0, 0];   // Ranks between the king and the pawn
+    private static readonly int[] ShelterByRank = [0, 17, 10, 3, 0, 0, 0, 0];      // Pawn rank from its own side
+    private const int ShelterMissing = -20;
+    private static readonly int[] StormByDistance = [0, 0, 20, 13, 7, 0, 0, 0];   // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
     private static readonly int[] PassedPawnBonus = [0, 5, 10, 20, 35, 60, 100, 0];
