@@ -82,3 +82,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Blocked passers: a passed pawn with the square in front occupied is worth half | +53 ± 52 (40 W, 25 L, 35 D) | yes |
 | Protected passers: a passer defended by an own pawn worth half again | -3 ± 49 (31 W, 32 L, 37 D) | no |
 | Blocked passers worth a third instead of half | -10 ± 44 (33 W, 36 L, 31 D) | no |
+| Connected passers: a passer with another passer on an adjacent file worth half again | -21 ± 57 (32 W, 38 L, 30 D) | no |
