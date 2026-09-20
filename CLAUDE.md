@@ -120,7 +120,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    probe touches adjacent lines, aggressive inlining of Opponent and KingSquare, the killer/countermove/history
    tables as flat arrays instead of multi-dimensional ones, and a prefetch of the child's table bucket after
    every make) +8.6% nodes per second at bench 16 with tiering off, identical signature so the play is unchanged;
-   kept on speed evidence like the evaluation cache. A
+   kept on speed evidence like the evaluation cache. Quiet checking moves at the first ply of quiescence, skipped
+   when they lose material by the exchange evaluation (all legal quiets generated and filtered by precomputed
+   check squares and discovered-check candidates) -28 ± 57 (not kept: the extra generation at every quiescence
+   entry cost more than the tactics it found). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
