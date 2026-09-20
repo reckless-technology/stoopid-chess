@@ -115,7 +115,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    -3 ± 45 (not kept), root moves ordered by the previous iteration's subtree node counts, the table move first,
    from the second iteration on -14 ± 52 (not kept), razoring (a non-PV node at depth <= 3 whose static evaluation
    is 250 cp per ply of depth below alpha is cut to the quiescence score when that score also stays at or below
-   alpha) +31 ± 47 (36 W, 27 L, 37 D; kept). A
+   alpha) +31 ± 47 (36 W, 27 L, 37 D; kept), a razoring margin of 200 cp per ply -24 ± 56 (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
