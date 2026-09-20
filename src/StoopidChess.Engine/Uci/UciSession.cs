@@ -25,7 +25,8 @@ public sealed class UciSession : IDisposable
     private readonly Lock outputLock = new();
     private readonly TranspositionTable table = new();
     private readonly Searcher searcher;
-    private readonly Evaluator evaluator = new();
+    private readonly EvaluationParameters parameters = new();
+    private readonly Evaluator evaluator;
     private Position position = Position.Start();
     private Task? searchTask;
     private CancellationTokenSource? searchCancellation;
@@ -35,7 +36,8 @@ public sealed class UciSession : IDisposable
     {
         this.input = input ?? throw new ArgumentNullException(nameof(input));
         this.output = output ?? throw new ArgumentNullException(nameof(output));
-        searcher = new Searcher(table);
+        searcher = new Searcher(table, parameters);
+        evaluator = new Evaluator(parameters);
     }
 
     public static string EngineVersion { get; } =
@@ -83,6 +85,11 @@ public sealed class UciSession : IDisposable
                 WriteLine($"id name {EngineName} {EngineVersion}");
                 WriteLine($"id author {EngineAuthor}");
                 WriteLine($"option name Hash type spin default {TranspositionTable.DefaultSizeInMegabytes} min {TranspositionTable.MinimumSizeInMegabytes} max {TranspositionTable.MaximumSizeInMegabytes}");
+                foreach (string name in EvaluationParameters.Names)
+                {
+                    (int fallback, int min, int max) = EvaluationParameters.Describe(name)!.Value;
+                    WriteLine($"option name {name} type spin default {fallback} min {min} max {max}");
+                }
                 WriteLine("uciok");
                 break;
             case "isready":
@@ -149,6 +156,11 @@ public sealed class UciSession : IDisposable
         {
             StopSearch();
             table.Resize(megabytes);
+        }
+        else if (ParseInt(value) is int number && EvaluationParameters.Describe(name) is not null)
+        {
+            StopSearch();
+            parameters.TrySet(name, number);   // Shared by the searcher and the eval command
         }
     }
 

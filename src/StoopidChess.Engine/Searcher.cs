@@ -35,7 +35,7 @@ public sealed class Searcher
     private const int HistoryCap = 79_999;
 
     private readonly TranspositionTable table;
-    private readonly Evaluator evaluator = new();
+    private readonly Evaluator evaluator;
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     private readonly Move[,] killers = new Move[MaxPly + 1, 2];
     private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
@@ -52,11 +52,22 @@ public sealed class Searcher
     private long? nodeLimit;
     private bool stopped;
 
-    public Searcher(TranspositionTable table)
+    public Searcher(TranspositionTable table) : this(table, new EvaluationParameters())
+    {
+    }
+
+    public Searcher(TranspositionTable table, EvaluationParameters parameters)
     {
         ArgumentNullException.ThrowIfNull(table);
+        ArgumentNullException.ThrowIfNull(parameters);
         this.table = table;
+        evaluator = new Evaluator(parameters);
     }
+
+    /// <summary>
+    /// The evaluation parameters the search plays with.
+    /// </summary>
+    public EvaluationParameters Parameters => evaluator.Parameters;
 
     /// <summary>
     /// Statistics of the most recent search.

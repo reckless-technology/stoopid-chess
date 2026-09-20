@@ -82,6 +82,31 @@ public class EvaluatorTests
         Assert.Equal(evaluator.Evaluate(position), evaluator.Evaluate(FileMirror(position)));
     }
 
+    [Fact]
+    public void ParametersCanBeSetByNameAndChangeTheEvaluation()
+    {
+        var parameters = new EvaluationParameters();
+        var evaluator = new Evaluator(parameters);
+        var position = Position.FromFen("r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 3");
+        int before = evaluator.Evaluate(position);
+        Assert.Equal(Evaluator.KnightMobility, parameters.Get("KnightMobility"));
+        Assert.True(parameters.TrySet("KnightMobility", Evaluator.KnightMobility + 10));
+        Assert.NotEqual(before, evaluator.Evaluate(position));
+        Assert.True(parameters.TrySet("KnightMobility", Evaluator.KnightMobility));
+        Assert.Equal(before, evaluator.Evaluate(position));
+        // Material changes rebuild the piece-square tables
+        Assert.True(parameters.TrySet("QueenValue", 1200));
+        Assert.Equal(before + 200, evaluator.Evaluate(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")) - new Evaluator().Evaluate(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")) + before);
+        // Unknown names are refused, values are clamped, and every default matches the constant it came from
+        Assert.False(parameters.TrySet("NoSuchParameter", 1));
+        Assert.Null(parameters.Get("NoSuchParameter"));
+        Assert.True(parameters.TrySet("TempoBonus", 999));
+        Assert.Equal(EvaluationParameters.Describe("TempoBonus")!.Value.Max, parameters.Get("TempoBonus"));
+        Assert.Equal(Evaluator.QueenValue, EvaluationParameters.Describe("QueenValue")!.Value.Default);
+        Assert.Equal(Evaluator.DefaultPassedPawnBonus[6], EvaluationParameters.Describe("PassedRank7")!.Value.Default);
+        Assert.Equal(27, EvaluationParameters.Names.Count());
+    }
+
     private static Position ColorFlip(Position position)
     {
         var fen = new System.Text.StringBuilder();
