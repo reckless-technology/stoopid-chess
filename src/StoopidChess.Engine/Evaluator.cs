@@ -244,7 +244,56 @@ public sealed class Evaluator
             score += color == Color.White ? own : -own;
         }
         score = ScaleDrawishness(position, score);
+        score = KingPawnKing(position, score);
         return parameters.TempoBonus + (position.SideToMove == Color.White ? score : -score);
+    }
+
+    /// <summary>
+    /// King and pawn against a bare king is solved: a drawn arrangement scores a sixteenth of its
+    /// tabled value, like the other can't-win rules, and a won one keeps its ordinary score with
+    /// its ordinary conversion gradient. The search then avoids trading down into dead pawn
+    /// endings and defends into them from a piece down.
+    /// </summary>
+    private static int KingPawnKing(Position position, int score)
+    {
+        if ((position.Pieces(Piece.Knight) | position.Pieces(Piece.Bishop) | position.Pieces(Piece.Rook) | position.Pieces(Piece.Queen)).IsNotEmpty)
+        {
+            return score;
+        }
+        Bitboard whitePawns = position.Pieces(Color.White, Piece.Pawn);
+        Bitboard blackPawns = position.Pieces(Color.Black, Piece.Pawn);
+        Color strong;
+        if (whitePawns.IsSingle && blackPawns.IsEmpty)
+        {
+            strong = Color.White;
+        }
+        else if (blackPawns.IsSingle && whitePawns.IsEmpty)
+        {
+            strong = Color.Black;
+        }
+        else
+        {
+            return score;
+        }
+        Square pawn = (strong == Color.White ? whitePawns : blackPawns).First;
+        Square strongKing = position.KingSquare(strong);
+        Square weakKing = position.KingSquare(strong.Opponent());
+        if (strong == Color.Black)
+        {
+            // The bitbase knows white as the strong side: flip the board upside down
+            pawn = new Square(pawn ^ 56);
+            strongKing = new Square(strongKing ^ 56);
+            weakKing = new Square(weakKing ^ 56);
+        }
+        if (pawn.File > 3)
+        {
+            // And it holds the pawn on files a-d: mirror left to right
+            pawn = new Square(pawn ^ 7);
+            strongKing = new Square(strongKing ^ 7);
+            weakKing = new Square(weakKing ^ 7);
+        }
+        bool win = KpkBitbase.Probe(strongKing, pawn, weakKing, position.SideToMove == strong);
+        return win ? score : score / 16;
     }
 
     /// <summary>
