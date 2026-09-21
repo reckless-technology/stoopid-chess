@@ -20,6 +20,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="StoopidChess.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The piece images are copies of src/StoopidChess.Gui/Resources (the WinForms GUI embeds them per-form). -->
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
