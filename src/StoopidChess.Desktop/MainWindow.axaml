@@ -11,7 +11,14 @@
         <MenuItem Header="Save game" Click="OnSaveGame" />
         <MenuItem Header="Load game" Click="OnLoadGame" />
         <Separator />
+        <MenuItem Header="Import PGN..." Click="OnImportPgn" />
+        <MenuItem Header="Export PGN..." Click="OnExportPgn" />
+        <Separator />
         <MenuItem Header="Exit" Click="OnExit" />
+      </MenuItem>
+      <MenuItem Header="_Edit">
+        <MenuItem Header="Copy FEN" InputGesture="Ctrl+C" Click="OnCopyFen" />
+        <MenuItem Header="Paste FEN" InputGesture="Ctrl+V" Click="OnPasteFen" />
       </MenuItem>
       <MenuItem Header="_Game">
         <MenuItem Header="New Game">
@@ -31,6 +38,7 @@
       </MenuItem>
       <MenuItem Header="_View">
         <MenuItem Header="Flip position" Click="OnFlipBoard" />
+        <MenuItem Header="Analysis window" Click="OnToggleAnalysis" />
       </MenuItem>
       <MenuItem x:Name="engineMenuItem" Header="_Engine" />
       <MenuItem Header="_Help" Click="OnHelp" />

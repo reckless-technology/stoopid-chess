@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -29,6 +31,7 @@ public sealed partial class MainWindow : Window, IDisposable
         + "a position edit.";
 
     private static readonly FilePickerFileType ChessFileType = new("chess") { Patterns = ["*.chess"] };
+    private static readonly FilePickerFileType PgnFileType = new("PGN") { Patterns = ["*.pgn"] };
 
     private static readonly (string Header, TimeControl? Clock)[] TimeControls =
     [
@@ -43,6 +46,7 @@ public sealed partial class MainWindow : Window, IDisposable
     private readonly DispatcherTimer clockTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly MenuFlyout editMenu;
     private readonly EngineRoster roster;
+    private AnalysisWindow? analysisWindow;
     private readonly List<(MenuItem Item, TimeControl? Clock)> timeControlItems = [];
     private readonly List<(MenuItem Item, string Path)> rosterItems = [];
     private readonly MenuItem builtInEngineItem = new() { Header = "Use built-in engine", ToggleType = MenuItemToggleType.CheckBox };
@@ -74,6 +78,13 @@ public sealed partial class MainWindow : Window, IDisposable
             message + "\n\nChoose an engine from the Engine menu to continue.");
         controller.EngineIllegalMove += (_, move) => _ = MessageDialog.ShowAsync(this, "Engine",
             $"The engine played an illegal move: {move}");
+        controller.EngineInfo += (_, line) => Dispatcher.UIThread.Post(() =>
+        {
+            if (analysisWindow is { } window && FormatInfoLine(line) is { } formatted)
+            {
+                window.Append(formatted);
+            }
+        });
         clockTimer.Tick += OnClockTick;
         stopThinkingButton.IsEnabled = false;
         RefreshAll();
@@ -332,6 +343,7 @@ public sealed partial class MainWindow : Window, IDisposable
             text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. {"...",-9}");
             lineOpen = true;
         }
+        var replay = Core.Position.FromFen(game.StartFen);
         foreach (Move move in game.Moves)
         {
             if (mover == Color.White)
@@ -339,7 +351,8 @@ public sealed partial class MainWindow : Window, IDisposable
                 text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. ");
                 lineOpen = true;
             }
-            text.Append(CultureInfo.InvariantCulture, $"{move.ToLongAlgebraic(),-9}");
+            text.Append(CultureInfo.InvariantCulture, $"{San.Format(replay, move),-9}");
+            replay.MakeMove(move);
             if (mover == Color.Black)
             {
                 text.AppendLine();
@@ -572,6 +585,215 @@ public sealed partial class MainWindow : Window, IDisposable
     {
         controller.IsBoardFlipped = !controller.IsBoardFlipped;
         board.InvalidateVisual();
+    }
+
+    private void OnToggleAnalysis(object? sender, RoutedEventArgs e)
+    {
+        if (analysisWindow is { } open)
+        {
+            open.Activate();
+            return;
+        }
+        analysisWindow = new AnalysisWindow();
+        analysisWindow.Closed += (_, _) => analysisWindow = null;
+        analysisWindow.Show(this);
+    }
+
+    /// <summary>
+    /// One display line per engine "info" report that carries a full report: depth, score, node
+    /// count and the principal variation.
+    /// </summary>
+    private static string? FormatInfoLine(string line)
+    {
+        string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string? depth = null;
+        string? score = null;
+        string? nodes = null;
+        int pvStart = -1;
+        for (int i = 1; i < tokens.Length; i++)
+        {
+            switch (tokens[i])
+            {
+                case "depth" when i + 1 < tokens.Length:
+                    depth = tokens[i + 1];
+                    break;
+                case "score" when i + 2 < tokens.Length && tokens[i + 1] == "cp" && int.TryParse(tokens[i + 2], out int cp):
+                    score = (cp / 100.0).ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
+                    break;
+                case "score" when i + 2 < tokens.Length && tokens[i + 1] == "mate":
+                    score = "#" + tokens[i + 2];
+                    break;
+                case "nodes" when i + 1 < tokens.Length && long.TryParse(tokens[i + 1], out long count):
+                    nodes = count.ToString("N0", CultureInfo.InvariantCulture);
+                    break;
+                case "pv":
+                    pvStart = i + 1;
+                    break;
+            }
+            if (pvStart >= 0)
+            {
+                break;
+            }
+        }
+        if (depth is null || score is null || pvStart < 0)
+        {
+            return null;
+        }
+        string pv = string.Join(' ', tokens.Skip(pvStart).Take(12));
+        return $"d{depth,3}  {score,8}  {nodes,14} n   {pv}";
+    }
+
+    private async void OnCopyFen(object? sender, RoutedEventArgs e)
+    {
+        if (GetTopLevel(this)?.Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(controller.CurrentFen);
+        }
+    }
+
+    private async void OnPasteFen(object? sender, RoutedEventArgs e)
+    {
+        if (GetTopLevel(this)?.Clipboard is not { } clipboard)
+        {
+            return;
+        }
+        string? text = await clipboard.TryGetTextAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+        if (Fen.TryParse(text.Trim()) is not { } position)
+        {
+            await MessageDialog.ShowAsync(this, "Paste FEN", "The clipboard does not hold a valid FEN position.");
+            return;
+        }
+        controller.SetPosition(position);
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        // Window-wide copy and paste of the position, unless a text box owns the keys
+        if (e.KeyModifiers == KeyModifiers.Control && FocusManager?.GetFocusedElement() is not TextBox)
+        {
+            if (e.Key == Key.C)
+            {
+                OnCopyFen(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.V)
+            {
+                OnPasteFen(this, new RoutedEventArgs());
+                e.Handled = true;
+            }
+        }
+        base.OnKeyDown(e);
+    }
+
+    private async void OnImportPgn(object? sender, RoutedEventArgs e)
+    {
+        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import PGN",
+            AllowMultiple = false,
+            FileTypeFilter = [PgnFileType, FilePickerFileTypes.All],
+        });
+        if (files.Count != 1)
+        {
+            return;
+        }
+        string text;
+        try
+        {
+            Stream stream = await files[0].OpenReadAsync();
+            await using (stream.ConfigureAwait(true))
+            {
+                using var readText = new StreamReader(stream);
+                text = await readText.ReadToEndAsync();
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await MessageDialog.ShowAsync(this, "Import PGN", $"Unable to read the file:\n{ex.Message}");
+            return;
+        }
+        if (Pgn.Parse(text) is not { } game)
+        {
+            await MessageDialog.ShowAsync(this, "Import PGN", "The file does not hold a readable PGN game.");
+            return;
+        }
+        controller.Load(new SavedGame
+        {
+            StartFen = game.StartFen,
+            Moves = [.. game.UciMoves],
+            HumanColor = controller.HumanColor,
+            IsBoardFlipped = controller.IsBoardFlipped,
+            Level = controller.Level,
+        });
+    }
+
+    private async void OnExportPgn(object? sender, RoutedEventArgs e)
+    {
+        if (controller.IsEditing)
+        {
+            await MessageDialog.ShowAsync(this, "Export PGN", "Finish editing the position before exporting.");
+            return;
+        }
+        IStorageFile? file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export PGN",
+            DefaultExtension = "pgn",
+            SuggestedFileName = "game.pgn",
+            FileTypeChoices = [PgnFileType],
+        });
+        if (file is null)
+        {
+            return;
+        }
+        (string white, string black) = PlayerNames();
+        string pgn = Pgn.Write(controller.Game, white, black, ResultText(), DateOnly.FromDateTime(DateTime.Now));
+        try
+        {
+            Stream stream = await file.OpenWriteAsync();
+            await using (stream.ConfigureAwait(true))
+            {
+                using var writeText = new StreamWriter(stream);
+                await writeText.WriteAsync(pgn);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await MessageDialog.ShowAsync(this, "Export PGN", $"Unable to save the file:\n{ex.Message}");
+        }
+    }
+
+    private (string White, string Black) PlayerNames()
+    {
+        string engine = controller.EngineName ?? "Engine";
+        if (controller.IsMatch)
+        {
+            return (engine, controller.OpponentName ?? "Engine");
+        }
+        return controller.HumanColor switch
+        {
+            Color.White => ("Human", engine),
+            Color.Black => (engine, "Human"),
+            _ => (engine, engine),
+        };
+    }
+
+    private string ResultText()
+    {
+        if (controller.TimedOut != Color.None)
+        {
+            return controller.TimedOut == Color.White ? "0-1" : "1-0";
+        }
+        return controller.Game.Status switch
+        {
+            GameStatus.Checkmate => controller.Game.SideToMove == Color.White ? "0-1" : "1-0",
+            GameStatus.Stalemate or GameStatus.DrawByRepetition or GameStatus.DrawByFiftyMoveRule
+                or GameStatus.DrawByInsufficientMaterial => "1/2-1/2",
+            _ => "*",
+        };
     }
 
     private void SetLevel(Level level)

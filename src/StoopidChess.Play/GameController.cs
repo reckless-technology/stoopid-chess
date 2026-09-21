@@ -140,6 +140,12 @@ public sealed class GameController : IDisposable
     /// </summary>
     public event EventHandler<string>? EngineIllegalMove;
 
+    /// <summary>
+    /// Raised for every "info" line an engine sends, on the engine's reader thread: the subscriber
+    /// must marshal to its own thread before touching anything.
+    /// </summary>
+    public event EventHandler<string>? EngineInfo;
+
     // ---------------------------------------------------------------------------------------------
     // Engine
     // ---------------------------------------------------------------------------------------------
@@ -306,6 +312,7 @@ public sealed class GameController : IDisposable
         {
             lastEngineInfo = line;
         }
+        EngineInfo?.Invoke(this, line);
     }
 
     private void StartThinkingIfEngineTurn()
@@ -651,6 +658,23 @@ public sealed class GameController : IDisposable
         ApplyEdit(empty);
     }
 
+    /// <summary>
+    /// Make the given position the game, exactly as finishing a board edit does: a legal position
+    /// starts a fresh game from it (with fresh clocks); one that is not yet legal appears on the
+    /// board for editing.
+    /// </summary>
+    public void SetPosition(Position position)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(position);
+        ApplyEdit(position);
+    }
+
+    /// <summary>
+    /// The FEN of what the board shows: the position being edited, or the game's.
+    /// </summary>
+    public string CurrentFen => (Editing ?? Game.Position).ToFen();
+
     private void ApplyEdit(Position editing)
     {
         CancelThinking(discardResult: true);
@@ -658,6 +682,7 @@ public sealed class GameController : IDisposable
         {
             Game = new Game(editing);
             Editing = null;
+            ResetClocks();      // A new position is a new game as far as the clocks are concerned
         }
         else
         {
