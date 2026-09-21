@@ -213,8 +213,12 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   start), time controls (a new game opens `NewGameDialog` to pick its clock — the standard 40-move
   sessions, the 5+5 incremental, or `CustomTimeControlDialog` with minutes, increment and moves per
   session; clock play with flagging) and engine matches (`MatchDialog`: any two registered engines
-  or the built-in play each other on the clock). The WinForms `Gui` keeps the original feature set
-  and is no longer extended.
+  or the built-in play each other on the clock). The move list is SAN, View > Analysis window shows
+  the engine's info lines (depth, score, nodes, PV), File imports and exports PGN, and Ctrl+C /
+  Ctrl+V copy and paste the position as FEN (pasting behaves like a finished board edit). The board
+  draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
+  actions have keyboard shortcuts. The WinForms `Gui` keeps the original feature set and is no
+  longer extended.
 
 ## Conventions
 

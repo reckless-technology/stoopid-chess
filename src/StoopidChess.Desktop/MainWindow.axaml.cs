@@ -672,19 +672,33 @@ public sealed partial class MainWindow : Window, IDisposable
 
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        // Window-wide copy and paste of the position, unless a text box owns the keys
-        if (e.KeyModifiers == KeyModifiers.Control && FocusManager?.GetFocusedElement() is not TextBox)
+        // Window-wide shortcuts, unless a text box owns the keys
+        if (FocusManager?.GetFocusedElement() is TextBox)
         {
-            if (e.Key == Key.C)
+            base.OnKeyDown(e);
+            return;
+        }
+        if (e.KeyModifiers == KeyModifiers.Control)
+        {
+            e.Handled = true;
+            switch (e.Key)
             {
-                OnCopyFen(this, new RoutedEventArgs());
-                e.Handled = true;
+                case Key.C: OnCopyFen(this, new RoutedEventArgs()); break;
+                case Key.V: OnPasteFen(this, new RoutedEventArgs()); break;
+                case Key.N: _ = NewGameWithClockAsync(Color.White); break;
+                case Key.Z: controller.Undo(); break;
+                case Key.S: OnSaveGame(this, new RoutedEventArgs()); break;
+                case Key.O: OnLoadGame(this, new RoutedEventArgs()); break;
+                case Key.F: OnFlipBoard(this, new RoutedEventArgs()); break;
+                case Key.A: OnToggleAnalysis(this, new RoutedEventArgs()); break;
+                case Key.Q: Close(); break;
+                default: e.Handled = false; break;
             }
-            else if (e.Key == Key.V)
-            {
-                OnPasteFen(this, new RoutedEventArgs());
-                e.Handled = true;
-            }
+        }
+        else if (e.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift) && e.Key == Key.N)
+        {
+            _ = NewGameWithClockAsync(Color.Black);
+            e.Handled = true;
         }
         base.OnKeyDown(e);
     }

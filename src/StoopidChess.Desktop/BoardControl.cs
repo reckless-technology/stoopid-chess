@@ -15,9 +15,16 @@ namespace StoopidChess.Desktop;
 internal sealed class BoardControl : Control
 {
     private static readonly Pen LastMovePen = new(Brushes.DarkGoldenrod, 2.5);
+    private static readonly IBrush CheckBrush = new SolidColorBrush(Avalonia.Media.Color.FromArgb(110, 220, 50, 50));
+    private static readonly IBrush HintBrush = new SolidColorBrush(Avalonia.Media.Color.FromArgb(90, 30, 30, 30));
+    private static readonly Pen CaptureHintPen = new(new SolidColorBrush(Avalonia.Media.Color.FromArgb(110, 30, 30, 30)), 3);
+    private static readonly IBrush LightLabelBrush = new SolidColorBrush(Avalonia.Media.Color.FromArgb(235, 80, 80, 80));
+    private static readonly IBrush DarkLabelBrush = new SolidColorBrush(Avalonia.Media.Color.FromArgb(235, 255, 255, 240));
+    private static readonly Typeface LabelTypeface = new(FontFamily.Default, weight: FontWeight.SemiBold);
 
     private Square dragFrom = Square.None;        // Square of the piece being dragged, or None
     private Point dragPosition;
+    private Bitboard dragTargets;                 // Legal destinations of the dragged piece
 
     public GameController? Controller { get; set; }
 
@@ -64,6 +71,11 @@ internal sealed class BoardControl : Control
             Point origin = SquareOrigin(square);
             context.FillRectangle(square.IsLight ? Brushes.Ivory : Brushes.Gray, new Rect(origin.X, origin.Y, size, size));
         }
+        if (!controller.IsEditing && controller.Game.Position.IsInCheck)
+        {
+            Point origin = SquareOrigin(controller.Game.Position.KingSquare(controller.Game.SideToMove));
+            context.FillRectangle(CheckBrush, new Rect(origin.X, origin.Y, size, size));
+        }
         foreach (Square square in Square.All)
         {
             (Color color, Piece type) = controller.PieceAt(square);
@@ -73,6 +85,7 @@ internal sealed class BoardControl : Control
                 context.DrawImage(PieceImages.Get(color, type), new Rect(origin.X, origin.Y, size, size));
             }
         }
+        DrawCoordinates(context, size);
         if (!controller.IsEditing && controller.Game.Position.LastMove is Move last && !last.IsNone)
         {
             Point fromOrigin = SquareOrigin(last.From);
@@ -80,10 +93,53 @@ internal sealed class BoardControl : Control
             context.DrawRectangle(null, LastMovePen, new Rect(fromOrigin.X, fromOrigin.Y, size, size));
             context.DrawRectangle(null, LastMovePen, new Rect(toOrigin.X, toOrigin.Y, size, size));
         }
+        if (dragFrom != Square.None)
+        {
+            // Where the dragged piece may go: a dot on an empty square, a ring around a capture
+            foreach (Square target in dragTargets)
+            {
+                Point origin = SquareOrigin(target);
+                var centre = new Point(origin.X + (size / 2.0), origin.Y + (size / 2.0));
+                if (controller.PieceAt(target).Type == Piece.None)
+                {
+                    context.DrawEllipse(HintBrush, null, centre, size / 7.0, size / 7.0);
+                }
+                else
+                {
+                    context.DrawEllipse(null, CaptureHintPen, centre, (size / 2.0) - 3, (size / 2.0) - 3);
+                }
+            }
+        }
         if (dragFrom != Square.None && controller.PieceAt(dragFrom) is (Color dragColor, Piece dragType) && dragType != Piece.None)
         {
             var rect = new Rect(dragPosition.X - (size / 2.0), dragPosition.Y - (size / 2.0), size, size);
             context.DrawImage(PieceImages.Get(dragColor, dragType), rect);
+        }
+    }
+
+    /// <summary>
+    /// File letters along the bottom edge and rank digits along the left, in the corner of each
+    /// border square, following the board's orientation.
+    /// </summary>
+    private void DrawCoordinates(DrawingContext context, int size)
+    {
+        bool flipped = Controller?.IsBoardFlipped ?? false;
+        double fontSize = Math.Max(10, size / 4.5);
+        for (int x = 0; x < 8; x++)
+        {
+            int file = flipped ? 7 - x : x;
+            Square square = Square.At(file, flipped ? 7 : 0);
+            var label = new FormattedText(((char)('a' + file)).ToString(), System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, LabelTypeface, fontSize, square.IsLight ? LightLabelBrush : DarkLabelBrush);
+            context.DrawText(label, new Point((x * size) + size - label.Width - 2, (8 * size) - label.Height - 1));
+        }
+        for (int y = 0; y < 8; y++)
+        {
+            int rank = flipped ? y : 7 - y;
+            Square square = Square.At(flipped ? 7 : 0, rank);
+            var label = new FormattedText(((char)('1' + rank)).ToString(), System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight, LabelTypeface, fontSize, square.IsLight ? LightLabelBrush : DarkLabelBrush);
+            context.DrawText(label, new Point(2, y * size));
         }
     }
 
@@ -108,6 +164,14 @@ internal sealed class BoardControl : Control
         {
             dragFrom = square;
             dragPosition = e.GetPosition(this);
+            dragTargets = Bitboard.Empty;
+            foreach (Move move in controller.Game.Position.GenerateLegalMoves())
+            {
+                if (move.From == square)
+                {
+                    dragTargets |= Bitboard.Of(move.To);
+                }
+            }
             e.Pointer.Capture(this);
             InvalidateVisual();
         }
@@ -131,6 +195,7 @@ internal sealed class BoardControl : Control
             Square from = dragFrom;
             Square to = SquareAt(e.GetPosition(this));
             dragFrom = Square.None;
+            dragTargets = Bitboard.Empty;
             InvalidateVisual();
             if (to != from)
             {

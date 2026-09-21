@@ -4,17 +4,18 @@
         x:Class="StoopidChess.Desktop.MainWindow"
         Title="Stoopid Chess"
         Width="860" Height="660"
+        MinWidth="680" MinHeight="540"
         Icon="avares://StoopidChess.Desktop/Assets/BlackQueen.png">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">
-        <MenuItem Header="Save game" Click="OnSaveGame" />
-        <MenuItem Header="Load game" Click="OnLoadGame" />
+        <MenuItem Header="Save game" InputGesture="Ctrl+S" Click="OnSaveGame" />
+        <MenuItem Header="Load game" InputGesture="Ctrl+O" Click="OnLoadGame" />
         <Separator />
         <MenuItem Header="Import PGN..." Click="OnImportPgn" />
         <MenuItem Header="Export PGN..." Click="OnExportPgn" />
         <Separator />
-        <MenuItem Header="Exit" Click="OnExit" />
+        <MenuItem Header="Exit" InputGesture="Ctrl+Q" Click="OnExit" />
       </MenuItem>
       <MenuItem Header="_Edit">
         <MenuItem Header="Copy FEN" InputGesture="Ctrl+C" Click="OnCopyFen" />
@@ -22,10 +23,10 @@
       </MenuItem>
       <MenuItem Header="_Game">
         <MenuItem Header="New Game">
-          <MenuItem Header="White" Click="OnNewGameWhite" />
-          <MenuItem Header="Black" Click="OnNewGameBlack" />
+          <MenuItem Header="White" InputGesture="Ctrl+N" Click="OnNewGameWhite" />
+          <MenuItem Header="Black" InputGesture="Ctrl+Shift+N" Click="OnNewGameBlack" />
         </MenuItem>
-        <MenuItem Header="Undo last move" Click="OnUndoMove" />
+        <MenuItem Header="Undo last move" InputGesture="Ctrl+Z" Click="OnUndoMove" />
         <MenuItem Header="Switch sides" Click="OnSwitchSides" />
         <MenuItem x:Name="timeControlMenuItem" Header="Time control" />
         <MenuItem Header="Set level (untimed play)">
@@ -37,8 +38,8 @@
         </MenuItem>
       </MenuItem>
       <MenuItem Header="_View">
-        <MenuItem Header="Flip position" Click="OnFlipBoard" />
-        <MenuItem Header="Analysis window" Click="OnToggleAnalysis" />
+        <MenuItem Header="Flip position" InputGesture="Ctrl+F" Click="OnFlipBoard" />
+        <MenuItem Header="Analysis window" InputGesture="Ctrl+A" Click="OnToggleAnalysis" />
       </MenuItem>
       <MenuItem x:Name="engineMenuItem" Header="_Engine" />
       <MenuItem Header="_Help" Click="OnHelp" />
