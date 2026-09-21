@@ -239,3 +239,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
+- **Versioning** follows pawnstar and zenith: the version is `VersionBase.<git commit count>`
+  (`VersionBase` in Directory.Build.props, the count stamped by Directory.Build.targets at build
+  time; 0 outside a git checkout, so a given commit always builds the same version). Bump
+  `VersionBase` by hand for a new series and tag it (the series started at `v2.0`); tag releases
+  with the full number they built as. CI checks out the full history so its builds carry the count.
