@@ -190,9 +190,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
   caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. `Level` maps
   difficulty to `SearchLimits`; with a `TimeControl` set (`SetTimeControl`) the clocks count down
-  instead, the mover gains the Fischer increment, the engine budgets from the clocks
-  (wtime/btime/winc/binc) rather than the level, a side reaching zero loses on time (`TimedOut`,
-  `IsGameOver`), and a running game finishes under the clock it started with (`ActiveClock`).
+  instead, the mover gains the increment and, under a session control ("40 moves in 5 minutes",
+  `TimeControl.Standard`), the base time again whenever it completes a session, the engine budgets
+  from the clocks (wtime/btime/winc/binc, movestogo) rather than the level, a side reaching zero
+  loses on time (`TimedOut`, `IsGameOver`), and a running game finishes under the clock it started
+  with (`ActiveClock`).
   `StartEngineAsync(path, options)` sets each UCI option after the handshake;
   `StartMatchAsync(whitePath, blackPath, ...)` runs an engine match (white on the main engine,
   black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
@@ -208,10 +210,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   a small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
   `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by
   their UCI reply), per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine
-  start), Fischer time controls (Game > Time control, presets or `CustomTimeControlDialog`, clock
-  play with flagging) and engine matches (`MatchDialog`: any two registered engines or the built-in
-  play each other on the clock). The WinForms `Gui` keeps the original feature set and is no longer
-  extended.
+  start), time controls (a new game opens `NewGameDialog` to pick its clock — the standard 40-move
+  sessions, the 5+5 incremental, or `CustomTimeControlDialog` with minutes, increment and moves per
+  session; clock play with flagging) and engine matches (`MatchDialog`: any two registered engines
+  or the built-in play each other on the clock). The WinForms `Gui` keeps the original feature set
+  and is no longer extended.
 
 ## Conventions
 

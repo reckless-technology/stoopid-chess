@@ -246,6 +246,23 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task AStandardSessionCreditsTheBaseWhenItsMovesAreCompleted()
+    {
+        var session = new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.Zero, MovesPerSession: 2);
+        using GameController controller = await StartAsync();
+        controller.SetTimeControl(session);
+        controller.NewGame(Color.White);
+        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(2), controller.WhiteClock);   // One move into the session
+        Assert.Equal(TimeSpan.FromSeconds(2), controller.BlackClock);
+        Assert.True(controller.TryHumanMove(Square.Parse("d2"), Square.Parse("d4")));
+        Assert.Equal(TimeSpan.FromSeconds(4), controller.WhiteClock);   // Second move completes the session
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(4), controller.BlackClock);
+    }
+
+    [Fact]
     public async Task ATimeControlChosenDuringTheFirstThinkArmsTheClockAtOnce()
     {
         var clock = new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100));

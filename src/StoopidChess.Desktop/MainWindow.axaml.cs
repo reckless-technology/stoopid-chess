@@ -33,11 +33,10 @@ public sealed partial class MainWindow : Window, IDisposable
     private static readonly (string Header, TimeControl? Clock)[] TimeControls =
     [
         ("Untimed (play by level)", null),
-        ("1+1", TimeControl.OfMinutes(1, 1)),
-        ("3+2", TimeControl.OfMinutes(3, 2)),
-        ("5+3", TimeControl.OfMinutes(5, 3)),
-        ("10+5", TimeControl.OfMinutes(10, 5)),
-        ("15+10", TimeControl.OfMinutes(15, 10)),
+        ("Standard: 40 moves in 40 minutes", TimeControl.Standard(40, 40)),
+        ("Standard: 40 moves in 5 minutes", TimeControl.Standard(40, 5)),
+        ("Standard: 40 moves in 1 minute", TimeControl.Standard(40, 1)),
+        ("Incremental: 5 minutes + 5 seconds per move", TimeControl.OfMinutes(5, 5)),
     ];
 
     private readonly GameController controller = new();
@@ -536,9 +535,36 @@ public sealed partial class MainWindow : Window, IDisposable
     }
 
     private void OnExit(object? sender, RoutedEventArgs e) => Close();
-    private void OnNewGameWhite(object? sender, RoutedEventArgs e) => controller.NewGame(Color.White);
-    private void OnNewGameBlack(object? sender, RoutedEventArgs e) => controller.NewGame(Color.Black);
+    private async void OnNewGameWhite(object? sender, RoutedEventArgs e) => await NewGameWithClockAsync(Color.White);
+    private async void OnNewGameBlack(object? sender, RoutedEventArgs e) => await NewGameWithClockAsync(Color.Black);
     private void OnUndoMove(object? sender, RoutedEventArgs e) => controller.Undo();
+
+    /// <summary>
+    /// The clock is chosen before every new game begins; cancelling either dialog keeps the
+    /// current game.
+    /// </summary>
+    private async Task NewGameWithClockAsync(Color human)
+    {
+        var dialog = new NewGameDialog(controller.TimeControl);
+        await dialog.ShowDialog(this);
+        if (!dialog.Confirmed)
+        {
+            return;
+        }
+        TimeControl? clock = dialog.Choice;
+        if (dialog.CustomRequested)
+        {
+            var custom = new CustomTimeControlDialog(controller.TimeControl);
+            await custom.ShowDialog(this);
+            if (custom.Choice is null)
+            {
+                return;
+            }
+            clock = custom.Choice;
+        }
+        controller.SetTimeControl(clock);
+        controller.NewGame(human);
+    }
     private void OnSwitchSides(object? sender, RoutedEventArgs e) => controller.SwitchSides();
     private void OnMoveNow(object? sender, RoutedEventArgs e) => controller.MoveNow();
 

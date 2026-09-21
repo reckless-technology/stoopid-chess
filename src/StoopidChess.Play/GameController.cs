@@ -400,9 +400,20 @@ public sealed class GameController : IDisposable
                 BlackTime = BlackClock,
                 WhiteIncrement = clock.Increment,
                 BlackIncrement = clock.Increment,
+                MovesToGo = clock.MovesPerSession is int session
+                    ? session - (MovesMade(Game.SideToMove) % session)
+                    : null,
             };
         }
         return LimitsFor(Level);
+    }
+
+    /// <summary>
+    /// Moves the side has completed in this game (the game may have started with black to move).
+    /// </summary>
+    private int MovesMade(Color side)
+    {
+        return (Game.Moves.Count + (Game.StartSideToMove == side ? 1 : 0)) / 2;
     }
 
     /// <summary>
@@ -537,14 +548,20 @@ public sealed class GameController : IDisposable
         Game.MakeMove(move);
         if (ActiveClock is { } clock)
         {
-            // Fischer increment: the mover gains it after completing the move
+            // The mover gains the increment after completing any move, and the base time again
+            // after completing a session's worth of moves ("40 moves in 5 minutes", repeating)
+            TimeSpan gained = clock.Increment;
+            if (clock.MovesPerSession is int session && MovesMade(mover) % session == 0)
+            {
+                gained += clock.Base;
+            }
             if (mover == Color.White)
             {
-                WhiteClock += clock.Increment;
+                WhiteClock += gained;
             }
             else
             {
-                BlackClock += clock.Increment;
+                BlackClock += gained;
             }
         }
         Resume();
