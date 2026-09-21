@@ -12,8 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The engine and its tests are cross-platform; the GUI is Windows only. Linux gates the engine
-  # cheaply on every push, Windows builds everything and produces the downloadable binaries.
+  # The engine and the Avalonia GUI are cross-platform; the WinForms GUI is Windows only. Every job
+  # uploads versioned, self-contained binaries as artifacts, which the Release workflow promotes
+  # into a GitHub Release without rebuilding.
   engine-linux:
     name: engine + tests (linux)
     runs-on: ubuntu-latest
@@ -34,6 +35,52 @@ jobs:
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
+      - name: Publish engine
+        run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine
+      - name: Publish Avalonia GUI
+        run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/desktop
+      - name: Upload binaries
+        uses: actions/upload-artifact@v6
+        with:
+          name: stoopid-chess-linux-x64
+          path: |
+            publish/engine/stoopid-chess
+            publish/desktop/StoopidChess.Desktop
+          if-no-files-found: error
+
+  # The org's Apple-silicon runner (reckless-ci-mac-1)
+  macos:
+    name: engine + tests (macos arm64)
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build engine
+        run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
+      - name: Build Avalonia GUI
+        run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
+      - name: Test
+        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
+      - name: Perft (full standard set, depths up to 3M nodes)
+        run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
+      - name: Bench signature
+        run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
+      - name: Publish engine
+        run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/engine
+      - name: Publish Avalonia GUI
+        run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/desktop
+      - name: Upload binaries
+        uses: actions/upload-artifact@v6
+        with:
+          name: stoopid-chess-macos-arm64
+          path: |
+            publish/engine/stoopid-chess
+            publish/desktop/StoopidChess.Desktop
+          if-no-files-found: error
 
   windows:
     name: build + test + publish (windows)
@@ -60,3 +107,4 @@ jobs:
           path: |
             publish/gui/StoopidChess.exe
             publish/engine/stoopid-chess.exe
+          if-no-files-found: error

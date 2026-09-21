@@ -1,0 +1,112 @@
+name: Release
+
+# Manually promote a successful CI run into a GitHub Release, following pawnstar's release flow.
+# The Windows, Linux and macOS binaries are downloaded from the chosen run — not rebuilt — so what
+# ships is exactly what CI tested; a source archive is generated from the same commit. Manual-only
+# (workflow_dispatch); since dispatch is restricted to users with write access, only maintainers
+# can cut a release. The release is created as a draft by default, and its tag (v<version>) is
+# created when the draft is published.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "CI run to promote (numeric run id). Leave blank to use the latest successful CI run on main."
+        required: false
+        type: string
+      draft:
+        description: "Create the release as a draft (review before publishing)."
+        required: false
+        type: boolean
+        default: true
+
+# contents: write to create the tag + release; actions: read for gh run view/list/download.
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  # Resolve the run id (input, or the latest successful CI run on main), validate it is a green CI
+  # run, and capture its commit: the artifacts, the version and the source archive all come from
+  # exactly that commit.
+  resolve:
+    name: resolve CI run
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.resolve.outputs.run_id }}
+      sha: ${{ steps.resolve.outputs.sha }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Resolve and validate CI run
+        id: resolve
+        run: |
+          set -euo pipefail
+          run_id="${{ inputs.run_id }}"
+          if [ -z "$run_id" ]; then
+            run_id=$(gh run list --workflow CI --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // ""')
+            [ -n "$run_id" ] || { echo "::error::no successful CI run found on main"; exit 1; }
+            echo "No run_id given; using latest successful CI run on main: $run_id"
+          fi
+          info=$(gh run view "$run_id" --json workflowName,conclusion,headSha)
+          workflow=$(echo "$info" | jq -r '.workflowName')
+          conclusion=$(echo "$info" | jq -r '.conclusion')
+          sha=$(echo "$info" | jq -r '.headSha')
+          [ "$workflow" = "CI" ]        || { echo "::error::run $run_id is workflow '$workflow', not 'CI'"; exit 1; }
+          [ "$conclusion" = "success" ] || { echo "::error::run $run_id did not succeed (conclusion=$conclusion)"; exit 1; }
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: promote to release
+    needs: resolve
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+          fetch-depth: 0    # The full history: the version's build number is the commit count
+      - name: Compute the version
+        id: version
+        run: |
+          set -euo pipefail
+          base=$(sed -n 's:.*<VersionBase>\(.*\)</VersionBase>.*:\1:p' Directory.Build.props)
+          [ -n "$base" ] || { echo "::error::VersionBase not found in Directory.Build.props"; exit 1; }
+          count=$(git rev-list --count HEAD)
+          echo "version=$base.$count" >> "$GITHUB_OUTPUT"
+      - name: Download the run's binaries
+        run: |
+          set -euo pipefail
+          gh run download "${{ needs.resolve.outputs.run_id }}" -n stoopid-chess-linux-x64 -D artifacts/linux
+          gh run download "${{ needs.resolve.outputs.run_id }}" -n stoopid-chess-macos-arm64 -D artifacts/macos
+          gh run download "${{ needs.resolve.outputs.run_id }}" -n stoopid-chess-win-x64 -D artifacts/windows
+      - name: Name the release assets
+        run: |
+          set -euo pipefail
+          V="${{ steps.version.outputs.version }}"
+          mkdir -p out
+          cp artifacts/linux/engine/stoopid-chess            "out/stoopid-chess-$V-linux-x86_64"
+          cp artifacts/linux/desktop/StoopidChess.Desktop    "out/stoopid-chess-gui-$V-linux-x86_64"
+          cp artifacts/macos/engine/stoopid-chess            "out/stoopid-chess-$V-macos-arm64"
+          cp artifacts/macos/desktop/StoopidChess.Desktop    "out/stoopid-chess-gui-$V-macos-arm64"
+          cp artifacts/windows/engine/stoopid-chess.exe      "out/stoopid-chess-$V-windows-x86_64.exe"
+          cp artifacts/windows/gui/StoopidChess.exe          "out/stoopid-chess-gui-$V-windows-x86_64.exe"
+          git archive --format=tar.gz --prefix="stoopid-chess-$V/" \
+            -o "out/stoopid-chess-$V-source.tar.gz" "${{ needs.resolve.outputs.sha }}"
+          ls -la out/
+      - name: Create the release
+        run: |
+          set -euo pipefail
+          V="${{ steps.version.outputs.version }}"
+          draft_flag=""
+          if [ "${{ inputs.draft }}" != "false" ]; then
+            draft_flag="--draft"
+          fi
+          gh release create "v$V" out/* \
+            --target "${{ needs.resolve.outputs.sha }}" \
+            --title "Stoopid Chess $V" \
+            --generate-notes \
+            $draft_flag

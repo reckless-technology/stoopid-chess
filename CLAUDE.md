@@ -31,8 +31,11 @@ dotnet run --project src/StoopidChess.Gui                         # the WinForms
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
-CI (`.github/workflows/ci.yml`) runs engine build + tests + perft 3 + bench on Linux and the full
-solution + single-file publishes on Windows.
+CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on Linux, on the org's
+Apple-silicon runner and (suite only) on Windows, and publishes self-contained engine + GUI binaries
+for all three platforms as artifacts. `release.yml` (manual dispatch) promotes a green CI run into a
+GitHub Release: the tested binaries are renamed to `stoopid-chess[-gui]-<version>-<platform>`, a
+source archive is added, and the release is tagged `v<version>` when published.
 
 ## The testing discipline
 

@@ -89,8 +89,10 @@ Modelled on the sibling engines pawnstar and zenith:
   pipes exactly as the GUI does.
 - **Bench signature**.
 
-CI (`.github/workflows/ci.yml`) runs the engine build, tests, perft and bench on Linux, and the full
-solution build, tests and single-file publishes of the GUI and engine on Windows.
+CI (`.github/workflows/ci.yml`) runs the full test suite on Linux, macOS (arm64) and Windows — with
+perft and bench gates on Linux and macOS — and publishes self-contained engine and GUI binaries for
+all three platforms. Releases are cut by manually dispatching `release.yml`, which promotes a green
+CI run's tested binaries into a tagged GitHub Release with a source archive.
 
 ## Playing against other engines
 
