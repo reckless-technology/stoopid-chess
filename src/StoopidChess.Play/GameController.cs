@@ -654,16 +654,20 @@ public sealed class GameController : IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Choose the clock the next games are played under (null for untimed play). A game that has
-    /// not started yet picks it up at once; a running game finishes under its old clock.
+    /// Choose the clock the next games are played under (null for untimed play). A game with no
+    /// moves yet picks it up at once — a search already running for the first move is restarted on
+    /// the new clock — while a game in progress finishes under its old clock.
     /// </summary>
     public void SetTimeControl(TimeControl? timeControl)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         TimeControl = timeControl;
-        if (!IsEditing && Game.Moves.Count == 0 && !IsThinking)
+        if (!IsEditing && Game.Moves.Count == 0)
         {
+            CancelThinking(discardResult: true);
             ResetClocks();
+            Resume();
+            return;
         }
         RaiseChanged();
     }

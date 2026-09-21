@@ -246,6 +246,21 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task ATimeControlChosenDuringTheFirstThinkArmsTheClockAtOnce()
+    {
+        var clock = new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100));
+        using GameController controller = await StartAsync();
+        controller.NewGame(Color.Black);                      // The engine starts thinking untimed
+        controller.SetTimeControl(clock);
+        Assert.Equal(clock, controller.ActiveClock);
+        Assert.Equal(TimeSpan.FromSeconds(2), controller.BlackClock);
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.Single(controller.Game.Moves);
+        // The restarted search played under the new clock, so the mover was credited its increment
+        Assert.Equal(TimeSpan.FromSeconds(2.1), controller.WhiteClock);
+    }
+
+    [Fact]
     public async Task TheEnginePlaysOnTheClockWhenATimeControlIsSet()
     {
         using GameController controller = await StartAsync();

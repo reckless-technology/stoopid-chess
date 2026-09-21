@@ -291,8 +291,14 @@ public sealed partial class MainWindow : Window, IDisposable
         UpdateMoveList();
         colorToMoveLabel.Text = controller.SideToMove.ToString();
         humanColorLabel.Text = controller.HumanColor == Color.None ? "Nobody (engine vs engine)" : controller.HumanColor.ToString();
-        modeAnnotationLabel.Text = controller.TimeControl is null ? "   Difficulty:" : "   Clock:";
-        difficultyLabel.Text = controller.TimeControl?.ToString() ?? controller.Level.ToString();
+        // The clock the running game is actually under; a differing selection is marked as pending
+        modeAnnotationLabel.Text = controller.ActiveClock is null ? "   Difficulty:" : "   Clock:";
+        string mode = controller.ActiveClock?.ToString() ?? controller.Level.ToString();
+        if (!Equals(controller.TimeControl, controller.ActiveClock))
+        {
+            mode += $" (next game: {controller.TimeControl?.ToString() ?? "untimed"})";
+        }
+        difficultyLabel.Text = mode;
         UpdateClockLabels();
         builtInEngineItem.IsChecked = controller.EnginePath is null && !controller.IsMatch;
         foreach ((MenuItem item, string path) in rosterItems)
