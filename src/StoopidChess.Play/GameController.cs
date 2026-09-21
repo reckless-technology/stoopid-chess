@@ -19,6 +19,7 @@ public sealed class GameController : IDisposable
     private static readonly TimeSpan EngineStartTimeout = TimeSpan.FromSeconds(10);
 
     private UciEngineClient? engine;
+    private UciEngineClient? opponent;      // Plays black in an engine match; null outside one
     private bool startingEngine;
     private CancellationTokenSource? thinking;
     private Task? thinkingTask;
@@ -88,6 +89,17 @@ public sealed class GameController : IDisposable
     /// </summary>
     public string? EngineName { get; private set; }
 
+    /// <summary>
+    /// The name of the engine playing black in an engine match, or null outside a match. The main
+    /// engine (<see cref="EngineName"/>) plays white.
+    /// </summary>
+    public string? OpponentName { get; private set; }
+
+    /// <summary>
+    /// Whether two engines are playing each other (started by <see cref="StartMatchAsync"/>).
+    /// </summary>
+    public bool IsMatch => opponent is not null;
+
     public bool HasEngine => engine is not null;
 
     public bool IsThinking => thinking is not null;
@@ -133,12 +145,13 @@ public sealed class GameController : IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Connect to an engine, replacing any current one: an external executable, or the built-in
-    /// engine when <paramref name="path"/> is null. If an external engine fails to start the
-    /// built-in one is used instead and <see cref="EngineFailed"/> is raised. Returns whether the
-    /// requested engine is now in use.
+    /// Connect to an engine, replacing any current one (and ending any engine match): an external
+    /// executable, or the built-in engine when <paramref name="path"/> is null. The options are set
+    /// after the UCI handshake. If an external engine fails to start the built-in one is used
+    /// instead and <see cref="EngineFailed"/> is raised. Returns whether the requested engine is
+    /// now in use.
     /// </summary>
-    public async Task<bool> StartEngineAsync(string? path)
+    public async Task<bool> StartEngineAsync(string? path, IReadOnlyDictionary<string, string>? options = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (startingEngine)
@@ -150,34 +163,94 @@ public sealed class GameController : IDisposable
         {
             CancelThinking(discardResult: true);
             await WaitUntilIdleAsync();
+            DropOpponent();
             DropEngine();
             EnginePath = path;
             RaiseChanged();
 
-            UciEngineClient? client = null;
-            try
+            (UciEngineClient? client, string? failure) = await ConnectAsync(path, options);
+            if (client is null)
             {
-                client = path is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(path);
-                client.InfoReceived += OnEngineInfo;
-                using var timeout = new CancellationTokenSource(EngineStartTimeout);
-                await client.InitialiseAsync(timeout.Token);
-                engine = client;
-                EngineName = client.Name ?? Path.GetFileName(path) ?? "engine";
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
-            {
-                client?.Dispose();
                 if (disposed)
                 {
                     return false;
                 }
-                EngineFailed?.Invoke(this, $"The engine could not be started: {ex.Message}");
+                EngineFailed?.Invoke(this, $"The engine could not be started: {failure}");
                 if (path is not null)
                 {
                     startingEngine = false;
                     await StartEngineAsync(null);
                 }
                 return false;
+            }
+            engine = client;
+            EngineName = client.Name ?? Path.GetFileName(path) ?? "engine";
+        }
+        finally
+        {
+            startingEngine = false;
+        }
+        Resume();
+        return true;
+    }
+
+    /// <summary>
+    /// Start an engine match: white's engine against black's, each null for the built-in engine,
+    /// with each engine's UCI options set after its handshake. A fresh game begins under the chosen
+    /// time control. If either engine fails to start, <see cref="EngineFailed"/> is raised and the
+    /// controller falls back to the built-in engine with no match running.
+    /// </summary>
+    public async Task<bool> StartMatchAsync(
+        string? whitePath, string? blackPath,
+        IReadOnlyDictionary<string, string>? whiteOptions = null, IReadOnlyDictionary<string, string>? blackOptions = null)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (startingEngine)
+        {
+            return false;
+        }
+        startingEngine = true;
+        try
+        {
+            CancelThinking(discardResult: true);
+            await WaitUntilIdleAsync();
+            DropOpponent();
+            DropEngine();
+            EnginePath = whitePath;
+            RaiseChanged();
+
+            (UciEngineClient? white, string? whiteFailure) = await ConnectAsync(whitePath, whiteOptions);
+            if (white is null)
+            {
+                startingEngine = false;
+                await FailMatchAsync($"White's engine could not be started: {whiteFailure}");
+                return false;
+            }
+            engine = white;
+            EngineName = white.Name ?? Path.GetFileName(whitePath) ?? "engine";
+
+            (UciEngineClient? black, string? blackFailure) = await ConnectAsync(blackPath, blackOptions);
+            if (black is null)
+            {
+                startingEngine = false;
+                await FailMatchAsync($"Black's engine could not be started: {blackFailure}");
+                return false;
+            }
+            opponent = black;
+            OpponentName = black.Name ?? Path.GetFileName(blackPath) ?? "engine";
+
+            Game = new Game();
+            Editing = null;
+            HumanColor = Color.None;
+            ResetClocks();
+            TryEngine(() => engine?.NewGame());
+            try
+            {
+                opponent?.NewGame();
+            }
+            catch (InvalidOperationException)
+            {
+                // The reply handler notices a dead opponent when it first has to think
             }
         }
         finally
@@ -186,6 +259,44 @@ public sealed class GameController : IDisposable
         }
         Resume();
         return true;
+    }
+
+    private async Task FailMatchAsync(string message)
+    {
+        if (disposed)
+        {
+            return;
+        }
+        EngineFailed?.Invoke(this, message);
+        await StartEngineAsync(null);
+    }
+
+    /// <summary>
+    /// Create, initialise and configure a client, returning null and the reason on failure.
+    /// </summary>
+    private async Task<(UciEngineClient? Client, string? Failure)> ConnectAsync(string? path, IReadOnlyDictionary<string, string>? options)
+    {
+        UciEngineClient? client = null;
+        try
+        {
+            client = path is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(path);
+            client.InfoReceived += OnEngineInfo;
+            using var timeout = new CancellationTokenSource(EngineStartTimeout);
+            await client.InitialiseAsync(timeout.Token);
+            if (options is not null)
+            {
+                foreach ((string name, string value) in options)
+                {
+                    client.SetOption(name, value);
+                }
+            }
+            return (client, null);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
+        {
+            client?.Dispose();
+            return (null, ex.Message);
+        }
     }
 
     private void OnEngineInfo(object? sender, string line)
@@ -199,13 +310,24 @@ public sealed class GameController : IDisposable
 
     private void StartThinkingIfEngineTurn()
     {
-        if (engine is null || thinking is not null || !IsEngineTurn || disposed)
+        if (thinking is not null || !IsEngineTurn || disposed)
         {
             return;
         }
-        UciEngineClient client = engine;
-        if (!TryEngine(() => client.SetPosition(Game.StartFen, Game.UciMoves)))
+        // In a match the main engine plays white and the opponent black; otherwise the main engine
+        // plays every engine turn
+        UciEngineClient? client = opponent is not null && Game.SideToMove == Color.Black ? opponent : engine;
+        if (client is null)
         {
+            return;
+        }
+        try
+        {
+            client.SetPosition(Game.StartFen, Game.UciMoves);
+        }
+        catch (InvalidOperationException ex)
+        {
+            LoseClient(client, ex.Message);
             return;
         }
         thinking = new CancellationTokenSource();
@@ -239,9 +361,9 @@ public sealed class GameController : IDisposable
         }
         if (failure is not null)
         {
-            if (ReferenceEquals(engine, client))
+            if (ReferenceEquals(engine, client) || ReferenceEquals(opponent, client))
             {
-                LoseEngine(failure);        // Otherwise the engine was replaced deliberately
+                LoseClient(client, failure);        // Otherwise the engine was replaced deliberately
             }
             RaiseChanged();
             return;
@@ -323,11 +445,32 @@ public sealed class GameController : IDisposable
         EngineFailed?.Invoke(this, $"The engine stopped responding: {message}");
     }
 
+    private void LoseClient(UciEngineClient client, string message)
+    {
+        if (ReferenceEquals(opponent, client))
+        {
+            string name = OpponentName ?? "the opponent engine";
+            DropOpponent();
+            EngineFailed?.Invoke(this, $"{name} stopped responding: {message}");
+        }
+        else
+        {
+            LoseEngine(message);
+        }
+    }
+
     private void DropEngine()
     {
         engine?.Dispose();
         engine = null;
         EngineName = null;
+    }
+
+    private void DropOpponent()
+    {
+        opponent?.Dispose();
+        opponent = null;
+        OpponentName = null;
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -338,12 +481,27 @@ public sealed class GameController : IDisposable
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         CancelThinking(discardResult: true);
+        if (human != Color.None)
+        {
+            DropOpponent();     // A human game ends any engine match; NewGame(None) is a rematch
+        }
         Game = new Game();
         Editing = null;
         HumanColor = human;
         IsBoardFlipped = human == Color.Black;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
+        if (opponent is not null)
+        {
+            try
+            {
+                opponent.NewGame();
+            }
+            catch (InvalidOperationException)
+            {
+                // The reply handler notices a dead opponent when it first has to think
+            }
+        }
         Resume();
     }
 
@@ -583,6 +741,7 @@ public sealed class GameController : IDisposable
             return false;
         }
         CancelThinking(discardResult: true);
+        DropOpponent();
         Game = loaded;
         Editing = null;
         HumanColor = saved.HumanColor;
@@ -604,6 +763,7 @@ public sealed class GameController : IDisposable
         }
         disposed = true;
         CancelThinking(discardResult: true);
+        DropOpponent();
         DropEngine();
         thinking?.Dispose();
     }

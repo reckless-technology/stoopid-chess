@@ -258,6 +258,32 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task AnEngineMatchPlaysBothSidesWithTwoEngines()
+    {
+        using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };
+        Assert.True(await controller.StartMatchAsync(null, null).WaitAsync(Timeout));
+        Assert.True(controller.IsMatch);
+        Assert.StartsWith("Stoopid Chess", controller.OpponentName, StringComparison.Ordinal);
+        Assert.Equal(Color.None, controller.HumanColor);
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.True(controller.Game.IsOver);
+        Assert.True(controller.Game.Moves.Count > 2);
+        controller.NewGame(Color.White);    // A human game ends the match
+        Assert.False(controller.IsMatch);
+        Assert.Null(controller.OpponentName);
+    }
+
+    [Fact]
+    public async Task EngineOptionsAreAppliedAtStart()
+    {
+        using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(2) };
+        Assert.True(await controller.StartEngineAsync(null, new Dictionary<string, string> { ["Hash"] = "16" }).WaitAsync(Timeout));
+        controller.NewGame(Color.Black);
+        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.Single(controller.Game.Moves);
+    }
+
+    [Fact]
     public async Task AMissingExternalEngineFallsBackToTheBuiltInOne()
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };

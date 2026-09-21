@@ -193,8 +193,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   instead, the mover gains the Fischer increment, the engine budgets from the clocks
   (wtime/btime/winc/binc) rather than the level, a side reaching zero loses on time (`TimedOut`,
   `IsGameOver`), and a running game finishes under the clock it started with (`ActiveClock`).
-  `EngineRoster` is the JSON-persisted list of registered external engines (the GUI chooses the
-  file); `SavedGame` is JSON with FEN + UCI moves.
+  `StartEngineAsync(path, options)` sets each UCI option after the handshake;
+  `StartMatchAsync(whitePath, blackPath, ...)` runs an engine match (white on the main engine,
+  black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
+  match). `EngineRoster` is the JSON-persisted list of registered external engines with their
+  options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
 - **GUI.** `MainForm` is drawing, mouse and menus over the controller and redraws on `Changed`.
   `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for `*.Designer.cs`
   via `.editorconfig`); event handler names (`OnXxx`) there must stay in sync with `MainForm.cs`.
@@ -204,8 +207,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   input), `PieceImages` (the same PNGs, copied to `Assets/`). Beyond the WinForms feature set it is
   a small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
   `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by
-  their UCI reply) and Fischer time controls (Game > Time control, clock play with flagging). The
-  WinForms `Gui` keeps the original feature set and is no longer extended.
+  their UCI reply), per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine
+  start), Fischer time controls (Game > Time control, presets or `CustomTimeControlDialog`, clock
+  play with flagging) and engine matches (`MatchDialog`: any two registered engines or the built-in
+  play each other on the clock). The WinForms `Gui` keeps the original feature set and is no longer
+  extended.
 
 ## Conventions
 
