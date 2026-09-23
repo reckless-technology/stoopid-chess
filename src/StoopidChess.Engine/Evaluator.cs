@@ -15,43 +15,53 @@ public sealed class Evaluator
     // below down to the passed pawn ladder retuned by SPSA (tools/spsa-runs/2026-09-20-complete).
     // The king carries no value: both kings are always present.
     public const int PawnValue = 100;
-    public const int KnightValue = 325;
-    public const int BishopValue = 320;
+    public const int KnightValue = 324;
+    public const int BishopValue = 328;
     public const int RookValue = 510;
-    public const int QueenValue = 1002;
+    public const int QueenValue = 1016;
 
     // Mobility: centipawns per square a piece can move to or capture on
     public const int KnightMobility = 5;
     public const int BishopMobility = 6;
-    public const int RookMobility = 6;
-    public const int QueenMobility = 2;
+    public const int RookMobility = 7;
+    public const int QueenMobility = 3;
 
     // King safety (middlegame only): centipawns per square of the king zone (the king's square and
     // its neighbours) attacked by an enemy piece
     public const int KingZoneAttackPenalty = 4;
     public const int KingZoneQueenAttackPenalty = 8;
-    public const int WeakKingSquarePenalty = 15;
+    public const int WeakKingSquarePenalty = 16;
 
     // Two bishops cover both square colors
-    public const int BishopPairBonus = 45;
+    public const int BishopPairBonus = 43;
 
     // Having the move is worth something in itself
     public const int TempoBonus = 10;
 
     // A knight on an outpost: in the opponent's half (ranks 4 to 6 from its own side), defended by
     // an own pawn, on a square no enemy pawn can ever attack
-    public const int KnightOutpostBonus = 26;
+    public const int KnightOutpostBonus = 27;
+
+    // Pawn structure, cached by the pawn key. Isolated: no own pawn on an adjacent file. Doubled:
+    // an own pawn ahead on the same file (each extra counted once). Backward: the square in front
+    // is controlled by an enemy pawn while no own pawn on an adjacent file stands level or behind
+    // to ever support the advance (isolated pawns are not counted twice). Connected: defended by an
+    // own pawn or standing beside one.
+    public const int IsolatedPawnPenalty = 9;
+    public const int DoubledPawnPenalty = 11;
+    public const int BackwardPawnPenalty = 7;
+    public const int ConnectedPawnBonus = 6;
 
     // King shelter and pawn storm (middlegame only), on the king's file and the two beside it. The
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    internal static readonly int[] DefaultShelterByRank = [0, 15, 12, 0, 0, 0, 0, 0];      // Pawn rank from its own side
+    internal static readonly int[] DefaultShelterByRank = [0, 15, 11, 1, 0, 0, 0, 0];      // Pawn rank from its own side
     public const int ShelterMissing = -16;
-    internal static readonly int[] DefaultStormByDistance = [0, 0, 19, 10, 7, 0, 0, 0];   // Ranks between the king and the pawn
+    internal static readonly int[] DefaultStormByDistance = [0, 0, 19, 11, 9, 0, 0, 0];   // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
-    internal static readonly int[] DefaultPassedPawnBonus = [0, 5, 9, 19, 39, 73, 115, 0];
+    internal static readonly int[] DefaultPassedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
 
     // The squares ahead of a pawn on its own file and the two beside it, indexed [color][square]:
     // an enemy pawn there stops it being passed
@@ -174,6 +184,11 @@ public sealed class Evaluator
     private const int CacheBits = 16;   // 65,536 entries, 512 KB: small enough to stay in the CPU cache, which measured best
     private readonly ulong[] cache = new ulong[1 << CacheBits];
 
+    // The pawn structure cache, the same single-word scheme keyed by the pawn key: pawn structures
+    // repeat across vast numbers of positions, so nearly every probe hits
+    private const int PawnCacheBits = 14;
+    private readonly ulong[] pawnCache = new ulong[1 << PawnCacheBits];
+
     /// <summary>
     /// The score of the position from the side to move's point of view, in centipawns.
     /// </summary>
@@ -186,6 +201,7 @@ public sealed class Evaluator
             pieceSquareValues = BuildPieceSquareValues();
             builtVersion = parameters.Version;
             Array.Clear(cache);
+            Array.Clear(pawnCache);
         }
         ulong key = position.Key;
         ref ulong entry = ref cache[key & ((1UL << CacheBits) - 1)];
@@ -204,6 +220,7 @@ public sealed class Evaluator
     public void Clear()
     {
         Array.Clear(cache);
+        Array.Clear(pawnCache);
     }
 
     private int Compute(Position position)
@@ -243,9 +260,75 @@ public sealed class Evaluator
             }
             score += color == Color.White ? own : -own;
         }
+        score += PawnStructure(position);
         score = ScaleDrawishness(position, score);
         return parameters.TempoBonus + (position.SideToMove == Color.White ? score : -score);
     }
+
+    /// <summary>
+    /// The pawn-only structure terms for both sides, white-positive, served from the pawn cache.
+    /// </summary>
+    private int PawnStructure(Position position)
+    {
+        ulong key = position.PawnKey;
+        ref ulong entry = ref pawnCache[key & ((1UL << PawnCacheBits) - 1)];
+        if ((entry >> 16) == (key >> 16))
+        {
+            return (short)(entry & 0xFFFF);
+        }
+        int score = PawnStructure(position, Color.White) - PawnStructure(position, Color.Black);
+        entry = (key & ~0xFFFFUL) | (ushort)(short)score;
+        return score;
+    }
+
+    private int PawnStructure(Position position, Color color)
+    {
+        Bitboard pawns = position.Pieces(color, Piece.Pawn);
+        if (pawns.IsEmpty)
+        {
+            return 0;
+        }
+        Bitboard enemyPawns = position.Pieces(color.Opponent(), Piece.Pawn);
+        Bitboard fileFill = FileFill(pawns);
+        Bitboard isolated = pawns & ~(fileFill.East() | fileFill.West());
+        Bitboard aheadOfOwn = color == Color.White ? NorthFill(pawns.North()) : SouthFill(pawns.South());
+        Bitboard doubled = pawns & aheadOfOwn;
+        Bitboard connected = pawns & (Attacks.Pawns(color, pawns) | pawns.East() | pawns.West());
+        // A pawn that no neighbouring pawn can ever step up beside: only squares at or above an
+        // adjacent own pawn are reachable support
+        Bitboard everSupported = color == Color.White
+            ? NorthFill(pawns).East() | NorthFill(pawns).West()
+            : SouthFill(pawns).East() | SouthFill(pawns).West();
+        Bitboard enemyControl = Attacks.Pawns(color.Opponent(), enemyPawns);
+        Bitboard stopControlled = color == Color.White ? enemyControl.South() : enemyControl.North();
+        Bitboard backward = pawns & ~everSupported & ~isolated & stopControlled;
+        return (parameters.ConnectedPawnBonus * connected.Count)
+            - (parameters.IsolatedPawnPenalty * isolated.Count)
+            - (parameters.DoubledPawnPenalty * doubled.Count)
+            - (parameters.BackwardPawnPenalty * backward.Count);
+    }
+
+    private static Bitboard NorthFill(Bitboard pawns)
+    {
+        Bitboard fill = pawns;
+        for (int step = 0; step < 7; step++)
+        {
+            fill |= fill.North();
+        }
+        return fill;
+    }
+
+    private static Bitboard SouthFill(Bitboard pawns)
+    {
+        Bitboard fill = pawns;
+        for (int step = 0; step < 7; step++)
+        {
+            fill |= fill.South();
+        }
+        return fill;
+    }
+
+    private static Bitboard FileFill(Bitboard pawns) => NorthFill(pawns) | SouthFill(pawns);
 
     /// <summary>
     /// Material configurations that cannot (or can barely) be won however far ahead the score says

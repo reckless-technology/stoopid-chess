@@ -104,7 +104,7 @@ public class EvaluatorTests
         Assert.Equal(EvaluationParameters.Describe("TempoBonus")!.Value.Max, parameters.Get("TempoBonus"));
         Assert.Equal(Evaluator.QueenValue, EvaluationParameters.Describe("QueenValue")!.Value.Default);
         Assert.Equal(Evaluator.DefaultPassedPawnBonus[6], EvaluationParameters.Describe("PassedRank7")!.Value.Default);
-        Assert.Equal(27, EvaluationParameters.Names.Count());
+        Assert.Equal(31, EvaluationParameters.Names.Count());
     }
 
     private static Position ColorFlip(Position position)

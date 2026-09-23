@@ -48,7 +48,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (36,230 nodes; depth 6 is 58,082). Any change to search
+   `BenchTests.Depth5Signature` (46,698 nodes; depth 6 is 79,958). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -180,7 +180,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
   mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
-  with 16-byte entries verified by the full 64-bit key. `Evaluator` reads its tunable values from an `EvaluationParameters` instance (27 named values defaulting to
+  with 16-byte entries verified by the full 64-bit key. `Evaluator` reads its tunable values from an `EvaluationParameters` instance (31 named values defaulting to
   the constants in `Evaluator`; every one is a UCI spin option, and `tools/spsa.py` tunes them by SPSA over fastchess
   games); it rebuilds its material tables and empties its cache when they change. `Evaluator` is an instance and keeps a 512 KB evaluation cache (Zobrist key to score, exact, cleared by `ucinewgame`
   through `Searcher.NewGame`; about 10% faster; terms may keep further
