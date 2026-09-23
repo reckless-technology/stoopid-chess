@@ -24,6 +24,8 @@ public sealed class EvaluationParameters
         ["BishopPairBonus"] = (p => p.BishopPairBonus, (p, v) => p.BishopPairBonus = v, 0, 120),
         ["TempoBonus"] = (p => p.TempoBonus, (p, v) => p.TempoBonus = v, 0, 40),
         ["KnightOutpostBonus"] = (p => p.KnightOutpostBonus, (p, v) => p.KnightOutpostBonus = v, 0, 60),
+        ["RookOpenFileBonus"] = (p => p.RookOpenFileBonus, (p, v) => p.RookOpenFileBonus = v, 0, 60),
+        ["RookSemiOpenFileBonus"] = (p => p.RookSemiOpenFileBonus, (p, v) => p.RookSemiOpenFileBonus = v, 0, 60),
         ["IsolatedPawnPenalty"] = (p => p.IsolatedPawnPenalty, (p, v) => p.IsolatedPawnPenalty = v, 0, 40),
         ["DoubledPawnPenalty"] = (p => p.DoubledPawnPenalty, (p, v) => p.DoubledPawnPenalty = v, 0, 40),
         ["BackwardPawnPenalty"] = (p => p.BackwardPawnPenalty, (p, v) => p.BackwardPawnPenalty = v, 0, 40),
@@ -65,6 +67,8 @@ public sealed class EvaluationParameters
     public int BishopPairBonus { get; private set; } = Evaluator.BishopPairBonus;
     public int TempoBonus { get; private set; } = Evaluator.TempoBonus;
     public int KnightOutpostBonus { get; private set; } = Evaluator.KnightOutpostBonus;
+    public int RookOpenFileBonus { get; private set; } = Evaluator.RookOpenFileBonus;
+    public int RookSemiOpenFileBonus { get; private set; } = Evaluator.RookSemiOpenFileBonus;
     public int IsolatedPawnPenalty { get; private set; } = Evaluator.IsolatedPawnPenalty;
     public int DoubledPawnPenalty { get; private set; } = Evaluator.DoubledPawnPenalty;
     public int BackwardPawnPenalty { get; private set; } = Evaluator.BackwardPawnPenalty;

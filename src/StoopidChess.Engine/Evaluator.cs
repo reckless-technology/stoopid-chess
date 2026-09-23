@@ -42,6 +42,11 @@ public sealed class Evaluator
     // an own pawn, on a square no enemy pawn can ever attack
     public const int KnightOutpostBonus = 27;
 
+    // Rooks on open files (no pawns at all) and semi-open files (no own pawn, so the rook presses
+    // whatever the enemy keeps there)
+    public const int RookOpenFileBonus = 15;
+    public const int RookSemiOpenFileBonus = 8;
+
     // Pawn structure, cached by the pawn key. Isolated: no own pawn on an adjacent file. Doubled:
     // an own pawn ahead on the same file (each extra counted once). Backward: the square in front
     // is controlled by an enemy pawn while no own pawn on an adjacent file stands level or behind
@@ -246,7 +251,8 @@ public sealed class Evaluator
             }
             score += tables[endgame ? KingEndgameIndex : (int)Piece.King][position.KingSquare(color)];
             (SideAttacks us, SideAttacks them, Bitboard zone) = color == Color.White ? (white, black, whiteZone) : (black, white, blackZone);
-            int own = us.Mobility + PassedPawns(position, color, endgame) + KnightOutposts(position, color);
+            int own = us.Mobility + PassedPawns(position, color, endgame) + KnightOutposts(position, color)
+                + RookFiles(position, color);
             if (position.Pieces(color, Piece.Bishop).Count >= 2)
             {
                 own += parameters.BishopPairBonus;
@@ -510,6 +516,26 @@ public sealed class Evaluator
             }
         }
         return spans;
+    }
+
+    /// <summary>
+    /// Rooks on open files (no pawns of either color) and semi-open files (no own pawn), where the
+    /// rook's reach down the board makes it more than a wall.
+    /// </summary>
+    private int RookFiles(Position position, Color color)
+    {
+        Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
+        Bitboard enemyPawns = position.Pieces(color.Opponent(), Piece.Pawn);
+        int bonus = 0;
+        foreach (Square square in position.Pieces(color, Piece.Rook))
+        {
+            Bitboard file = Bitboard.OfFile(square.File);
+            if ((file & ownPawns).IsEmpty)
+            {
+                bonus += (file & enemyPawns).IsEmpty ? parameters.RookOpenFileBonus : parameters.RookSemiOpenFileBonus;
+            }
+        }
+        return bonus;
     }
 
     /// <summary>
