@@ -95,3 +95,4 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | Rooks on open files (15 cp, no pawns on the file) and semi-open files (8 cp, no own pawn), both phases, retried with the pawn structure in place: the identical values that measured -4 without it | +45 ± 50 (43 W, 30 L, 27 D) | yes |
 | Rook behind its own passed pawn, Tarrasch-style (16 cp when the rook stands on the passer's file behind it with nothing between) | -35 ± 48 (24 W, 34 L, 42 D) | no |
 | Rook on the seventh retried with the pawn structure and rook files in place (Crafty's rule again: 25 cp per rook when the enemy king is on the eighth or enemy pawns remain on the seventh) | +3 ± 52 (38 W, 37 L, 25 D) | no |
+| Doubled rooks (12 cp once per pair on a file with no own pawn, on top of the per-rook file bonuses) | -24 ± 40 (28 W, 35 L, 37 D) | no |
