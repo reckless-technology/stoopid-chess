@@ -376,6 +376,41 @@ public sealed class Searcher
             }
         }
 
+        int originalAlpha = alpha;
+        int bestScore = -Infinity;
+        Move bestMove = Move.None;
+        int moveNumber = 0;
+
+        // The table move first, before paying for move generation: it alone cuts off a large share
+        // of nodes. It is trusted without a legality check, as pawnstar trusts its table: stores
+        // only ever hold moves from the storing position's legal moves, and entries are verified by
+        // the full 64-bit key, so a collision is beyond unlikely.
+        if (!tableMove.IsNone)
+        {
+            if (fiftyMoveRule)
+            {
+                return DrawScore;   // In check, but the table move proves a legal reply exists
+            }
+            moveNumber = 1;
+            position.MakeMove(tableMove);
+            table.Prefetch(position.Key);
+            int tableMoveScore = SearchChild(alpha, beta, depth - 1, ply + 1, first: true);
+            position.UnmakeMove();
+            if (stopped)
+            {
+                return alpha;
+            }
+            bestScore = tableMoveScore;
+            bestMove = tableMove;
+            if (tableMoveScore >= beta)
+            {
+                RecordCutoff(tableMove, ply, depth);
+                table.Store(position.Key, tableMove, ScoreToTable(tableMoveScore, ply), depth, NodeType.LowerBound);
+                return tableMoveScore;
+            }
+            alpha = Math.Max(alpha, tableMoveScore);
+        }
+
         ref MoveList moves = ref moveLists[ply];
         moves.Clear();
         position.GenerateLegalMoves(ref moves);
@@ -389,13 +424,12 @@ public sealed class Searcher
         }
         OrderMoves(ref moves, ply, tableMove);
 
-        int originalAlpha = alpha;
-        int bestScore = -Infinity;
-        Move bestMove = Move.None;
-        int moveNumber = 0;
-
         foreach (Move move in moves)
         {
+            if (move == tableMove)
+            {
+                continue;       // Already searched, before anything was generated
+            }
             moveNumber++;
             // Late move pruning: at low depth in a non-PV node, quiet moves ordered this late are
             // so unlikely to beat the moves already searched that they are skipped altogether
@@ -423,18 +457,7 @@ public sealed class Searcher
             }
             if (score >= beta)
             {
-                statistics.BetaCutoffs++;
-                if (!move.IsCapture)
-                {
-                    RecordKiller(ply, move);
-                    RecordHistory(move, depth);
-                    if (position.LastMove is { IsNone: false } previous)
-                    {
-                        counterMoves[CounterIndex(previous)] = move;
-                        ref int continuation = ref continuationHistory[ContinuationIndex(previous, move)];
-                        continuation = Math.Min(continuation + (depth * depth), HistoryCap);
-                    }
-                }
+                RecordCutoff(move, ply, depth);
                 table.Store(position.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
             }
@@ -705,6 +728,27 @@ public sealed class Searcher
     {
         ref int entry = ref history[HistoryIndex(position.SideToMove, move)];
         entry = Math.Min(entry + (depth * depth), HistoryCap);
+    }
+
+    /// <summary>
+    /// The bookkeeping of a fail-high: count it, and remember a quiet cutoff move in the killer,
+    /// history, countermove and continuation tables.
+    /// </summary>
+    private void RecordCutoff(Move move, int ply, int depth)
+    {
+        statistics.BetaCutoffs++;
+        if (move.IsCapture)
+        {
+            return;
+        }
+        RecordKiller(ply, move);
+        RecordHistory(move, depth);
+        if (position.LastMove is { IsNone: false } previous)
+        {
+            counterMoves[CounterIndex(previous)] = move;
+            ref int continuation = ref continuationHistory[ContinuationIndex(previous, move)];
+            continuation = Math.Min(continuation + (depth * depth), HistoryCap);
+        }
     }
 
     private void RecordKiller(int ply, Move move)

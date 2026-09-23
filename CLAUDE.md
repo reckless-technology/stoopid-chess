@@ -48,7 +48,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
-   `BenchTests.Depth5Signature` (36,591 nodes; depth 6 is 59,114). Any change to search
+   `BenchTests.Depth5Signature` (36,230 nodes; depth 6 is 58,082). Any change to search
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
@@ -127,7 +127,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    kept on speed evidence like the evaluation cache. Quiet checking moves at the first ply of quiescence, skipped
    when they lose material by the exchange evaluation (all legal quiets generated and filtered by precomputed
    check squares and discovered-check candidates) -28 ± 57 (not kept: the extra generation at every quiescence
-   entry cost more than the tactics it found). A
+   entry cost more than the tactics it found). The table move searched before any move generation and trusted
+   without a legality check (the full 64-bit key match makes a foreign move vanishingly unlikely, following
+   pawnstar), so a table-move cutoff skips generation entirely: 8.5% fewer nodes and 10% less time to depth 16,
+   and +45 ± 53 (37 W, 24 L, 39 D; kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
