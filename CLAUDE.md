@@ -130,7 +130,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    entry cost more than the tactics it found). The table move searched before any move generation and trusted
    without a legality check (the full 64-bit key match makes a foreign move vanishingly unlikely, following
    pawnstar), so a table-move cutoff skips generation entirely: 8.5% fewer nodes and 10% less time to depth 16,
-   and +45 ± 53 (37 W, 24 L, 39 D; kept). A
+   and +45 ± 53 (37 W, 24 L, 39 D; kept). Indexing the slider attack table by pext instead of the magic
+   multiply, with the array bounds checks removed by MemoryMarshal (identical play, parked on the slider-speed
+   branch), measured no nps change at bench 16 or perft with tiering off — the dependent table load hides both
+   the multiply and the predictably-taken bounds check (not kept). A
    100-game result between about +15 and +25 is neither kept nor rejected: a
    second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
    the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
