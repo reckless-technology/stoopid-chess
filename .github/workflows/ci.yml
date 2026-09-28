@@ -18,6 +18,13 @@ jobs:
   engine-linux:
     name: engine + tests (linux)
     runs-on: [self-hosted, Linux, X64]
+    # setup-dotnet's default install root is /usr/share/dotnet on Linux and %PROGRAMFILES%\dotnet on
+    # Windows, and the runner's service account can write to neither. Only macOS's default,
+    # $HOME/.dotnet, happens to be writable — which is why the macos leg alone worked before these
+    # jobs moved off the hosted images, where the runner is an administrator. runner.tool_cache is
+    # writable and sits outside the workspace, so the SDK also survives between runs.
+    env:
+      DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
     steps:
       - uses: actions/checkout@v5
         with:
@@ -86,6 +93,9 @@ jobs:
   windows:
     name: build + test + publish (windows)
     runs-on: [self-hosted, Windows, X64]
+    # As above: %PROGRAMFILES%\dotnet is not writable by the runner's service account.
+    env:
+      DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
     steps:
       - uses: actions/checkout@v5
         with:
