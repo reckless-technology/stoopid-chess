@@ -17,14 +17,22 @@ jobs:
   # into a GitHub Release without rebuilding.
   engine-linux:
     name: engine + tests (linux)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0    # The full history: the build number is the commit count
+      # setup-dotnet's default install root is /usr/share/dotnet on Linux and %PROGRAMFILES%\dotnet on
+      # Windows, and the runner's service account can write to neither. Only macOS's default,
+      # $HOME/.dotnet, happens to be writable — which is why the macos leg alone worked before these
+      # jobs moved off the hosted images, where the runner is an administrator. runner.tool_cache is
+      # writable and sits outside the workspace, so the SDK also survives between runs. This has to be
+      # step-level env: the runner context is not available to a job-level env block.
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
       - name: Build Avalonia GUI
@@ -48,7 +56,8 @@ jobs:
             publish/desktop/StoopidChess.Desktop
           if-no-files-found: error
 
-  # The org's Apple-silicon runner (reckless-ci-mac-1)
+  # The org's Apple-silicon runner (reckless-ci-mac-0; it replaced reckless-ci-mac-1 on 2026-09-27
+  # and is now the only Mac in the pool, so every macos job in the organisation queues behind it)
   macos:
     name: engine + tests (macos arm64)
     runs-on: [self-hosted, macOS, ARM64]
@@ -84,12 +93,15 @@ jobs:
 
   windows:
     name: build + test + publish (windows)
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0    # The full history: the build number is the commit count
+      # As on the Linux job: %PROGRAMFILES%\dotnet is not writable by the runner's service account.
       - uses: actions/setup-dotnet@v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
           dotnet-version: 10.0.x
       - name: Build solution
