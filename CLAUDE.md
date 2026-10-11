@@ -33,8 +33,9 @@ dotnet run --project src/StoopidChess.Gui                         # the WinForms
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
 CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on Linux, on the org's
 Apple-silicon runner and (suite only) on Windows, and publishes self-contained engine + GUI binaries
-for all three platforms as artifacts. `release.yml` (manual dispatch) promotes a green CI run into a
-GitHub Release: the tested binaries are renamed to `stoopid-chess[-gui]-<version>-<platform>`, a
+for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
+storage is one shared quota). `release.yml` (manual dispatch) promotes a green CI run less than a day old into a
+GitHub Release - an older run's binaries have expired, and the workflow says so: re-run CI and release from it - the tested binaries are renamed to `stoopid-chess[-gui]-<version>-<platform>`, a
 source archive is added, and the release is tagged `v<version>` when published.
 
 ## The testing discipline

@@ -1,6 +1,8 @@
 name: Release
 
 # Manually promote a successful CI run into a GitHub Release, following pawnstar's release flow.
+# CI keeps a run's binaries for 24 hours, so the run promoted must be less than a day old; the
+# release's own assets, once published, are kept for good.
 # The Windows, Linux and macOS binaries are downloaded from the chosen run — not rebuilt — so what
 # ships is exactly what CI tested; a source archive is generated from the same commit. Manual-only
 # (workflow_dispatch); since dispatch is restricted to users with write access, only maintainers
@@ -54,6 +56,11 @@ jobs:
           sha=$(echo "$info" | jq -r '.headSha')
           [ "$workflow" = "CI" ]        || { echo "::error::run $run_id is workflow '$workflow', not 'CI'"; exit 1; }
           [ "$conclusion" = "success" ] || { echo "::error::run $run_id did not succeed (conclusion=$conclusion)"; exit 1; }
+          # CI keeps its binaries a day (ci.yml's retention-days), so a run older than that has none
+          # left to promote: say so, rather than fail later in the download.
+          live=$(gh api "repos/$GH_REPO/actions/runs/$run_id/artifacts" \
+            --jq '[.artifacts[] | select(.expired | not) | .name] | map(select(. == "stoopid-chess-linux-x64" or . == "stoopid-chess-macos-arm64" or . == "stoopid-chess-win-x64")) | length')
+          [ "$live" = "3" ] || { echo "::error::run $run_id's binaries have expired (CI keeps them 24 hours); re-run CI on the commit - gh workflow run CI - and release from that run"; exit 1; }
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 

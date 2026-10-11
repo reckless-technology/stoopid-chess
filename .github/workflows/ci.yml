@@ -14,7 +14,9 @@ concurrency:
 jobs:
   # The engine and the Avalonia GUI are cross-platform; the WinForms GUI is Windows only. Every job
   # uploads versioned, self-contained binaries as artifacts, which the Release workflow promotes
-  # into a GitHub Release without rebuilding.
+  # into a GitHub Release without rebuilding. The artifacts are kept a day (retention-days: 1): the
+  # organisation's artifact storage is one quota every repository shares, and a run's binaries are
+  # only needed until a release promotes them - a published release's assets are kept for good.
   engine-linux:
     name: engine + tests (linux)
     runs-on: [self-hosted, Linux, X64]
@@ -55,6 +57,7 @@ jobs:
             publish/engine/stoopid-chess
             publish/desktop/StoopidChess.Desktop
           if-no-files-found: error
+          retention-days: 1
 
   # The org's Apple-silicon runner (reckless-ci-mac-0; it replaced reckless-ci-mac-1 on 2026-09-27
   # and is now the only Mac in the pool, so every macos job in the organisation queues behind it)
@@ -90,6 +93,7 @@ jobs:
             publish/engine/stoopid-chess
             publish/desktop/StoopidChess.Desktop
           if-no-files-found: error
+          retention-days: 1
 
   windows:
     name: build + test + publish (windows)
@@ -120,3 +124,4 @@ jobs:
             publish/gui/StoopidChess.exe
             publish/engine/stoopid-chess.exe
           if-no-files-found: error
+          retention-days: 1
