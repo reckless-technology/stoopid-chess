@@ -116,3 +116,9 @@ review that preceded the restructuring and `docs/ARCHITECTURE_REVIEW.md` the pro
 Stoopid Chess is free software, licensed under the **GNU General Public License, version 3** (GPLv3). You may
 redistribute and/or modify it under the terms of that license; it comes with **no warranty**. See the
 [LICENSE](LICENSE) file for the full text, or <https://www.gnu.org/licenses/gpl-3.0.html>.
+
+The chess piece images, in both GUIs and in the application icon, are the "cburnett" set by
+[Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public
+License, version 2 or later. They were rendered to 64 px PNGs from the SVGs that
+[Lichess](https://github.com/lichess-org/lila/tree/7370914942f30f1a77321ff6e5bc0ad3e4dd5841/public/piece/cburnett)
+ships.
