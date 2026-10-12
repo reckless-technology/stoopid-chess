@@ -110,3 +110,9 @@ settings. Files from before September 2026 used .NET binary serialisation and ca
 This project lived in the `StoopidChess` directory of the `reckless-technology/software` repository
 until September 2026, when it was split out with its history. `docs/CODE_REVIEW.md` records the
 review that preceded the restructuring and `docs/ARCHITECTURE_REVIEW.md` the proposals that followed it.
+
+## License
+
+Stoopid Chess is free software, licensed under the **GNU General Public License, version 3** (GPLv3). You may
+redistribute and/or modify it under the terms of that license; it comes with **no warranty**. See the
+[LICENSE](LICENSE) file for the full text, or <https://www.gnu.org/licenses/gpl-3.0.html>.
