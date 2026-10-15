@@ -26,8 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The piece images are copies of src/StoopidChess.Gui/Resources (the WinForms GUI embeds them per-form);
-         AppIcon.ico and AppIcon.png are the window's icon. -->
+    <!-- The piece images (the cburnett set, see the README) and AppIcon.ico and AppIcon.png, the window's icon. -->
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 

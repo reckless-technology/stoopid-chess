@@ -24,8 +24,3 @@ dotnet_style_qualification_for_field = false:suggestion
 dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
-
-# Windows Forms designer output is generated code
-[*.Designer.cs]
-generated_code = true
-dotnet_analyzer_diagnostic.severity = none

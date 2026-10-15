@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml/badge.svg)](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml)
 
-A chess engine and two chess GUIs in C#: a cross-platform Avalonia GUI and the original Windows
-Forms one. The engine speaks [UCI](https://www.chessprogramming.org/UCI),
-so it can be used from any chess GUI and tested against other engines; both GUIs can play against any
-UCI engine, with the built-in one as the default. Originally written in 2009, ported to .NET 10 and
-restructured in 2026.
+A chess engine and a cross-platform chess GUI (Avalonia) in C#. The engine speaks
+[UCI](https://www.chessprogramming.org/UCI), so it can be used from any chess GUI and tested against other engines;
+the GUI can play against any UCI engine, with the built-in one as the default. Originally written in 2009 as a Windows
+Forms program, ported to .NET 10 and restructured in 2026; the Avalonia GUI replaced the Windows Forms one after
+3.0.0.
 
 ## Layout
 
@@ -16,23 +16,20 @@ restructured in 2026.
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
-| `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. The original GUI, kept and built but no longer extended or released: the Avalonia GUI is the download on every platform. |
-| `src/StoopidChess.Desktop` | Avalonia GUI for Linux, macOS and Windows: the same drawing, mouse and menus over `GameController`, plus a small UCI host — registered external engines and Fischer time controls with flagging. |
+| `src/StoopidChess.Desktop` | Avalonia GUI for Linux, macOS and Windows: drawing, mouse and menus over `GameController`, talking to the engine only through UCI, and a small UCI host — registered external engines and Fischer time controls with flagging. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
-Everything builds on any OS and only the Windows Forms GUI is restricted to running on Windows;
-play on Linux or macOS with the Avalonia GUI.
+Everything builds and runs on Linux, macOS and Windows.
 
 ## Build and test
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```bash
-dotnet build StoopidChess.slnx -c Release          # everything (any OS; the WinForms GUI compiles everywhere, runs on Windows)
+dotnet build StoopidChess.slnx -c Release          # everything (any OS)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
 dotnet test tests/StoopidChess.Tests -c Release    # the test suite
 dotnet run --project src/StoopidChess.Desktop      # play (any OS, Avalonia)
-dotnet run --project src/StoopidChess.Gui          # play (Windows, WinForms)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # search signature and speed
 dotnet run --project src/StoopidChess.Uci -c Release -- perft      # move generation check
 ```
@@ -102,8 +99,8 @@ The version is `MAJOR.MINOR.BUILD`, from git alone, the rule all of reckless-tec
 - `BUILD` is the number of commits since that tag, the tagged commit itself being 0.
 
 `Directory.Build.targets` works it out at build time (`git describe --tags --match 'v*.*' --exclude 'v*.*.*'`) and
-stamps every assembly with it. The engine reports it (`id name Stoopid Chess 3.0.0`), and so do the GUIs: in their
-Help box, the Windows GUI's version resource, the Avalonia GUI's `--version` and the macOS app's Info.plist. Nothing
+stamps every assembly with it. The engine reports it (`id name Stoopid Chess 3.0.0`), and so does the GUI: in its
+Help box, its `--version`, the Windows .exe's version resource and the macOS app's Info.plist. Nothing
 in the tree holds a version to edit. A tree with no mark reachable (a source tarball, a shallow clone, a fork without
 the tags) builds as `0.0.0`, with a warning.
 
@@ -160,7 +157,7 @@ Stoopid Chess is free software, licensed under the **GNU General Public License,
 redistribute and/or modify it under the terms of that license; it comes with **no warranty**. See the
 [LICENSE](LICENSE) file for the full text, or <https://www.gnu.org/licenses/gpl-3.0.html>.
 
-The chess piece images, in both GUIs and in the application icon, are the "cburnett" set by
+The chess piece images, in the GUI and in the application icon, are the "cburnett" set by
 [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public
 License, version 2 or later. They were rendered to 64 px PNGs from the SVGs that
 [Lichess](https://github.com/lichess-org/lila/tree/7370914942f30f1a77321ff6e5bc0ad3e4dd5841/public/piece/cburnett)

@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
-protocol, wrapped by the `StoopidChess.Uci` console) and two GUIs over the `StoopidChess.Play`
-controller that play against any UCI engine: `StoopidChess.Desktop` (Avalonia, any OS) and
-`StoopidChess.Gui` (Windows Forms, Windows only; still built, no longer released). .NET 10;
+protocol, wrapped by the `StoopidChess.Uci` console) and a GUI over the `StoopidChess.Play`
+controller that plays against any UCI engine: `StoopidChess.Desktop` (Avalonia, any OS; the Windows
+Forms GUI it replaced was removed after 3.0.0). .NET 10;
 `Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
 project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
@@ -18,7 +18,7 @@ project. Read [README.md](README.md) for the architecture and
 ## Build / test / run
 
 ```bash
-dotnet build StoopidChess.slnx -c Release                         # everything, on any OS (the GUI compiles via EnableWindowsTargeting but runs only on Windows)
+dotnet build StoopidChess.slnx -c Release                         # everything, on any OS
 dotnet build src/StoopidChess.Uci -c Release                      # engine only
 dotnet test tests/StoopidChess.Tests -c Release                   # the xunit suite, a few seconds
 dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
@@ -27,7 +27,6 @@ dotnet test tests/StoopidChess.Tests -c Debug                     # with the Deb
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Desktop                     # the Avalonia GUI (any OS)
-dotnet run --project src/StoopidChess.Gui                         # the WinForms GUI (Windows only)
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
@@ -36,8 +35,8 @@ Apple-silicon runner and (suite only) on Windows, and publishes self-contained e
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
 hand on `main`): built and tested from nothing on all three platforms, the Avalonia GUI the download on each (Windows
-too after 3.0.0, whose Windows GUI was the Windows Forms one), the Windows engine and GUI eSigner-signed
-(publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
+too after 3.0.0, whose Windows GUI was the since-removed Windows Forms one), the Windows engine and GUI
+eSigner-signed (publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
 ID-signed and notarised, every file checked to report the version and each GUI started, published as
 `vMAJOR.MINOR.BUILD` with a source archive (README, "Versions and releases"). `gh workflow run release.yml --ref
 <branch> -f dry_run=true` proves a change to it without publishing or spending a Windows signing.
@@ -145,8 +144,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 
 ## Architecture notes
 
-- **Dependencies point one way:** Core ← Engine ← Play ← Gui/Desktop (both GUIs also reference
-  Core directly), and Uci ← Engine.
+- **Dependencies point one way:** Core ← Engine ← Play ← Desktop (which also references Core
+  directly), and Uci ← Engine.
 - **Core value types** (zero-cost wrappers, like pawnstar's C++ classes; the bench signature and
   nps prove it): `Square` is a one-byte readonly record struct, a1 = 0 .. h8 = 63 so a square is its
   bit number, with `Square.None` (index 64, `IsValid` false), `File`/`Rank`/`Name`, `Square.At`,
@@ -214,14 +213,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
   match). `EngineRoster` is the JSON-persisted list of registered external engines with their
   options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
-- **GUI.** `MainForm` is drawing, mouse and menus over the controller and redraws on `Changed`.
-  `MainForm.Designer.cs` is Windows Forms designer output (analyzers are off for `*.Designer.cs`
-  via `.editorconfig`); event handler names (`OnXxx`) there must stay in sync with `MainForm.cs`.
-  The engine menu and promotion dialog are built in code.
-- **Desktop.** The Avalonia GUI and the one new GUI features land in: `MainWindow` (menus, status
-  bar, dialogs and the wiring), `BoardControl` and `CaptureBinControl` (rendering and pointer
-  input), `PieceImages` (the same PNGs, copied to `Assets/`). Beyond the WinForms feature set it is
-  a small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
+- **Desktop.** The Avalonia GUI, the only one: `MainWindow` (menus, status bar, dialogs and the
+  wiring; it redraws on `Changed`), `BoardControl` and `CaptureBinControl` (rendering and pointer
+  input), `PieceImages` (the PNGs in `Assets/`). Beyond the original Windows Forms GUI's feature set
+  (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it is a small UCI host: registered engines
+  (the Engine menu is built from `EngineRoster`, persisted at
   `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by
   their UCI reply), per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine
   start), time controls (a new game opens `NewGameDialog` to pick its clock — the standard 40-move
@@ -231,11 +227,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   the engine's info lines (depth, score, nodes, PV), File imports and exports PGN, and Ctrl+C /
   Ctrl+V copy and paste the position as FEN (pasting behaves like a finished board edit). The board
   draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
-  actions have keyboard shortcuts. The WinForms `Gui` keeps the original feature set and is no
-  longer extended or released. The application icon (the Windows .ico, the window's PNG, the macOS
-  app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a rounded
-  square of the board's light colour: run it again, and commit what it writes, when either changes.
-  Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their grey square.
+  actions have keyboard shortcuts. The application icon (the Windows .ico, the window's PNG, the
+  macOS app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a
+  rounded square of the board's light colour: run it again, and commit what it writes, when either
+  changes. Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their
+  grey square.
 
 ## Conventions
 
@@ -251,8 +247,8 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   (`.vscode/settings.json`), organising imports too. The style rules the hook does not enforce (they
   are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
   --severity info` pass.
-- Everything except `Gui` must build, test and run on Linux (the CI job enforces the build): no
-  Windows-only APIs. `Gui` compiles on Linux too (`EnableWindowsTargeting`) but runs only on Windows.
+- Everything must build, test and run on Linux, macOS and Windows (CI enforces it): no Windows-only
+  APIs outside an `OperatingSystem.IsWindows()` guard.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.

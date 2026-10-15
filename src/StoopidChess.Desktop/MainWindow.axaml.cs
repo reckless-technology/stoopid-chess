@@ -17,7 +17,8 @@ namespace StoopidChess.Desktop;
 /// <summary>
 /// The main window: menus, status bar and the wiring between the board control and the game. All
 /// game and engine logic lives in <see cref="GameController"/>; the window redraws whenever it
-/// raises <see cref="GameController.Changed"/>. A port of the WinForms <c>MainForm</c>.
+/// raises <see cref="GameController.Changed"/>. Ported from the original Windows Forms GUI's <c>MainForm</c>, which it
+/// replaced.
 /// </summary>
 public sealed partial class MainWindow : Window, IDisposable
 {

@@ -2,7 +2,9 @@
 
 > Names have changed since this was written (September 2026): `Board` is now `Position`, which also holds
 > move generation and position editing; `Colour` is `Color` and `PieceType` is `Piece`; `MoveGenerator`,
-> `MoveNotation` and `PositionBuilder` no longer exist. The text below keeps the names of its time.
+> `MoveNotation` and `PositionBuilder` no longer exist. The Windows Forms GUI
+> (`StoopidChess.Gui`, `MainForm`) was removed in October 2026: the Avalonia GUI (`StoopidChess.Desktop`)
+> replaced it on every platform. The text below keeps the names of its time.
 
 Review of the code as it stood after the .NET 10 port (commit `5a89d68`): a single Windows Forms
 project of about 5,400 lines written in 2009. The findings below drove the refactoring that
