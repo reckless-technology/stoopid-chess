@@ -26,7 +26,7 @@
 # The files: stoopid-chess-<version>-linux-x86_64, -windows-x86_64.exe and -macos-arm64.zip (the engine);
 # stoopid-chess-gui-<version>-linux-x86_64 and -windows-x86_64.exe (the Avalonia GUI, its native libraries inside the
 # single file) and -macos-arm64.zip ("Stoopid Chess.app"); and the source as stoopid-chess-<version>-source.tar.gz.
-# The Windows GUI was the Windows Forms one up to 3.0.0; the Avalonia app, where new features land, replaced it after.
+# The Windows GUI was the Windows Forms one up to 3.0.0; the Avalonia app replaced it, and the Windows Forms GUI is gone.
 # Before 3.0 the macOS and Linux GUIs shipped without the native libraries Avalonia loads and did not start; each GUI is
 # now started for ten seconds before it ships (on Windows, whose runner has no interactive desktop, by the app's own
 # --smoke). verify opens the release as a draft and each job uploads straight onto it; publish makes the source (in a
@@ -259,9 +259,8 @@ jobs:
         if: always()
         run: rm -rf publish out
 
-  # Windows: the solution and the suite, as CI builds them (the Windows Forms GUI with them, though it no longer ships),
-  # and the engine's perft and bench; the engine and the Avalonia GUI published as single files and, in a publishing
-  # run, signed.
+  # Windows: the solution and the suite, as CI builds them, and the engine's perft and bench; the engine and the Avalonia
+  # GUI published as single files and, in a publishing run, signed.
   windows:
     name: build + test (windows x86_64)
     needs: verify

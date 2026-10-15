@@ -12,16 +12,6 @@
       "stopAtEntry": false
     },
     {
-      "name": "Debug GUI (Windows only)",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build",
-      "program": "${workspaceFolder}/src/StoopidChess.Gui/bin/Debug/net10.0-windows/StoopidChess.dll",
-      "cwd": "${workspaceFolder}/src/StoopidChess.Gui",
-      "console": "internalConsole",
-      "stopAtEntry": false
-    },
-    {
       "name": "Debug UCI engine (interactive)",
       "type": "coreclr",
       "request": "launch",
@@ -51,16 +41,6 @@
       "args": ["perft", "1"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "stopAtEntry": false
-    },
-    {
-      "name": "Debug GUI (Release build, Windows only)",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "build release",
-      "program": "${workspaceFolder}/src/StoopidChess.Gui/bin/Release/net10.0-windows/StoopidChess.dll",
-      "cwd": "${workspaceFolder}/src/StoopidChess.Gui",
-      "console": "internalConsole",
       "stopAtEntry": false
     },
     {

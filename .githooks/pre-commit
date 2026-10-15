@@ -21,8 +21,7 @@ done
 
 if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(cs|csproj|props|editorconfig)$'; then
     echo "pre-commit: checking formatting with dotnet format..."
-    # The whole solution loads on every OS (the GUI sets EnableWindowsTargeting to compile,
-    # though not run, off Windows).
+    # The whole solution loads on every OS.
     if ! dotnet format StoopidChess.slnx --verify-no-changes; then
         echo "pre-commit: formatting problems found. Run 'dotnet format StoopidChess.slnx', stage the result and commit again." >&2
         exit 1

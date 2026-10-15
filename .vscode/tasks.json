@@ -90,15 +90,6 @@
       "presentation": { "reveal": "silent" }
     },
     {
-      "label": "run gui",
-      "detail": "Build and run the Windows Forms GUI (Windows only)",
-      "type": "process",
-      "command": "dotnet",
-      "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Gui/StoopidChess.Gui.csproj", "-c", "Debug"],
-      "problemMatcher": [],
-      "presentation": { "reveal": "silent" }
-    },
-    {
       "label": "run uci",
       "detail": "Build and run the UCI engine in the terminal (type 'uci', 'position startpos', 'go depth 6', 'quit')",
       "type": "process",
@@ -127,13 +118,13 @@
     },
     {
       "label": "publish",
-      "detail": "Self-contained single-file Release build(s) into publish/ (GUI included on Windows)",
+      "detail": "Self-contained single-file Release builds of the engine and the Avalonia GUI into publish/",
       "type": "shell",
       "linux": {
-        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/desktop"
+        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
       },
       "windows": {
-        "command": "dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui && dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine"
+        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
       },
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": "$msCompile",
