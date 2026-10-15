@@ -233,8 +233,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
   actions have keyboard shortcuts. The WinForms `Gui` keeps the original feature set and is no
   longer extended or released. The application icon (the Windows .ico, the window's PNG, the macOS
-  app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`; run it again,
-  and commit what it writes, when the SVG changes.
+  app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a rounded
+  square of the board's light colour: run it again, and commit what it writes, when either changes.
+  Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their grey square.
 
 ## Conventions
 

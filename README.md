@@ -164,6 +164,6 @@ The chess piece images, in both GUIs and in the application icon, are the "cburn
 [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public
 License, version 2 or later. They were rendered to 64 px PNGs from the SVGs that
 [Lichess](https://github.com/lichess-org/lila/tree/7370914942f30f1a77321ff6e5bc0ad3e4dd5841/public/piece/cburnett)
-ships. The application icon is the black queen, `packaging/icon/BlackQueen.svg` (that SVG, unchanged), which
-`tools/make-icons.py` renders to the Windows .ico (16 to 256 px), the window's PNG and the macOS app's .icns (16 to
-1024 px).
+ships. The application icon is the black queen, `packaging/icon/BlackQueen.svg` (that SVG, unchanged), on a rounded
+square of the Lichess board's light square colour, laid out on Apple's icon grid; `tools/make-icons.py` renders it to
+the Windows .ico (16 to 256 px), the window's PNG and the macOS app's .icns (16 to 1024 px).

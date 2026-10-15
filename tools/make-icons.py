@@ -2,8 +2,17 @@
 
 The source is Colin M.L. Burnett's black queen from the "cburnett" set (GPLv2 or later), the SVG Lichess ships at
 lichess-org/lila 7370914942f30f1a77321ff6e5bc0ad3e4dd5841, public/piece/cburnett/bQ.svg - the same artwork the 64 px
-piece images and the old 48 px icon were rendered from. Every size is rendered from the vector, none scaled from
-another:
+piece images were rendered from. The icon sets it, unchanged, on a rounded square of the light square colour of the
+Lichess board the set comes from, laid out on Apple's macOS icon grid, so macOS 26 and later draw it as it is (not on
+their grey square) and the black piece reads on a dark background:
+
+- a 1024 px canvas, the square 824 px and centred, its corners rounded with a 185 px radius, filled #f0d9b5 with a
+  slight vertical gradient, over a soft drop shadow (macOS clips it to its own continuous-corner mask);
+- the queen centred on it, its drawn height 70 % of the square's.
+
+Every size is rendered from that vector, none scaled from another, and the same artwork serves Windows, Linux and
+macOS. Below 48 px (the .ico's 16, 24 and 32, the .icns's 16, 16@2x and 32) the shadow is left out, where it would
+only blur the square's edge into a grey halo, and the square is snapped to whole pixels, so its edges stay crisp:
 
     python3 tools/make-icons.py
 
@@ -13,11 +22,10 @@ writes, all committed (the builds read them, and need none of the tools below):
                                                   (ApplicationIcon) and the window's on Windows; 32-bit BMP entries
                                                   with alpha up to 128 px, PNG at 256, as Windows expects
     src/StoopidChess.Desktop/Assets/AppIcon.png   256 px: the window's icon on Linux and macOS
-    packaging/macos/StoopidChess.icns             16 to 512 px at @1x and @2x (1024 px), the macOS app's icon, with
-                                                  the margin of Apple's icon grid (an 824 px body on 1024)
+    packaging/macos/StoopidChess.icns             16 to 512 pt at @1x and @2x (up to 1024 px), the macOS app's icon
 
 It needs rsvg-convert (librsvg; brew install librsvg) and, for the .icns, macOS's iconutil. Run it again whenever the
-SVG changes, and commit what it writes.
+SVG or the layout changes, and commit what it writes.
 """
 
 from __future__ import annotations
@@ -41,20 +49,82 @@ ICO_SIZES = (16, 24, 32, 48, 64, 128, 256)
 WINDOW_ICON_SIZE = 256
 # iconutil's names: each point size at @1x and @2x.
 ICNS_POINT_SIZES = (16, 32, 128, 256, 512)
-# Apple's macOS icon grid: the body is 824 px of a 1024 px canvas, 100 px of margin on every side.
-MACOS_BODY_FRACTION = 824 / 1024
+# Apple's macOS icon grid, in pixels of a 1024 px canvas: the square's side and its corner radius. The corners are
+# circular: macOS 26 and later draw an icon as it is only when it covers their own continuous-corner mask, and then
+# clip it to that mask themselves; a superellipse of exponent 5 (the usual stand-in for Apple's curve) falls inside the
+# mask at the corners, and macOS put it on its grey square, while this rounded rectangle passes (checked on macOS 27).
+CANVAS = 1024
+SQUARE = 824
+CORNER_RADIUS = 185
+# The light square of the Lichess board the cburnett set is drawn for, from a touch lighter at the top to a touch
+# darker at the bottom.
+FILL_TOP, FILL_BOTTOM = "#f3dfbf", "#ecd3aa"
+# A soft drop shadow beneath the square, as Apple's icons have: offset, blur (a standard deviation) and opacity.
+SHADOW_OFFSET, SHADOW_BLUR, SHADOW_OPACITY = 10, 10, 0.3
+# Below this many pixels the shadow is left out, where it would only blur the square's edge into a grey halo, and the
+# square is snapped to a whole, even number of pixels so its edges fall on pixel boundaries.
+SMALL_BELOW = 48
+# The queen's drawn height, as a fraction of the square's.
+QUEEN_HEIGHT = 0.70
 
 
-def padded_svg(svg: str, body_fraction: float) -> str:
-    """The SVG with its view box widened about its centre, so the drawing fills body_fraction of the canvas."""
-    match = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg)
+def rounded_square_path(centre: float, side: float) -> str:
+    """The SVG path of the square of the given side centred on the canvas, its corners rounded to the grid's radius
+    (scaled with the side)."""
+    radius = CORNER_RADIUS * side / SQUARE
+    left, right = centre - side / 2, centre + side / 2
+    top, bottom = left, right
+    return (f"M{left + radius:.3f},{top:.3f} H{right - radius:.3f} "
+            f"A{radius:.3f},{radius:.3f} 0 0 1 {right:.3f},{top + radius:.3f} V{bottom - radius:.3f} "
+            f"A{radius:.3f},{radius:.3f} 0 0 1 {right - radius:.3f},{bottom:.3f} H{left + radius:.3f} "
+            f"A{radius:.3f},{radius:.3f} 0 0 1 {left:.3f},{bottom - radius:.3f} V{top + radius:.3f} "
+            f"A{radius:.3f},{radius:.3f} 0 0 1 {left + radius:.3f},{top:.3f} Z")
+
+
+def drawn_bounds(svg_path: Path, work: Path) -> tuple[float, float, float, float]:
+    """The box, in the SVG's own units, that the drawing actually covers (its view box has margins): measured from a
+    450 px render's alpha."""
+    match = re.search(r'viewBox="([-\d.]+) ([-\d.]+) ([-\d.]+) ([-\d.]+)"', svg_path.read_text(encoding="utf-8"))
     if not match:
-        sys.exit(f"{SOURCE} has no viewBox")
-    x, y, width, height = (float(value) for value in match.groups())
-    new_width, new_height = width / body_fraction, height / body_fraction
-    box = (f'viewBox="{x - (new_width - width) / 2:.4f} {y - (new_height - height) / 2:.4f} '
-           f'{new_width:.4f} {new_height:.4f}"')
-    return svg[:match.start()] + box + svg[match.end():]
+        sys.exit(f"{svg_path} has no viewBox")
+    box_x, box_y, box_width, box_height = (float(value) for value in match.groups())
+    size = 450
+    width, height, rgba = png_rgba(render(svg_path, size, work / "bounds.png"))
+    covered = [(index // 4 % width, index // 4 // width) for index in range(3, len(rgba), 4) if rgba[index]]
+    left, right = min(x for x, _ in covered), max(x for x, _ in covered) + 1
+    top, bottom = min(y for _, y in covered), max(y for _, y in covered) + 1
+    return (box_x + left * box_width / width, box_y + top * box_height / height,
+            (right - left) * box_width / width, (bottom - top) * box_height / height)
+
+
+def icon_svg(source: str, bounds: tuple[float, float, float, float], size: int) -> str:
+    """The icon on the 1024 px canvas, for rendering at size pixels: the rounded square, its shadow (not at small
+    sizes) and the queen centred on it."""
+    centre = CANVAS / 2
+    is_small = size < SMALL_BELOW
+    side = SQUARE
+    if is_small:
+        side = round(size * SQUARE / CANVAS / 2) * 2 * CANVAS / size
+    square = rounded_square_path(centre, side)
+    x, y, width, height = bounds
+    queen_height = side * QUEEN_HEIGHT
+    queen_width = queen_height * width / height
+    body = source[source.index(">", source.index("<svg")) + 1:source.rindex("</svg>")]
+    shadow = ""
+    if not is_small:
+        shadow = (f'<filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">'
+                  f'<feGaussianBlur stdDeviation="{SHADOW_BLUR}"/></filter>'
+                  f'<path d="{square}" fill="#000" fill-opacity="{SHADOW_OPACITY}" filter="url(#shadow)" '
+                  f'transform="translate(0 {SHADOW_OFFSET})"/>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{CANVAS}" height="{CANVAS}" '
+            f'viewBox="0 0 {CANVAS} {CANVAS}">'
+            f'<defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1">'
+            f'<stop offset="0" stop-color="{FILL_TOP}"/><stop offset="1" stop-color="{FILL_BOTTOM}"/>'
+            f'</linearGradient></defs>'
+            f'{shadow}<path d="{square}" fill="url(#fill)"/>'
+            f'<svg x="{centre - queen_width / 2:.3f}" y="{centre - queen_height / 2:.3f}" width="{queen_width:.3f}" '
+            f'height="{queen_height:.3f}" viewBox="{x:.4f} {y:.4f} {width:.4f} {height:.4f}">{body}</svg>'
+            f'</svg>')
 
 
 def render(svg_path: Path, size: int, out: Path) -> bytes:
@@ -147,18 +217,20 @@ def write_ico(images: dict[int, bytes], out: Path) -> None:
 def main() -> None:
     if shutil.which("rsvg-convert") is None:
         sys.exit("rsvg-convert is not on the PATH (brew install librsvg)")
-    svg = SOURCE.read_text(encoding="utf-8")
+    source = SOURCE.read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory() as temporary:
         work = Path(temporary)
-        full = work / "full.svg"
-        full.write_text(svg, encoding="utf-8")
-        macos = work / "macos.svg"
-        macos.write_text(padded_svg(svg, MACOS_BODY_FRACTION), encoding="utf-8")
+        bounds = drawn_bounds(SOURCE, work)
 
-        images = {size: render(full, size, work / f"ico-{size}.png") for size in ICO_SIZES}
+        def render_icon(size: int, out: Path) -> bytes:
+            svg = work / f"icon-{size}.svg"
+            svg.write_text(icon_svg(source, bounds, size), encoding="utf-8")
+            return render(svg, size, out)
+
+        images = {size: render_icon(size, work / f"ico-{size}.png") for size in ICO_SIZES}
         write_ico(images, ICO)
         print(f"{ICO.relative_to(REPO)}: {', '.join(str(size) for size in ICO_SIZES)} px")
-        render(full, WINDOW_ICON_SIZE, PNG)
+        render_icon(WINDOW_ICON_SIZE, PNG)
         print(f"{PNG.relative_to(REPO)}: {WINDOW_ICON_SIZE} px")
 
         if shutil.which("iconutil") is None:
@@ -167,8 +239,8 @@ def main() -> None:
         iconset = work / "StoopidChess.iconset"
         iconset.mkdir()
         for points in ICNS_POINT_SIZES:
-            render(macos, points, iconset / f"icon_{points}x{points}.png")
-            render(macos, points * 2, iconset / f"icon_{points}x{points}@2x.png")
+            render_icon(points, iconset / f"icon_{points}x{points}.png")
+            render_icon(points * 2, iconset / f"icon_{points}x{points}@2x.png")
         subprocess.run(["iconutil", "--convert", "icns", "--output", str(ICNS), str(iconset)], check=True)
         print(f"{ICNS.relative_to(REPO)}: {', '.join(f'{p}@1x, {p}@2x' for p in ICNS_POINT_SIZES)}")
 
