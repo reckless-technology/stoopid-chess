@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The one entitlement .NET needs under the hardened runtime, which notarisation requires: the JIT writes executable
+     code (MAP_JIT), which the hardened runtime refuses without it, and CoreCLR does not start. Applied to the engine and
+     to the GUI's executable; the native libraries the GUI loads are signed by the same team, so library validation
+     needs no exception. -->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+</dict>
+</plist>

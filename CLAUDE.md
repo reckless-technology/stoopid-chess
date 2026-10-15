@@ -34,9 +34,12 @@ dotnet run --project src/StoopidChess.Gui                         # the WinForms
 CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on Linux, on the org's
 Apple-silicon runner and (suite only) on Windows, and publishes self-contained engine + GUI binaries
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
-storage is one shared quota). `release.yml` (manual dispatch) promotes a green CI run less than a day old into a
-GitHub Release - an older run's binaries have expired, and the workflow says so: re-run CI and release from it - the tested binaries are renamed to `stoopid-chess[-gui]-<version>-<platform>`, a
-source archive is added, and the release is tagged `v<version>` when published.
+storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
+hand on `main`): built and tested from nothing on all three platforms, the Windows engine and GUI eSigner-signed
+(publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
+ID-signed and notarised, every file checked to report the version and each GUI started, published as
+`vMAJOR.MINOR.BUILD` with a source archive (README, "Versions and releases"). `gh workflow run release.yml --ref
+<branch> -f dry_run=true` proves a change to it without publishing or spending a Windows signing.
 
 ## The testing discipline
 
@@ -249,8 +252,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
-- **Versioning** follows pawnstar and zenith: the version is `VersionBase.<git commit count>`
-  (`VersionBase` in Directory.Build.props, the count stamped by Directory.Build.targets at build
-  time; 0 outside a git checkout, so a given commit always builds the same version). Bump
-  `VersionBase` by hand for a new series and tag it (the series started at `v2.0`); tag releases
-  with the full number they built as. CI checks out the full history so its builds carry the count.
+- **Versioning** follows the organisation's rule (pawnstar, zenith, vst-plugins, ir-capture): the
+  version is `MAJOR.MINOR.BUILD` from git alone - the nearest annotated `vMAJOR.MINOR` tag and the
+  commits since it, stamped by Directory.Build.targets at build time; 0.0.0 with no such tag
+  reachable. Nothing in the tree is edited to release: tag `main` `vMAJOR.MINOR` and push the tag,
+  and the release workflow creates `vMAJOR.MINOR.BUILD` itself. CI checks out the full history and
+  the tags so its builds carry the version. The Avalonia GUI answers `--version` without starting.

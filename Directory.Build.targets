@@ -1,25 +1,35 @@
 <Project>
 
-  <!-- Stamp the build number into the version: VersionBase from Directory.Build.props plus the
-       commit count, like pawnstar's and zenith's builds. Skipped in IDE design-time builds, which
+  <!-- Stamp the version, MAJOR.MINOR.BUILD, from git alone - the rule every reckless-technology
+       project follows (pawnstar's cmake/version.cmake, zenith's and pawnstar-go's tools/version.sh):
+       MAJOR.MINOR is the nearest annotated tag vMAJOR.MINOR reachable from HEAD, made by hand on main,
+       and BUILD the number of commits since it, the tagged commit itself being 0. The release
+       workflow's own three-component tags (vMAJOR.MINOR.BUILD) are excluded. A tree with no such tag
+       reachable (a source tarball, a shallow clone, a fork without the tags) keeps the props' 0.0.0,
+       with a warning, which the release workflow refuses. Skipped in IDE design-time builds, which
        keep the props default. -->
-  <Target Name="ComputeBuildNumber" BeforeTargets="GetAssemblyVersion" Condition="'$(DesignTimeBuild)' != 'true'">
-    <Exec Command="git rev-list --count HEAD"
+  <Target Name="ComputeVersionFromTags" BeforeTargets="GetAssemblyVersion" Condition="'$(DesignTimeBuild)' != 'true'">
+    <Exec Command="git describe --tags --long --match &quot;v[0-9]*.[0-9]*&quot; --exclude &quot;v*.*.*&quot;"
           ConsoleToMSBuild="true"
           IgnoreExitCode="true"
           StandardOutputImportance="low"
           StandardErrorImportance="low"
           WorkingDirectory="$(MSBuildThisFileDirectory)">
-      <Output TaskParameter="ConsoleOutput" PropertyName="_GitCommitCount" />
-      <Output TaskParameter="ExitCode" PropertyName="_GitExitCode" />
+      <Output TaskParameter="ConsoleOutput" PropertyName="_GitDescribe" />
+      <Output TaskParameter="ExitCode" PropertyName="_GitDescribeExitCode" />
     </Exec>
     <PropertyGroup>
-      <_GitCommitCount Condition="'$(_GitExitCode)' != '0' OR '$(_GitCommitCount)' == ''">0</_GitCommitCount>
-      <Version>$(VersionBase).$(_GitCommitCount)</Version>
+      <_VersionMatch Condition="'$(_GitDescribeExitCode)' == '0'">$([System.Text.RegularExpressions.Regex]::Match('$(_GitDescribe)', '^v(\d+)\.(\d+)-(\d+)-g[0-9a-f]+$'))</_VersionMatch>
+      <_VersionMajor Condition="'$(_VersionMatch)' != ''">$([System.Text.RegularExpressions.Regex]::Replace('$(_GitDescribe)', '^v(\d+)\.(\d+)-(\d+)-g[0-9a-f]+$', '$1'))</_VersionMajor>
+      <_VersionMinor Condition="'$(_VersionMatch)' != ''">$([System.Text.RegularExpressions.Regex]::Replace('$(_GitDescribe)', '^v(\d+)\.(\d+)-(\d+)-g[0-9a-f]+$', '$2'))</_VersionMinor>
+      <_VersionBuild Condition="'$(_VersionMatch)' != ''">$([System.Text.RegularExpressions.Regex]::Replace('$(_GitDescribe)', '^v(\d+)\.(\d+)-(\d+)-g[0-9a-f]+$', '$3'))</_VersionBuild>
+      <Version Condition="'$(_VersionMatch)' != ''">$(_VersionMajor).$(_VersionMinor).$(_VersionBuild)</Version>
       <InformationalVersion>$(Version)</InformationalVersion>
       <FileVersion>$(Version).0</FileVersion>
-      <AssemblyVersion>$(VersionBase).0.0</AssemblyVersion>
+      <AssemblyVersion>$([System.Version]::Parse('$(Version)').ToString(2)).0.0</AssemblyVersion>
     </PropertyGroup>
+    <Warning Condition="'$(_VersionMatch)' == ''"
+             Text="No vMAJOR.MINOR tag is reachable from HEAD (git describe said '$(_GitDescribe)'): the version is $(Version). Fetch the tags (git fetch --tags; CI checks out with fetch-depth 0)." />
   </Target>
 
 </Project>

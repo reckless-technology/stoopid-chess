@@ -90,9 +90,49 @@ Modelled on the sibling engines pawnstar and zenith:
 - **Bench signature**.
 
 CI (`.github/workflows/ci.yml`) runs the full test suite on Linux, macOS (arm64) and Windows — with
-perft and bench gates on Linux and macOS — and publishes self-contained engine and GUI binaries for
-all three platforms. Releases are cut by manually dispatching `release.yml`, which promotes a green
-CI run's tested binaries into a tagged GitHub Release with a source archive.
+perft and bench gates on Linux and macOS — and keeps self-contained engine and GUI binaries for all
+three platforms as a day's artifacts.
+
+## Versions and releases
+
+The version is `MAJOR.MINOR.BUILD`, from git alone, the rule all of reckless-technology's projects follow:
+
+- `MAJOR.MINOR` is the nearest annotated tag `vMAJOR.MINOR` reachable from the commit built (a *version mark*, made by
+  hand on `main`);
+- `BUILD` is the number of commits since that tag, the tagged commit itself being 0.
+
+`Directory.Build.targets` works it out at build time (`git describe --tags --match 'v*.*' --exclude 'v*.*.*'`) and
+stamps every assembly with it. The engine reports it (`id name Stoopid Chess 3.0.0`), and so do the GUIs: in their
+Help box, the Windows GUI's version resource, the Avalonia GUI's `--version` and the macOS app's Info.plist. Nothing
+in the tree holds a version to edit. A tree with no mark reachable (a source tarball, a shallow clone, a fork without
+the tags) builds as `0.0.0`, with a warning.
+
+`.github/workflows/release.yml` makes a release:
+
+- **Pushing a mark** (`git tag -a v3.1 -m "Stoopid Chess 3.1" && git push origin v3.1`) releases `3.1.0`.
+- **Running it by hand** on `main` (`gh workflow run release.yml --ref main`) releases `main`'s head as
+  `MAJOR.MINOR.BUILD`. `-f dry_run=true`, from any branch, builds, tests and signs the macOS files but publishes
+  nothing.
+
+It refuses a mark that isn't `vMAJOR.MINOR`, a commit not on `main`, and a version already released. Each platform is
+built from nothing on the organisation's self-hosted runners, with the suite, perft and the bench signature. Each file
+shipped must report the version, and each GUI is started before it ships. The workflow creates the release
+`vMAJOR.MINOR.BUILD` and its tag itself. It never runs for a pull request.
+
+| File | What it is |
+|---|---|
+| `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the Windows Forms GUI, Authenticode-signed through SSL.com eSigner (Jonathan Reckless) |
+| `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the Avalonia GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
+| `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the Avalonia GUI for Linux, each one self-contained file |
+| `stoopid-chess-<version>-source.tar.gz` | the source at the commit |
+
+The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
+`packaging/macos/` holds its Info.plist and the one entitlement .NET's JIT needs under the hardened runtime. The Linux
+GUI carries its native libraries inside its single file. Before 3.0 both GUIs shipped without those libraries and did
+not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the macOS engine's up
+online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the organisation's signing
+secrets (the same ones as its other apps). The Windows files are signed only in a run that publishes, since every
+signing spends the eSigner account's allowance. A publishing run that would ship an unsigned file fails.
 
 ## Playing against other engines
 

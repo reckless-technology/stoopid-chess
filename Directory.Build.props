@@ -20,12 +20,12 @@
     <Company>Reckless Technology Ltd</Company>
     <Authors>Jonny Reckless</Authors>
     <Copyright>© Jonny Reckless 2009-2026</Copyright>
-    <!-- The version is VersionBase.<git commit count>, the scheme shared with pawnstar and zenith:
-         reproducible per commit, and 0 outside a git checkout. Directory.Build.targets computes the
-         count at build time; VersionBase is bumped by hand and each release is tagged with the full
-         number it built as. -->
-    <VersionBase>2.0</VersionBase>
-    <Version>$(VersionBase).0</Version>
+    <!-- The version is MAJOR.MINOR.BUILD from git alone, the rule every reckless-technology project
+         follows: MAJOR.MINOR from the nearest annotated tag vMAJOR.MINOR, BUILD the number of commits
+         since it. Directory.Build.targets derives it at build time; this is the fallback for a tree
+         with no such tag reachable and for IDE design-time builds. Nothing here is edited to release:
+         tag main and push the tag. -->
+    <Version>0.0.0</Version>
   </PropertyGroup>
 
 </Project>
