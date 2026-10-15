@@ -127,7 +127,7 @@ shipped must report the version, and each GUI is started before it ships. The wo
 | `stoopid-chess-<version>-source.tar.gz` | the source at the commit |
 
 The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
-`packaging/macos/` holds its Info.plist and the one entitlement .NET's JIT needs under the hardened runtime. The Linux
+`packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime. The Linux
 GUI carries its native libraries inside its single file. Before 3.0 both GUIs shipped without those libraries and did
 not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the macOS engine's up
 online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the organisation's signing
@@ -161,4 +161,6 @@ The chess piece images, in both GUIs and in the application icon, are the "cburn
 [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public
 License, version 2 or later. They were rendered to 64 px PNGs from the SVGs that
 [Lichess](https://github.com/lichess-org/lila/tree/7370914942f30f1a77321ff6e5bc0ad3e4dd5841/public/piece/cburnett)
-ships.
+ships. The application icon is the black queen, `packaging/icon/BlackQueen.svg` (that SVG, unchanged), which
+`tools/make-icons.py` renders to the Windows .ico (16 to 256 px), the window's PNG and the macOS app's .icns (16 to
+1024 px).

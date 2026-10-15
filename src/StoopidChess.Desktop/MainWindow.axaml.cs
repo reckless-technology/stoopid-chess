@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using StoopidChess.Core;
@@ -58,6 +59,7 @@ public sealed partial class MainWindow : Window, IDisposable
     public MainWindow()
     {
         InitializeComponent();
+        Icon = LoadAppIcon();
         board.Controller = controller;
         captureBin.Controller = controller;
         board.MoveDropped += OnMoveDropped;
@@ -260,6 +262,17 @@ public sealed partial class MainWindow : Window, IDisposable
         await SaveRosterAsync();
         BuildEngineMenu();
         await StartEngineSafelyAsync(null);
+    }
+
+    /// <summary>
+    /// The application icon, drawn by tools/make-icons.py: on Windows the multi-size .ico the .exe carries,
+    /// from which Windows picks the title bar's and the taskbar's sizes; elsewhere the 256 px PNG.
+    /// </summary>
+    private static WindowIcon LoadAppIcon()
+    {
+        string file = OperatingSystem.IsWindows() ? "AppIcon.ico" : "AppIcon.png";
+        using Stream stream = AssetLoader.Open(new Uri($"avares://StoopidChess.Desktop/Assets/{file}"));
+        return new WindowIcon(stream);
     }
 
     protected override async void OnOpened(EventArgs e)

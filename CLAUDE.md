@@ -231,7 +231,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   Ctrl+V copy and paste the position as FEN (pasting behaves like a finished board edit). The board
   draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
   actions have keyboard shortcuts. The WinForms `Gui` keeps the original feature set and is no
-  longer extended.
+  longer extended. The application icon (the Windows .ico, the window's PNG, the macOS
+  app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`; run it again,
+  and commit what it writes, when the SVG changes.
 
 ## Conventions
 

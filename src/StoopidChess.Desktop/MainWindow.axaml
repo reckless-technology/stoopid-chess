@@ -4,8 +4,7 @@
         x:Class="StoopidChess.Desktop.MainWindow"
         Title="Stoopid Chess"
         Width="860" Height="660"
-        MinWidth="680" MinHeight="540"
-        Icon="avares://StoopidChess.Desktop/Assets/BlackQueen.png">
+        MinWidth="680" MinHeight="540">
   <DockPanel>
     <Menu DockPanel.Dock="Top">
       <MenuItem Header="_File">

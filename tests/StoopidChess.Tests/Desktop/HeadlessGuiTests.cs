@@ -37,6 +37,17 @@ public class HeadlessGuiTests(HeadlessSessionFixture fixture) : IClassFixture<He
     }
 
     [Fact]
+    public async Task TheMainWindowCarriesTheAppIcon()
+    {
+        bool hasIcon = await OnUiThread(() =>
+        {
+            using var window = new MainWindow();
+            return window.Icon is not null;
+        });
+        Assert.True(hasIcon);
+    }
+
+    [Fact]
     public async Task TheNewGameDialogStartsUnconfirmed()
     {
         (bool confirmed, bool custom, TimeControl? choice) = await OnUiThread(() =>
