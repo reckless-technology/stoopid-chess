@@ -115,8 +115,12 @@ jobs:
         run: dotnet build StoopidChess.slnx -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --no-build
-      - name: Publish GUI
+      - name: Publish Windows Forms GUI
+        # No longer released (the Avalonia GUI below is the Windows download), but still built and kept here.
         run: dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/gui
+      - name: Publish Avalonia GUI
+        # Its native libraries inside the single file, as release.yml publishes it for Windows and Linux.
+        run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop
       - name: Publish engine
         run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine
       - name: Upload binaries
@@ -125,6 +129,7 @@ jobs:
           name: stoopid-chess-win-x64
           path: |
             publish/gui/StoopidChess.exe
+            publish/desktop/StoopidChess.Desktop.exe
             publish/engine/stoopid-chess.exe
           if-no-files-found: error
           retention-days: 1

@@ -12,9 +12,10 @@
 #
 # The organisation's other apps (vst-plugins, ir-capture) and the other chess engines are released the same way, with
 # the same organisation secrets for signing:
-#   - Windows: the engine and the GUI (Windows Forms) are Authenticode-signed through SSL.com's eSigner (CodeSignTool
-#     pinned by version and hash, in the runner's tool cache; tools/sign-windows.ps1), the account checked before the
-#     build, which spends no signing. Only a publishing run signs, and only the two files it ships.
+#   - Windows: the engine and the GUI (the Avalonia app, as on macOS and Linux) are Authenticode-signed through
+#     SSL.com's eSigner (CodeSignTool pinned by version and hash, in the runner's tool cache; tools/sign-windows.ps1),
+#     the account checked before the build, which spends no signing. Only a publishing run signs, and only the two files
+#     it ships.
 #   - macOS: the engine and "Stoopid Chess.app" (the Avalonia GUI, its native libraries beside its executable) are
 #     signed with the Developer ID Application identity, the hardened runtime, a secure timestamp and the one
 #     entitlement .NET's JIT needs (packaging/macos/entitlements.plist), on a keychain of the job's own
@@ -23,13 +24,14 @@
 #   A publishing run that would ship anything unsigned fails instead.
 #
 # The files: stoopid-chess-<version>-linux-x86_64, -windows-x86_64.exe and -macos-arm64.zip (the engine);
-# stoopid-chess-gui-<version>-linux-x86_64 (Avalonia, its native libraries inside the single file),
-# -windows-x86_64.exe (Windows Forms) and -macos-arm64.zip ("Stoopid Chess.app"); and the source as
-# stoopid-chess-<version>-source.tar.gz. Before 3.0 the macOS and Linux GUIs shipped without the native libraries
-# Avalonia loads and did not start; each GUI is now started for ten seconds before it ships. verify opens the release as
-# a draft and each job uploads straight onto it; publish makes the source (in a dry run too), checks all seven files
-# are on the draft, pushes the tag and takes the draft public. A failed job can be run again; a run that fails before it
-# publishes leaves only a draft, which the next run replaces.
+# stoopid-chess-gui-<version>-linux-x86_64 and -windows-x86_64.exe (the Avalonia GUI, its native libraries inside the
+# single file) and -macos-arm64.zip ("Stoopid Chess.app"); and the source as stoopid-chess-<version>-source.tar.gz.
+# The Windows GUI was the Windows Forms one up to 3.0.0; the Avalonia app, where new features land, replaced it after.
+# Before 3.0 the macOS and Linux GUIs shipped without the native libraries Avalonia loads and did not start; each GUI is
+# now started for ten seconds before it ships (on Windows, whose runner has no interactive desktop, by the app's own
+# --smoke). verify opens the release as a draft and each job uploads straight onto it; publish makes the source (in a
+# dry run too), checks all seven files are on the draft, pushes the tag and takes the draft public. A failed job can be
+# run again; a run that fails before it publishes leaves only a draft, which the next run replaces.
 #
 # Every job runs on the organisation's self-hosted runners, never a hosted image, and never for a pull request: this
 # workflow holds the signing secrets.
@@ -257,8 +259,9 @@ jobs:
         if: always()
         run: rm -rf publish out
 
-  # Windows: the solution and the suite, as CI builds them, and the engine's perft and bench; the engine and the Windows
-  # Forms GUI published as single files and, in a publishing run, signed.
+  # Windows: the solution and the suite, as CI builds them (the Windows Forms GUI with them, though it no longer ships),
+  # and the engine's perft and bench; the engine and the Avalonia GUI published as single files and, in a publishing
+  # run, signed.
   windows:
     name: build + test (windows x86_64)
     needs: verify
@@ -318,15 +321,23 @@ jobs:
         run: |
           dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
           dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
+      # The GUI's native libraries (SkiaSharp, HarfBuzzSharp, ANGLE) go inside its single file, as on Linux, extracted
+      # at its first start: one .exe to download, and to sign.
       - name: Publish
         run: |
-          dotnet publish src/StoopidChess.Gui/StoopidChess.Gui.csproj -c Release -r win-x64 --self-contained \
-            -p:PublishSingleFile=true -o publish/gui
           dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained \
             -p:PublishSingleFile=true -o publish/engine
+          dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop
+          ls -l publish/desktop
+          beside=""
+          for file in publish/desktop/*; do
+            case "$(basename "$file")" in StoopidChess.Desktop.exe | *.pdb) ;; *) beside="$beside $file" ;; esac
+          done
+          [ -z "$beside" ] || { echo "::error::the GUI's publish left files beside it, which a lone .exe lacks:$beside"; exit 1; }
           mkdir -p out
           cp publish/engine/stoopid-chess.exe "out/stoopid-chess-$VERSION-windows-x86_64.exe"
-          cp publish/gui/StoopidChess.exe "out/stoopid-chess-gui-$VERSION-windows-x86_64.exe"
+          cp publish/desktop/StoopidChess.Desktop.exe "out/stoopid-chess-gui-$VERSION-windows-x86_64.exe"
           ls -l out
       - name: Sign (a publishing run)
         if: env.PUBLISH == 'true'
@@ -340,19 +351,55 @@ jobs:
           pwsh -NoProfile -File tools/sign-windows.ps1 "out/stoopid-chess-$env:VERSION-windows-x86_64.exe" `
             "out/stoopid-chess-gui-$env:VERSION-windows-x86_64.exe"
           if ($LASTEXITCODE -ne 0) { throw "the Windows files were not signed" }
-      # The engine answers over UCI; the GUI, a Windows Forms app with no console, by the version resource its About
-      # box shows (Application.ProductVersion).
-      - name: The shipped files report the version, and are signed where they must be
+      # The engine answers over UCI. The GUI answers --version, and its version resource (what Explorer shows) must
+      # agree. Then it is started, alone in a folder of its own as a download is, by --smoke: the runner is a service
+      # with no interactive desktop, so no one could see a window, nor a dialog an app that died would leave open. The
+      # app opens its main window as usual, says so, quits itself ten seconds later and exits 0; anything else fails.
+      # A GUI-subsystem .exe has no console of its own, so each is run with its output redirected, and waited for.
+      - name: The shipped files report the version, the GUI starts on its own, and they are signed where they must be
         shell: pwsh
         run: |
+          function Invoke-Gui([string] $exe, [string] $argument, [int] $timeoutSeconds) {
+            $start = [System.Diagnostics.ProcessStartInfo]::new($exe, $argument)
+            $start.UseShellExecute = $false
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.WorkingDirectory = Split-Path -Parent $exe
+            $process = [System.Diagnostics.Process]::Start($start)
+            $output = $process.StandardOutput.ReadToEndAsync()
+            $errors = $process.StandardError.ReadToEndAsync()
+            if (-not $process.WaitForExit($timeoutSeconds * 1000)) {
+              $process.Kill($true)
+              throw "$exe $argument was still running after $timeoutSeconds seconds"
+            }
+            $process.WaitForExit()
+            [pscustomobject] @{ ExitCode = $process.ExitCode; Output = $output.Result.Trim(); Errors = $errors.Result.Trim() }
+          }
           $engine = "out/stoopid-chess-$env:VERSION-windows-x86_64.exe"
           $gui = "out/stoopid-chess-gui-$env:VERSION-windows-x86_64.exe"
           $name = ("uci`nquit`n" | & $engine | Select-String -Pattern '^id name' | Select-Object -First 1).Line
           "engine: $name"
           if ($name -ne "id name Stoopid Chess $env:VERSION") { throw "the engine says '$name'" }
+          $said = Invoke-Gui (Resolve-Path $gui).Path '--version' 60
+          "GUI: $($said.Output)"
+          if ($said.ExitCode -ne 0 -or $said.Output -ne "Stoopid Chess $env:VERSION") {
+            throw "the GUI says '$($said.Output)' $($said.Errors), exit code $($said.ExitCode)"
+          }
           $info = (Get-Item $gui).VersionInfo
-          "GUI: $($info.ProductName) $($info.ProductVersion), file $($info.FileVersion)"
+          "GUI's version resource: $($info.ProductName) $($info.ProductVersion), file $($info.FileVersion)"
           if ($info.ProductVersion.Split('+')[0] -ne $env:VERSION) { throw "the GUI's version resource says $($info.ProductVersion)" }
+          $lone = Join-Path $env:RUNNER_TEMP 'lone-gui'
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $lone
+          New-Item -ItemType Directory $lone | Out-Null
+          Copy-Item $gui $lone
+          $smoke = Invoke-Gui (Join-Path $lone (Split-Path -Leaf $gui)) '--smoke' 120
+          $smoke.Output
+          if ($smoke.Errors) { $smoke.Errors }
+          if ($smoke.ExitCode -ne 0 -or $smoke.Output -notmatch 'the main window is open' -or $smoke.Output -notmatch 'ran for 10 seconds') {
+            throw "the GUI did not run for ten seconds (exit code $($smoke.ExitCode))"
+          }
+          Remove-Item -Recurse -Force $lone
+          "the GUI ran for ten seconds"
           if ($env:PUBLISH -eq 'true') {
             foreach ($file in $engine, $gui) {
               $signature = Get-AuthenticodeSignature -FilePath $file

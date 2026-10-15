@@ -16,7 +16,7 @@ restructured in 2026.
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
-| `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. |
+| `src/StoopidChess.Gui` | Windows Forms GUI: drawing, mouse and menus over `GameController`. Talks to the engine only through UCI. The original GUI, kept and built but no longer extended or released: the Avalonia GUI is the download on every platform. |
 | `src/StoopidChess.Desktop` | Avalonia GUI for Linux, macOS and Windows: the same drawing, mouse and menus over `GameController`, plus a small UCI host — registered external engines and Fischer time controls with flagging. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
@@ -121,18 +121,21 @@ shipped must report the version, and each GUI is started before it ships. The wo
 
 | File | What it is |
 |---|---|
-| `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the Windows Forms GUI, Authenticode-signed through SSL.com eSigner (Jonathan Reckless) |
+| `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the Avalonia GUI (each one self-contained file), Authenticode-signed through SSL.com eSigner (Jonathan Reckless); up to 3.0.0 the Windows GUI was the Windows Forms one |
 | `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the Avalonia GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
 | `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the Avalonia GUI for Linux, each one self-contained file |
 | `stoopid-chess-<version>-source.tar.gz` | the source at the commit |
 
 The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
-`packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime. The Linux
-GUI carries its native libraries inside its single file. Before 3.0 both GUIs shipped without those libraries and did
-not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the macOS engine's up
-online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the organisation's signing
-secrets (the same ones as its other apps). The Windows files are signed only in a run that publishes, since every
-signing spends the eSigner account's allowance. A publishing run that would ship an unsigned file fails.
+`packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime.
+The Linux and Windows GUIs carry their native libraries inside their single files. The Windows runner has no
+interactive desktop, so the Windows GUI is started there by its own `--smoke`: it opens its main window as usual, says
+so, and quits itself ten seconds later with exit code 0. Before 3.0 the macOS and Linux GUIs shipped without those
+libraries and did not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the
+macOS engine's up online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the
+organisation's signing secrets (the same ones as its other apps). The Windows files are signed only in a run that
+publishes, since every signing spends the eSigner account's allowance. A publishing run that would ship an unsigned
+file fails.
 
 ## Playing against other engines
 
