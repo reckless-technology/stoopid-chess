@@ -424,7 +424,8 @@ jobs:
       - name: Bench signature
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
       # The app: the GUI's single-file executable and the native libraries Avalonia loads beside it in Contents/MacOS,
-      # its icon (made from the Windows GUI's) and packaging/macos/Info.plist at the version.
+      # its icon (packaging/macos/StoopidChess.icns, which tools/make-icons.py draws from packaging/icon/BlackQueen.svg)
+      # and packaging/macos/Info.plist at the version.
       - name: Publish, and the app assembled
         run: |
           dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r osx-arm64 --self-contained \
@@ -436,7 +437,7 @@ jobs:
           cp publish/desktop/StoopidChess.Desktop publish/desktop/*.dylib "stage/$APP/Contents/MacOS/"
           sed "s/@VERSION@/$VERSION/g" packaging/macos/Info.plist > "stage/$APP/Contents/Info.plist"
           plutil -lint "stage/$APP/Contents/Info.plist"
-          sips -s format icns src/StoopidChess.Gui/BlackQueen.ico --out "stage/$APP/Contents/Resources/StoopidChess.icns"
+          cp packaging/macos/StoopidChess.icns "stage/$APP/Contents/Resources/StoopidChess.icns"
           find stage -type f | sort
       - name: Open the signing keychain
         env:

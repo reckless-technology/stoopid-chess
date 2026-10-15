@@ -5,7 +5,8 @@
     <RootNamespace>StoopidChess.Desktop</RootNamespace>
     <AssemblyName>StoopidChess.Desktop</AssemblyName>
     <Description>Stoopid Chess: a cross-platform Avalonia chess GUI that plays against any UCI engine.</Description>
-    <ApplicationIcon>../StoopidChess.Gui/BlackQueen.ico</ApplicationIcon>
+    <!-- The .exe's icon on Windows; tools/make-icons.py draws it, and the macOS app's .icns, from packaging/icon. -->
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The piece images are copies of src/StoopidChess.Gui/Resources (the WinForms GUI embeds them per-form). -->
+    <!-- The piece images are copies of src/StoopidChess.Gui/Resources (the WinForms GUI embeds them per-form);
+         AppIcon.ico and AppIcon.png are the window's icon. -->
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
