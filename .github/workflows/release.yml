@@ -406,6 +406,15 @@ jobs:
               if ($signature.Status -ne 'Valid') { throw "$file is not validly signed: $($signature.StatusMessage)" }
             }
           }
+      # What a person typing the command sees: --version and --smoke run from cmd.exe in a pseudoconsole (ConPTY, as
+      # Windows Terminal hosts a shell), whose screen must show their lines, and "--version > file" fill the file. The
+      # GUI, a GUI-subsystem .exe, attaches to its parent's console for them (src/StoopidChess.Desktop/WindowsConsole.cs).
+      - name: The GUI prints into a command prompt
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File tools/check-windows-console.ps1 -Gui "out/stoopid-chess-gui-$env:VERSION-windows-x86_64.exe" `
+            -Version $env:VERSION
+          if ($LASTEXITCODE -ne 0) { throw "the GUI does not print into a command prompt" }
       - name: Upload to the draft release
         if: env.PUBLISH == 'true'
         env:

@@ -12,7 +12,12 @@ internal static class Program
     {
         // "--version" prints the version and exits before Avalonia starts, so it needs no display: the
         // release workflow asks each shipped GUI for it. "--smoke" starts the GUI as usual and quits it
-        // after a few seconds (App.OnFrameworkInitializationCompleted), the exit code saying whether it ran.
+        // after a few seconds (App.OnFrameworkInitializationCompleted), the exit code saying whether it ran. On
+        // Windows both print to the console they were started from (WindowsConsole), or where they are redirected.
+        if (OperatingSystem.IsWindows() && args is ["--version"] or ["--smoke"])
+        {
+            WindowsConsole.AttachToParent();
+        }
         if (args is ["--version"])
         {
             Console.WriteLine($"Stoopid Chess {Version}");
