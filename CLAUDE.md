@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
 protocol, wrapped by the `StoopidChess.Uci` console) and two GUIs over the `StoopidChess.Play`
 controller that play against any UCI engine: `StoopidChess.Desktop` (Avalonia, any OS) and
-`StoopidChess.Gui` (Windows Forms, Windows only). .NET 10;
+`StoopidChess.Gui` (Windows Forms, Windows only; still built, no longer released). .NET 10;
 `Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
 project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
@@ -35,7 +35,8 @@ CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on L
 Apple-silicon runner and (suite only) on Windows, and publishes self-contained engine + GUI binaries
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
-hand on `main`): built and tested from nothing on all three platforms, the Windows engine and GUI eSigner-signed
+hand on `main`): built and tested from nothing on all three platforms, the Avalonia GUI the download on each (Windows
+too after 3.0.0, whose Windows GUI was the Windows Forms one), the Windows engine and GUI eSigner-signed
 (publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
 ID-signed and notarised, every file checked to report the version and each GUI started, published as
 `vMAJOR.MINOR.BUILD` with a source archive (README, "Versions and releases"). `gh workflow run release.yml --ref
@@ -231,7 +232,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   Ctrl+V copy and paste the position as FEN (pasting behaves like a finished board edit). The board
   draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
   actions have keyboard shortcuts. The WinForms `Gui` keeps the original feature set and is no
-  longer extended. The application icon (the Windows .ico, the window's PNG, the macOS
+  longer extended or released. The application icon (the Windows .ico, the window's PNG, the macOS
   app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`; run it again,
   and commit what it writes, when the SVG changes.
 
@@ -259,4 +260,6 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   commits since it, stamped by Directory.Build.targets at build time; 0.0.0 with no such tag
   reachable. Nothing in the tree is edited to release: tag `main` `vMAJOR.MINOR` and push the tag,
   and the release workflow creates `vMAJOR.MINOR.BUILD` itself. CI checks out the full history and
-  the tags so its builds carry the version. The Avalonia GUI answers `--version` without starting.
+  the tags so its builds carry the version. The Avalonia GUI answers `--version` without starting,
+  and `--smoke` starts it, says when its main window opens and quits it ten seconds later with exit
+  code 0: the release's check that the Windows GUI starts on a runner with no interactive desktop.

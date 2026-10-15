@@ -7,6 +7,7 @@
     <Description>Stoopid Chess: a cross-platform Avalonia chess GUI that plays against any UCI engine.</Description>
     <!-- The .exe's icon on Windows; tools/make-icons.py draws it, and the macOS app's .icns, from packaging/icon. -->
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
