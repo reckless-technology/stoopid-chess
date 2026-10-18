@@ -1,6 +1,4 @@
-using System.Globalization;
 using System.Reflection;
-using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -83,7 +81,7 @@ public sealed partial class MainWindow : Window, IDisposable
             $"The engine played an illegal move: {move}");
         controller.EngineInfo += (_, line) => Dispatcher.UIThread.Post(() =>
         {
-            if (analysisWindow is { } window && FormatInfoLine(line) is { } formatted)
+            if (analysisWindow is { } window && GameText.InfoLine(line) is { } formatted)
             {
                 window.Append(formatted);
             }
@@ -98,33 +96,13 @@ public sealed partial class MainWindow : Window, IDisposable
     // The engine roster: registered external UCI engines, persisted per user
     // ---------------------------------------------------------------------------------------------
 
-    private static string RosterPath => Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StoopidChess", "engines.json");
-
-    private static EngineRoster LoadRoster()
-    {
-        try
-        {
-            using FileStream stream = File.OpenRead(RosterPath);
-            return EngineRoster.Load(stream);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException or FileNotFoundException)
-        {
-            return new EngineRoster();
-        }
-    }
+    private static EngineRoster LoadRoster() => EngineRosterFile.Load(EngineRosterFile.DefaultPath);
 
     private async Task SaveRosterAsync()
     {
-        try
+        if (EngineRosterFile.Save(roster, EngineRosterFile.DefaultPath) is { } failure)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(RosterPath)!);
-            using FileStream stream = File.Create(RosterPath);
-            roster.Save(stream);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            await MessageDialog.ShowAsync(this, "Engines", $"The engine list could not be saved:\n{ex.Message}");
+            await MessageDialog.ShowAsync(this, "Engines", $"The engine list could not be saved:\n{failure}");
         }
     }
 
@@ -308,21 +286,13 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void RefreshAll()
     {
-        Title = controller.IsMatch
-            ? $"Stoopid Chess - {controller.EngineName} vs {controller.OpponentName}"
-            : controller.EngineName is null ? "Stoopid Chess" : $"Stoopid Chess - {controller.EngineName}";
+        Title = GameText.Title(controller);
         stopThinkingButton.IsEnabled = controller.IsThinking;
         UpdateMoveList();
         colorToMoveLabel.Text = controller.SideToMove.ToString();
-        humanColorLabel.Text = controller.HumanColor == Color.None ? "Nobody (engine vs engine)" : controller.HumanColor.ToString();
-        // The clock the running game is actually under; a differing selection is marked as pending
-        modeAnnotationLabel.Text = controller.ActiveClock is null ? "   Difficulty:" : "   Clock:";
-        string mode = controller.ActiveClock?.ToString() ?? controller.Level.ToString();
-        if (!Equals(controller.TimeControl, controller.ActiveClock))
-        {
-            mode += $" (next game: {controller.TimeControl?.ToString() ?? "untimed"})";
-        }
-        difficultyLabel.Text = mode;
+        humanColorLabel.Text = GameText.HumanColor(controller);
+        modeAnnotationLabel.Text = GameText.ModeAnnotation(controller);
+        difficultyLabel.Text = GameText.Mode(controller);
         UpdateClockLabels();
         builtInEngineItem.IsChecked = controller.EnginePath is null && !controller.IsMatch;
         foreach ((MenuItem item, string path) in rosterItems)
@@ -342,87 +312,17 @@ public sealed partial class MainWindow : Window, IDisposable
 
     private void UpdateMoveList()
     {
-        if (controller.IsEditing)
+        moveListTextBox.Text = GameText.MoveList(controller, showEngineOutputItem.IsChecked);
+        if (!controller.IsEditing)
         {
-            moveListTextBox.Text = "Position edited by user: place both kings to continue";
-            return;
+            moveListTextBox.CaretIndex = moveListTextBox.Text?.Length ?? 0;
         }
-        Game game = controller.Game;
-        var text = new StringBuilder();
-        Color mover = game.StartSideToMove;
-        int moveNumber = game.StartMoveNumber;
-        bool lineOpen = false;
-        if (mover == Color.Black && game.Moves.Count > 0)
-        {
-            text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. {"...",-9}");
-            lineOpen = true;
-        }
-        var replay = Core.Position.FromFen(game.StartFen);
-        foreach (Move move in game.Moves)
-        {
-            if (mover == Color.White)
-            {
-                text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. ");
-                lineOpen = true;
-            }
-            text.Append(CultureInfo.InvariantCulture, $"{San.Format(replay, move),-9}");
-            replay.MakeMove(move);
-            if (mover == Color.Black)
-            {
-                text.AppendLine();
-                moveNumber++;
-                lineOpen = false;
-            }
-            mover = mover.Opponent();
-        }
-        if (lineOpen)
-        {
-            text.AppendLine();
-        }
-        if (game.Moves.Count == 0 && game.StartFen != Core.Position.StartFen)
-        {
-            text.AppendLine("Position edited by user");
-        }
-        switch (game.Status)
-        {
-            case GameStatus.Checkmate:
-                text.Append(CultureInfo.InvariantCulture, $"CHECKMATE: {game.SideToMove.Opponent()} wins");
-                break;
-            case GameStatus.Stalemate:
-                text.Append("GAME OVER: DRAW\nStalemate");
-                break;
-            case GameStatus.DrawByRepetition:
-                text.Append("GAME OVER: DRAW\nDraw by threefold repetition");
-                break;
-            case GameStatus.DrawByFiftyMoveRule:
-                text.Append("GAME OVER: DRAW\nDraw by the fifty-move rule");
-                break;
-            case GameStatus.DrawByInsufficientMaterial:
-                text.Append("GAME OVER: DRAW\nDraw by insufficient material");
-                break;
-            default:
-                if (game.IsInCheck)
-                {
-                    text.Append("CHECK");
-                }
-                break;
-        }
-        if (controller.TimedOut != Color.None)
-        {
-            text.Append(CultureInfo.InvariantCulture, $"GAME OVER: {controller.TimedOut} lost on time");
-        }
-        if (showEngineOutputItem.IsChecked && controller.LastEngineInfo.Length != 0)
-        {
-            text.AppendLine().Append(controller.LastEngineInfo);
-        }
-        moveListTextBox.Text = text.ToString();
-        moveListTextBox.CaretIndex = moveListTextBox.Text?.Length ?? 0;
     }
 
     private void UpdateClockLabels()
     {
-        whiteClockLabel.Text = controller.WhiteClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
-        blackClockLabel.Text = controller.BlackClock.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture);
+        whiteClockLabel.Text = GameText.Clock(controller.WhiteClock);
+        blackClockLabel.Text = GameText.Clock(controller.BlackClock);
     }
 
     private void OnClockTick(object? sender, EventArgs e)
@@ -613,50 +513,6 @@ public sealed partial class MainWindow : Window, IDisposable
         analysisWindow.Show(this);
     }
 
-    /// <summary>
-    /// One display line per engine "info" report that carries a full report: depth, score, node
-    /// count and the principal variation.
-    /// </summary>
-    private static string? FormatInfoLine(string line)
-    {
-        string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        string? depth = null;
-        string? score = null;
-        string? nodes = null;
-        int pvStart = -1;
-        for (int i = 1; i < tokens.Length; i++)
-        {
-            switch (tokens[i])
-            {
-                case "depth" when i + 1 < tokens.Length:
-                    depth = tokens[i + 1];
-                    break;
-                case "score" when i + 2 < tokens.Length && tokens[i + 1] == "cp" && int.TryParse(tokens[i + 2], out int cp):
-                    score = (cp / 100.0).ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
-                    break;
-                case "score" when i + 2 < tokens.Length && tokens[i + 1] == "mate":
-                    score = "#" + tokens[i + 2];
-                    break;
-                case "nodes" when i + 1 < tokens.Length && long.TryParse(tokens[i + 1], out long count):
-                    nodes = count.ToString("N0", CultureInfo.InvariantCulture);
-                    break;
-                case "pv":
-                    pvStart = i + 1;
-                    break;
-            }
-            if (pvStart >= 0)
-            {
-                break;
-            }
-        }
-        if (depth is null || score is null || pvStart < 0)
-        {
-            return null;
-        }
-        string pv = string.Join(' ', tokens.Skip(pvStart).Take(12));
-        return $"d{depth,3}  {score,8}  {nodes,14} n   {pv}";
-    }
-
     private async void OnCopyFen(object? sender, RoutedEventArgs e)
     {
         if (GetTopLevel(this)?.Clipboard is { } clipboard)
@@ -777,8 +633,8 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             return;
         }
-        (string white, string black) = PlayerNames();
-        string pgn = Pgn.Write(controller.Game, white, black, ResultText(), DateOnly.FromDateTime(DateTime.Now));
+        (string white, string black) = GameText.PlayerNames(controller);
+        string pgn = Pgn.Write(controller.Game, white, black, GameText.Result(controller), DateOnly.FromDateTime(DateTime.Now));
         try
         {
             Stream stream = await file.OpenWriteAsync();
@@ -792,36 +648,6 @@ public sealed partial class MainWindow : Window, IDisposable
         {
             await MessageDialog.ShowAsync(this, "Export PGN", $"Unable to save the file:\n{ex.Message}");
         }
-    }
-
-    private (string White, string Black) PlayerNames()
-    {
-        string engine = controller.EngineName ?? "Engine";
-        if (controller.IsMatch)
-        {
-            return (engine, controller.OpponentName ?? "Engine");
-        }
-        return controller.HumanColor switch
-        {
-            Color.White => ("Human", engine),
-            Color.Black => (engine, "Human"),
-            _ => (engine, engine),
-        };
-    }
-
-    private string ResultText()
-    {
-        if (controller.TimedOut != Color.None)
-        {
-            return controller.TimedOut == Color.White ? "0-1" : "1-0";
-        }
-        return controller.Game.Status switch
-        {
-            GameStatus.Checkmate => controller.Game.SideToMove == Color.White ? "0-1" : "1-0",
-            GameStatus.Stalemate or GameStatus.DrawByRepetition or GameStatus.DrawByFiftyMoveRule
-                or GameStatus.DrawByInsufficientMaterial => "1/2-1/2",
-            _ => "*",
-        };
     }
 
     private void SetLevel(Level level)
