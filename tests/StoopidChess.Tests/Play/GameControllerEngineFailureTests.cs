@@ -208,11 +208,25 @@ public class GameControllerEngineFailureTests
     [Fact]
     public async Task AnEngineCannotBeStartedWhileAnotherIsStarting()
     {
-        using var controller = new GameController();
-        Task<bool> first = controller.StartEngineAsync(null);
+        // The first engine's start is held inside its launch until the other two attempts have been refused
+        using var launching = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var controller = new GameController
+        {
+            StartExternalEngine = path =>
+            {
+                launching.Set();
+                Assert.True(release.Wait(Timeout));
+                return ScriptedEngine.Start(path, _ => []);
+            },
+        };
+        Task<bool> first = Task.Run(() => controller.StartEngineAsync("slow"));
+        Assert.True(launching.Wait(Timeout));
         Assert.False(await controller.StartEngineAsync(null));
         Assert.False(await controller.StartMatchAsync(null, null));
+        release.Set();
         Assert.True(await first.WaitAsync(Timeout));
+        Assert.Equal("slow", controller.EngineName);
     }
 
     [Fact]
