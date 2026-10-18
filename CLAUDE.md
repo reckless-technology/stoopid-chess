@@ -33,6 +33,8 @@ dotnet test tests/StoopidChess.Tests -c Release                   # the xunit su
 dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
 dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
 dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Position and Searcher on
+dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
+dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # per-assembly line coverage, fails under 90%
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
 dotnet run --project src/StoopidChess.Desktop                     # the Avalonia GUI (any OS)
@@ -40,7 +42,7 @@ dotnet run --project src/StoopidChess.Desktop                     # the Avalonia
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
 CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on Linux, on the org's
-Apple-silicon runner and (suite only) on Windows, and publishes self-contained engine + GUI binaries
+Apple-silicon runner and (suite only) on Windows, the line-coverage gate on Linux, and publishes self-contained engine + GUI binaries
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
 hand on `main`): built and tested from nothing on all three platforms, the Avalonia GUI the download on each (Windows
@@ -73,7 +75,16 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
    recomputes the keys after every random move. Anything that touches `Position`'s state must keep the
    incremental keys, the bitboards, the square array and the history consistent;
    `Position.ComputeKeys()` and `Position.IsConsistent()` are the oracles.
-4. Strength changes should be checked by self-play or a match against another engine with
+4. **Line coverage of the product code stays at 90% or more**, gated in CI on Linux by
+   `tools/coverage-gate.cs` (the one place the threshold lives; it also fails when a gated assembly is missing
+   from the report). Gated: Core, Engine, Play, the Uci console and the Desktop GUI. Left out, in
+   `tests/coverage.runsettings`: the test assembly, the XAML code-behind (`*.axaml.cs`) and the code generated
+   into `obj/` (layout and wiring), and `WindowsConsole.cs` (Windows-only console P/Invoke). So logic does not
+   go in code-behind: the window's text is `GameText`, the roster file `EngineRosterFile`, both tested without a
+   window; a new control or dialog is tested under Avalonia.Headless (`BoardControlTests`, `DialogTests`).
+   `GameController`'s failure paths are played against scripted fake engines (`ScriptedEngine`, through the
+   internal `GameController.StartExternalEngine` and `UciEngineClient.Connect`).
+5. Strength changes should be checked by self-play or a match against another engine with
    `fastchess`: `tools/match.sh --opponent <uci engine>` (Linux/macOS) or
    `tools/match.ps1 -Opponent <uci engine exe>` (Windows) builds the engine and runs paired
    games from an openings file (the repo's `tools/openings-6ply.epd`, 200 six-ply positions;
@@ -224,7 +235,7 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   match). `EngineRoster` is the JSON-persisted list of registered external engines with their
   options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
 - **Desktop.** The Avalonia GUI, the only one: `MainWindow` (menus, status bar, dialogs and the
-  wiring; it redraws on `Changed`), `BoardControl` and `CaptureBinControl` (rendering and pointer
+  wiring; it redraws on `Changed`, its text from `GameText`, the engine list's file through `EngineRosterFile`), `BoardControl` and `CaptureBinControl` (rendering and pointer
   input), `PieceImages` (the PNGs in `Assets/`). Beyond the original Windows Forms GUI's feature set
   (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it is a small UCI host: registered engines
   (the Engine menu is built from `EngineRoster`, persisted at

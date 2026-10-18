@@ -114,6 +114,14 @@ public sealed class UciEngineClient : IDisposable
     }
 
     /// <summary>
+    /// Drive an engine already running behind a pair of text streams: its replies are read from
+    /// <paramref name="engineOutput"/> and commands written to <paramref name="engineInput"/>. Disposing
+    /// the client sends "quit" and closes both. The tests' scripted engines connect this way.
+    /// </summary>
+    internal static UciEngineClient Connect(TextReader engineOutput, TextWriter engineInput) =>
+        new(engineOutput, engineInput, process: null, shutdown: null);
+
+    /// <summary>
     /// Send "uci" and wait for "uciok".
     /// </summary>
     public Task InitialiseAsync(CancellationToken cancellationToken = default) => SendAndAwaitAsync("uci", ref uciOk, cancellationToken);

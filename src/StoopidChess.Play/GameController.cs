@@ -114,6 +114,12 @@ public sealed class GameController : IDisposable
     /// </summary>
     public Func<Level, SearchLimits> LimitsFor { get; set; } = Levels.Limits;
 
+    /// <summary>
+    /// How an external engine is started from its path; replaceable for tests, which play against
+    /// scripted engines.
+    /// </summary>
+    internal Func<string, UciEngineClient> StartExternalEngine { get; set; } = UciEngineClient.StartProcess;
+
     public bool IsEditing => Editing is not null;
 
     public bool IsEngineTurn => !IsEditing && !IsGameOver && (HumanColor == Color.None || Game.SideToMove != HumanColor);
@@ -285,7 +291,7 @@ public sealed class GameController : IDisposable
         UciEngineClient? client = null;
         try
         {
-            client = path is null ? UciEngineClient.StartInProcess() : UciEngineClient.StartProcess(path);
+            client = path is null ? UciEngineClient.StartInProcess() : StartExternalEngine(path);
             client.InfoReceived += OnEngineInfo;
             using var timeout = new CancellationTokenSource(EngineStartTimeout);
             await client.InitialiseAsync(timeout.Token);

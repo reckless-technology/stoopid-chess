@@ -39,8 +39,14 @@ jobs:
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
       - name: Build Avalonia GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
-      - name: Test
-        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --logger "trx;LogFileName=results.trx"
+      # The suite with line coverage (tests/coverage.runsettings: the product assemblies, less the test assembly,
+      # the XAML code-behind, generated code and the Windows-only console calls), and the gate on it: the job
+      # fails when the gated lines' coverage is under the threshold tools/coverage-gate.cs holds, or when an
+      # assembly is missing from the report. runner.temp is emptied at every job's start.
+      - name: Test, with line coverage
+        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory "${{ runner.temp }}/coverage"
+      - name: Coverage gate
+        run: dotnet run tools/coverage-gate.cs -- "${{ runner.temp }}/coverage" --uncovered
       - name: Perft (full standard set, depths up to 3M nodes)
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature

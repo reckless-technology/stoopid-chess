@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the line-coverage gate measures. CI runs the suite with these settings and the XPlat Code Coverage
+  collector, then tools/coverage-gate.cs, which holds the threshold, reads the report (README, "Testing").
+
+  Gated: every assembly of ours the suite loads - Core, Engine, Play, the Uci console (stoopid-chess) and the
+  Desktop GUI; the gate fails if one is missing from the report. (An Include filter would name them, but
+  the collector's filter syntax cannot spell the console's hyphenated name.)
+  Left out:
+    - the test assembly;
+    - the GUI's XAML code-behind (*.axaml.cs: MainWindow's menus, dialogs, file pickers and event wiring, App's
+      start-up) and the code generated into obj/ (the XAML compiler's and the P/Invoke generator's): layout and
+      wiring, which the headless smoke tests construct but no assertion can judge. The logic the window shows
+      lives outside it, in GameText and EngineRosterFile, and is gated;
+    - WindowsConsole.cs, Win32 console P/Invoke that runs only on Windows and only when the GUI is started from
+      a command prompt to print its version or run its smoke check; the gate runs on Linux.
+-->
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>cobertura</Format>
+          <Exclude>[StoopidChess.Tests]*</Exclude>
+          <ExcludeByFile>**/*.axaml.cs,**/obj/**/*.cs,**/WindowsConsole.cs</ExcludeByFile>
+          <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

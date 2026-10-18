@@ -17,11 +17,22 @@ public sealed class HeadlessSessionFixture : IDisposable
 }
 
 /// <summary>
+/// The GUI test classes, which share the one headless session (Avalonia runs one application per
+/// process) and take turns on its UI thread.
+/// </summary>
+[CollectionDefinition(Name)]
+public sealed class HeadlessGui : ICollectionFixture<HeadlessSessionFixture>
+{
+    public const string Name = "Headless GUI";
+}
+
+/// <summary>
 /// Smoke tests of the GUI layer under the headless platform: the windows and dialogs construct,
 /// their XAML compiles and loads, and their defaults are sane. The game and engine logic behind
 /// them is covered by the controller tests.
 /// </summary>
-public class HeadlessGuiTests(HeadlessSessionFixture fixture) : IClassFixture<HeadlessSessionFixture>
+[Collection(HeadlessGui.Name)]
+public class HeadlessGuiTests(HeadlessSessionFixture fixture)
 {
     private Task<T> OnUiThread<T>(Func<T> test) => fixture.Session.Dispatch(test, CancellationToken.None);
 

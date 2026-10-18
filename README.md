@@ -38,6 +38,8 @@ Code they are the `setup environment`, `setup environment + tuning tools` and `c
 dotnet build StoopidChess.slnx -c Release          # everything (any OS)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
 dotnet test tests/StoopidChess.Tests -c Release    # the test suite
+dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
+dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # line coverage per assembly, the 90% gate
 dotnet run --project src/StoopidChess.Desktop      # play (any OS, Avalonia)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # search signature and speed
 dotnet run --project src/StoopidChess.Uci -c Release -- perft      # move generation check
@@ -92,11 +94,27 @@ Modelled on the sibling engines pawnstar and zenith:
 - **Search**: mates in one and two, being mated, draw recognition, determinism, limits and
   cancellation, principal variation legality.
 - **UCI**: the session driven through in-memory streams, and the client talking to the engine over
-  pipes exactly as the GUI does.
+  pipes exactly as the GUI does; the `stoopid-chess` console's command line, UCI loop, bench and perft.
+- **Play**: `GameController` against the in-process engine and against scripted fake engines (an illegal
+  reply, an engine dying mid-game, an engine match whose engines will not start or stop answering), the
+  clocks and time controls, saved games and the engine roster.
+- **GUI**, under Avalonia's headless platform: the dialogs' choices, the board drawn in every state and its
+  drags and right clicks turned into squares, the capture bin, the message box, and the window's text
+  (`GameText`: the move list, the status bar, the analysis lines, the PGN names and result).
 - **Bench signature**.
 
+**Coverage.** CI fails the Linux job when the line coverage of the product code falls under 90%
+(`tools/coverage-gate.cs` holds the threshold, the one place it lives; currently about 97%). The gated code is
+Core, Engine, Play, the Uci console and the Desktop GUI. Left out (`tests/coverage.runsettings`): the test
+assembly; the GUI's XAML code-behind (`*.axaml.cs`: `MainWindow`'s menus, dialogs, file pickers and event wiring,
+`App`'s start-up) and the code generated into `obj/` - layout and wiring, which the headless tests construct but
+cannot judge, while the logic the window shows lives in `GameText` and `EngineRosterFile` and is gated; and
+`WindowsConsole.cs`, Win32 console calls that run only on Windows when the GUI is asked for its version or its
+smoke check from a command prompt. The two commands under "Build and test" measure it locally; `--uncovered`
+lists every line no test runs.
+
 CI (`.github/workflows/ci.yml`) runs the full test suite on Linux, macOS (arm64) and Windows — with
-perft and bench gates on Linux and macOS — and keeps self-contained engine and GUI binaries for all
+perft and bench gates on Linux and macOS and the coverage gate on Linux — and keeps self-contained engine and GUI binaries for all
 three platforms as a day's artifacts.
 
 ## Versions and releases

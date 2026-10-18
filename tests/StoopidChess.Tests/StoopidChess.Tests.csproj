@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\src\StoopidChess.Desktop\StoopidChess.Desktop.csproj" />
     <ProjectReference Include="..\..\src\StoopidChess.Engine\StoopidChess.Engine.csproj" />
     <ProjectReference Include="..\..\src\StoopidChess.Play\StoopidChess.Play.csproj" />
+    <ProjectReference Include="..\..\src\StoopidChess.Uci\StoopidChess.Uci.csproj" />
   </ItemGroup>
 
   <ItemGroup>
