@@ -3,12 +3,18 @@
   // Windows, tools/setup-dev.sh on Linux and macOS); "setup environment + tuning tools" adds fastchess, the reference
   // pawnstar and a self-play baseline under ~/tools; "check environment" only reports (the tuning tools too with
   // --tuning / -Tuning, by hand). The match tasks run on every platform from what the tuning setup installs.
+  //
+  // Every task is a "process" task: VS Code starts the program itself with the arguments as given, through no shell,
+  // so a task behaves the same whatever the terminal's default shell is - Windows PowerShell 5.1 (which has no && or
+  // ||), PowerShell 7, cmd, bash or zsh. A sequence of commands is a task per command chained by dependsOn ("publish"),
+  // never one command line joined by a shell's operators. Where the program or its arguments differ by platform, the
+  // task has a linux, an osx and a windows form.
   "version": "2.0.0",
   "tasks": [
     {
       "label": "setup environment",
       "detail": "Install the .NET SDK, the git hooks and the recommended extensions where missing (tools/setup-dev)",
-      "type": "shell",
+      "type": "process",
       "command": "${workspaceFolder}/tools/setup-dev.sh",
       "windows": {
         "command": "powershell",
@@ -20,7 +26,7 @@
     {
       "label": "setup environment + tuning tools",
       "detail": "The same, plus fastchess, the reference pawnstar and a self-play baseline under ~/tools",
-      "type": "shell",
+      "type": "process",
       "command": "${workspaceFolder}/tools/setup-dev.sh",
       "args": ["--tuning"],
       "windows": {
@@ -33,7 +39,7 @@
     {
       "label": "check environment",
       "detail": "Report what the setup would install, and install nothing",
-      "type": "shell",
+      "type": "process",
       "command": "${workspaceFolder}/tools/setup-dev.sh",
       "args": ["--check"],
       "windows": {
@@ -45,7 +51,7 @@
     },
     {
       "label": "build",
-      "detail": "Debug build of the whole solution (the GUI compiles everywhere, runs only on Windows)",
+      "detail": "Debug build of the whole solution, the Avalonia GUI included (Linux, macOS and Windows)",
       "type": "process",
       "command": "dotnet",
       "args": ["build", "${workspaceFolder}/StoopidChess.slnx", "-c", "Debug", "/consoleloggerparameters:NoSummary"],
@@ -86,7 +92,7 @@
     {
       "label": "selfplay vs baseline",
       "detail": "100 paired games at 12+0.12 against the published baseline (tools/selfplay)",
-      "type": "shell",
+      "type": "process",
       "linux": {
         "command": "${workspaceFolder}/tools/selfplay.sh",
         "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
@@ -105,7 +111,7 @@
     {
       "label": "match vs pawnstar",
       "detail": "40 paired games at 12+0.12 against the reference pawnstar setup-dev --tuning installs (none for Intel Macs)",
-      "type": "shell",
+      "type": "process",
       "linux": {
         "command": "${workspaceFolder}/tools/match.sh",
         "args": [
@@ -136,7 +142,7 @@
     },
     {
       "label": "run desktop gui",
-      "detail": "Build and run the Avalonia GUI (any OS)",
+      "detail": "Build and run the Avalonia GUI (Linux, macOS and Windows)",
       "type": "process",
       "command": "dotnet",
       "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Debug"],
@@ -173,19 +179,65 @@
     {
       "label": "publish",
       "detail": "Self-contained single-file Release builds of the engine and the Avalonia GUI into publish/",
-      "type": "shell",
+      "dependsOn": ["publish engine", "publish desktop gui"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "publish engine",
+      "detail": "Self-contained single-file Release build of the UCI engine into publish/engine (as CI publishes it)",
+      "type": "process",
+      "command": "dotnet",
       "linux": {
-        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
+        "args": [
+          "publish", "src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release", "-r", "linux-x64",
+          "--self-contained", "-p:PublishSingleFile=true", "-o", "publish/engine"
+        ]
       },
       "osx": {
-        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/desktop"
+        "args": [
+          "publish", "src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release", "-r", "osx-arm64",
+          "--self-contained", "-p:PublishSingleFile=true", "-o", "publish/engine"
+        ]
       },
       "windows": {
-        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
+        "args": [
+          "publish", "src/StoopidChess.Uci/StoopidChess.Uci.csproj", "-c", "Release", "-r", "win-x64",
+          "--self-contained", "-p:PublishSingleFile=true", "-o", "publish/engine"
+        ]
       },
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "clear": true }
+    },
+    {
+      "label": "publish desktop gui",
+      "detail": "Self-contained single-file Release build of the Avalonia GUI into publish/desktop (as CI publishes it)",
+      "type": "process",
+      "command": "dotnet",
+      "linux": {
+        "args": [
+          "publish", "src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Release", "-r", "linux-x64",
+          "--self-contained", "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true",
+          "-o", "publish/desktop"
+        ]
+      },
+      "osx": {
+        "args": [
+          "publish", "src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Release", "-r", "osx-arm64",
+          "--self-contained", "-p:PublishSingleFile=true", "-o", "publish/desktop"
+        ]
+      },
+      "windows": {
+        "args": [
+          "publish", "src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Release", "-r", "win-x64",
+          "--self-contained", "-p:PublishSingleFile=true", "-p:IncludeNativeLibrariesForSelfExtract=true",
+          "-o", "publish/desktop"
+        ]
+      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$msCompile",
+      "presentation": { "reveal": "always" }
     },
     {
       "label": "publish baseline",
