@@ -1,6 +1,48 @@
 {
+  // "setup environment" installs what building, testing and debugging need on this machine (tools/setup-dev.ps1 on
+  // Windows, tools/setup-dev.sh on Linux and macOS); "setup environment + tuning tools" adds fastchess, the reference
+  // pawnstar and a self-play baseline under ~/tools; "check environment" only reports (the tuning tools too with
+  // --tuning / -Tuning, by hand). The match tasks run on every platform from what the tuning setup installs.
   "version": "2.0.0",
   "tasks": [
+    {
+      "label": "setup environment",
+      "detail": "Install the .NET SDK, the git hooks and the recommended extensions where missing (tools/setup-dev)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/setup-dev.sh",
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/setup-dev.ps1"]
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "focus": true }
+    },
+    {
+      "label": "setup environment + tuning tools",
+      "detail": "The same, plus fastchess, the reference pawnstar and a self-play baseline under ~/tools",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/setup-dev.sh",
+      "args": ["--tuning"],
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/setup-dev.ps1", "-Tuning"]
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "focus": true }
+    },
+    {
+      "label": "check environment",
+      "detail": "Report what the setup would install, and install nothing",
+      "type": "shell",
+      "command": "${workspaceFolder}/tools/setup-dev.sh",
+      "args": ["--check"],
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/setup-dev.ps1", "-Check"]
+      },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always" }
+    },
     {
       "label": "build",
       "detail": "Debug build of the whole solution (the GUI compiles everywhere, runs only on Windows)",
@@ -49,16 +91,20 @@
         "command": "${workspaceFolder}/tools/selfplay.sh",
         "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
       },
+      "osx": {
+        "command": "${workspaceFolder}/tools/selfplay.sh",
+        "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
+      },
       "windows": {
-        "command": "pwsh",
-        "args": ["-NoProfile", "-File", "${workspaceFolder}/tools/selfplay.ps1", "-PgnOut", "${workspaceFolder}/selfplay.pgn"]
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/selfplay.ps1", "-PgnOut", "${workspaceFolder}/selfplay.pgn"]
       },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "clear": true }
     },
     {
       "label": "match vs pawnstar",
-      "detail": "40 paired games at 12+0.12 against pawnstar with fastchess (tools/match)",
+      "detail": "40 paired games at 12+0.12 against the reference pawnstar setup-dev --tuning installs (none for Intel Macs)",
       "type": "shell",
       "linux": {
         "command": "${workspaceFolder}/tools/match.sh",
@@ -68,12 +114,20 @@
           "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn"
         ]
       },
-      "windows": {
-        "command": "pwsh",
+      "osx": {
+        "command": "${workspaceFolder}/tools/match.sh",
         "args": [
-          "-NoProfile", "-File", "${workspaceFolder}/tools/match.ps1",
-          "-Opponent", "C:/Users/jonny/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
-          "-OpponentOptions", "option.Threads=1", "option.OwnBook=false",
+          "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-macos-arm64",
+          "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false",
+          "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn"
+        ]
+      },
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/match.ps1",
+          "-Opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
+          "-OpponentOptions", "option.Threads=1,option.OwnBook=false",
           "-Rounds", "20", "-TimeControl", "12+0.12", "-PgnOut", "${workspaceFolder}/match.pgn"
         ]
       },
@@ -123,6 +177,9 @@
       "linux": {
         "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
       },
+      "osx": {
+        "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/desktop"
+      },
       "windows": {
         "command": "dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine && dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop"
       },
@@ -132,14 +189,10 @@
     },
     {
       "label": "publish baseline",
-      "detail": "Refresh the self-play baseline from HEAD (run after each accepted change)",
-      "type": "shell",
-      "linux": {
-        "command": "dotnet publish src/StoopidChess.Uci -c Release -o ~/tools/stoopid-baseline"
-      },
-      "windows": {
-        "command": "dotnet publish src/StoopidChess.Uci -c Release -o C:/Users/jonny/tools/stoopid-baseline"
-      },
+      "detail": "Refresh the self-play baseline in ~/tools/stoopid-baseline from HEAD (run after each accepted change)",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["publish", "src/StoopidChess.Uci", "-c", "Release", "-o", "${userHome}/tools/stoopid-baseline"],
       "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "clear": true }

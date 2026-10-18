@@ -1,0 +1,20 @@
+# The match and self-play tools, pinned: tools/setup-dev.ps1 -Tuning and tools/setup-dev.sh --tuning install them
+# under ~/tools (%USERPROFILE%\tools on Windows), and tools/match.*, tools/selfplay.* and tools/spsa.py look for them
+# there. One line a download:
+#
+#   tool  version  platform  executable  download  sha256  url
+#
+# The executable and the download are paths under ~/tools; an archive is unpacked beside itself and kept, so its
+# SHA-256 says the version in place is the pinned one. The SHA-256s are the digests GitHub publishes for the release
+# assets. A platform with no line for a tool has no release binary of it: pawnstar has none for Intel Macs, Linux on
+# arm64 or Windows on arm64, where it is built from its source (github.com/reckless-technology/pawnstar) and passed
+# to tools/match.* as --opponent.
+fastchess 1.8.2    windows-x64   fastchess/fastchess-windows-x86-64/fastchess.exe fastchess/fastchess-windows-x86-64.zip   007ce550dc809510b34622a1aeb43fd443d40284045bef5c1bc39c8941114143 https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-windows-x86-64.zip
+fastchess 1.8.2    windows-arm64 fastchess/fastchess-windows-arm64/fastchess.exe  fastchess/fastchess-windows-arm64.zip    0349179a2d61343f2516583f8c7b056d254b8bbbda75c71ff9ed740c49676eeb https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-windows-arm64.zip
+fastchess 1.8.2    linux-x64     fastchess/fastchess-linux-x86-64/fastchess       fastchess/fastchess-linux-x86-64.tar     1003f920bebe841acdab5e6d7871e93171a4586857b3ec91c21ef5777f26ff96 https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-linux-x86-64.tar
+fastchess 1.8.2    linux-arm64   fastchess/fastchess-linux-arm64/fastchess        fastchess/fastchess-linux-arm64.tar      fe079f8784394488baa199d4196768e46ccab0b31741d67c9cd70db0a237a494 https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-linux-arm64.tar
+fastchess 1.8.2    macos-arm64   fastchess/fastchess-mac-arm64/fastchess          fastchess/fastchess-mac-arm64.tar        a736371b1df3d7c67d4288dee66f6bb4e7e8193a945639c8a1d0aabfa612b551 https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-mac-arm64.tar
+fastchess 1.8.2    macos-x64     fastchess/fastchess-mac-x86-64/fastchess         fastchess/fastchess-mac-x86-64.tar       c97c62cdfc52449b901238c7326de5e416434f0f98c979b6e16129c5d41affcc https://github.com/Disservin/fastchess/releases/download/v1.8.2-alpha/fastchess-mac-x86-64.tar
+pawnstar  0.13.593 windows-x64   pawnstar/pawnstar-0.13.593-windows-x86_64.exe    pawnstar/pawnstar-0.13.593-windows-x86_64.exe 6548baab7d7d4133e517e0a872c91522e86a5ff346563f33f7b733ccb1675c0b https://github.com/reckless-technology/pawnstar/releases/download/v0.13.593/pawnstar-0.13.593-windows-x86_64.exe
+pawnstar  0.13.593 linux-x64     pawnstar/pawnstar-0.13.593-linux-x86_64          pawnstar/pawnstar-0.13.593-linux-x86_64  d2b8979b982719342607ff4b4ca5f18423a50199617fae9cb106a32fd82aebab https://github.com/reckless-technology/pawnstar/releases/download/v0.13.593/pawnstar-0.13.593-linux-x86_64
+pawnstar  0.13.593 macos-arm64   pawnstar/pawnstar-0.13.593-macos-arm64           pawnstar/pawnstar-0.13.593-macos-arm64   def72e79129cbe2419b8458bf0c4807019f2b4d7848fb891abd7db4d19d65f24 https://github.com/reckless-technology/pawnstar/releases/download/v0.13.593/pawnstar-0.13.593-macos-arm64

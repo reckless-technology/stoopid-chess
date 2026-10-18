@@ -25,6 +25,15 @@ Everything builds and runs on Linux, macOS and Windows.
 
 Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
+**Setting up a machine.** `tools/setup-dev.ps1` (Windows) and `tools/setup-dev.sh` (Linux, macOS) install what
+building, testing and debugging need - the .NET SDK of `Directory.Build.props`' target framework (per-user, through
+Microsoft's dotnet-install script, when no such SDK is on the PATH), git, on Linux the libraries .NET and the GUI load -
+plus the git hooks and the recommended VS Code extensions, checking each first, so they are safe to run again;
+`-Check` / `--check` only reports. `-Tuning` / `--tuning` adds what the match and self-play scripts play with, under
+`~/tools`: fastchess and the reference pawnstar, the release binaries `tools/tuning-tools.txt` pins by version and
+SHA-256 (pawnstar has none for Intel Macs, Linux on arm64 or Windows on arm64), and a first self-play baseline. In VS
+Code they are the `setup environment`, `setup environment + tuning tools` and `check environment` tasks.
+
 ```bash
 dotnet build StoopidChess.slnx -c Release          # everything (any OS)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)

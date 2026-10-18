@@ -17,6 +17,15 @@ project. Read [README.md](README.md) for the architecture and
 
 ## Build / test / run
 
+**Setting up a machine.** `tools/setup-dev.ps1` (Windows) and `tools/setup-dev.sh` (Linux, macOS) install what
+building, testing and debugging need - the .NET SDK of `Directory.Build.props`' target framework (per-user, through
+Microsoft's dotnet-install script into `%LOCALAPPDATA%\Microsoft\dotnet` or `~/.dotnet`, when no such SDK is on the
+PATH), git, on Linux the libraries .NET and the GUI load - plus the git hooks and the recommended VS Code extensions,
+checking each first, so they are safe to run again; `-Check` / `--check` only reports, `-NoPersist` / `--no-persist`
+leaves the user's PATH and profile alone. `-Tuning` / `--tuning` adds fastchess and the reference pawnstar under
+`~/tools` (the release binaries `tools/tuning-tools.txt` pins by version and SHA-256) and a first self-play baseline.
+In VS Code they are the `setup environment`, `setup environment + tuning tools` and `check environment` tasks.
+
 ```bash
 dotnet build StoopidChess.slnx -c Release                         # everything, on any OS
 dotnet build src/StoopidChess.Uci -c Release                      # engine only
@@ -67,10 +76,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 4. Strength changes should be checked by self-play or a match against another engine with
    `fastchess`: `tools/match.sh --opponent <uci engine>` (Linux/macOS) or
    `tools/match.ps1 -Opponent <uci engine exe>` (Windows) builds the engine and runs paired
-   games from an openings file (defaults point at the copies under `~/tools` or
-   `C:\Users\jonny\tools`; both engines are deterministic, so openings are essential).
+   games from an openings file (the repo's `tools/openings-6ply.epd`, 200 six-ply positions;
+   fastchess defaults to the build `tools/setup-dev.* --tuning` installs
+   under `~/tools`, `%USERPROFILE%\tools` on Windows; both engines are deterministic, so openings are essential).
    `tools/selfplay.sh` / `tools/selfplay.ps1` plays the current build against a snapshot in
-   `~/tools/stoopid-baseline` or `C:\Users\jonny\tools\stoopid-baseline` (refresh it with
+   `~/tools/stoopid-baseline` (`%USERPROFILE%\tools\stoopid-baseline`) (refresh it with
    `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change);
    its defaults are the standard test setting, 100 games at 12+0.12.
    Results so far, all 40-60 games at 10+0.1, single-threaded, no book: pawnstar 0.13.593 beat

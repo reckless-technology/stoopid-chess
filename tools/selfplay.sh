@@ -4,7 +4,8 @@
 # Snapshot a baseline first with:  dotnet publish src/StoopidChess.Uci -c Release -o ~/tools/stoopid-baseline
 # Then after a search or evaluation change:  tools/selfplay.sh
 # The result tells you whether the change gained strength; the unit tests cannot.
-# The Linux twin of tools/selfplay.ps1; the defaults are the standard test setting,
+# The Linux and macOS twin of tools/selfplay.ps1 (tools/setup-dev.sh --tuning publishes a first baseline when
+# there is none); the defaults are the standard test setting,
 # 100 games (50 paired rounds) at 12+0.12.
 set -euo pipefail
 

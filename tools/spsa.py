@@ -19,8 +19,10 @@ import argparse
 import csv
 import json
 import os
+import platform
 import random
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -28,14 +30,29 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 WINDOWS = os.name == "nt"
-TOOLS = Path(r"C:\Users\jonny\tools") if WINDOWS else Path.home() / "tools"
+TOOLS = Path.home() / "tools"   # Where tools/setup-dev.* --tuning installs fastchess (tools/tuning-tools.txt)
 DEFAULT_ENGINE = (REPO / "src" / "StoopidChess.Uci" / "bin" / "Release" / "net10.0"
                   / ("stoopid-chess.exe" if WINDOWS else "stoopid-chess"))
-DEFAULT_FASTCHESS = TOOLS / "fastchess" / ("fastchess-windows-x86-64/fastchess.exe" if WINDOWS
-                                           else "fastchess-linux-x86-64/fastchess")
-DEFAULT_OPENINGS = TOOLS / "openings-6ply.epd"
+DEFAULT_OPENINGS = REPO / "tools" / "openings-6ply.epd"
 STATE = REPO / "tools" / "spsa-state.json"
 LOG = REPO / "tools" / "spsa-log.csv"
+
+
+def default_fastchess() -> Path:
+    """The fastchess tools/tuning-tools.txt pins for this platform under ~/tools, else the one on the PATH."""
+    arch = "arm64" if platform.machine().lower() in ("arm64", "aarch64") else "x64"
+    system = {"win32": "windows", "darwin": "macos"}.get(sys.platform, "linux")
+    on_path = shutil.which("fastchess")
+    for line in (REPO / "tools" / "tuning-tools.txt").read_text().splitlines():
+        fields = line.split()
+        if len(fields) >= 4 and fields[0] == "fastchess" and fields[2] == f"{system}-{arch}":
+            pinned = TOOLS / fields[3]
+            if pinned.exists() or not on_path:
+                return pinned
+    return Path(on_path or "fastchess")
+
+
+DEFAULT_FASTCHESS = default_fastchess()
 
 ALPHA = 0.602
 GAMMA = 0.101
