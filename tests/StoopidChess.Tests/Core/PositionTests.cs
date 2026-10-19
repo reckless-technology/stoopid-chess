@@ -126,6 +126,25 @@ public class BoardTests
         Assert.Equal(1, position.HalfMoveClock);
     }
 
+    [Theory]
+    [InlineData("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 5 1", "e1g1")]
+    [InlineData("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 5 1", "e1c1")]
+    [InlineData("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 5 1", "e8g8")]
+    [InlineData("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 5 1", "e8c8")]
+    public void CastlingAdvancesTheHalfMoveClock(string fen, string castle)
+    {
+        // The fifty-move rule counts moves without a pawn move or a capture, and castling is
+        // neither: it is irreversible (the rights change the key, so no earlier position can
+        // repeat) but it does not reset the clock
+        var position = Position.FromFen(fen);
+        Move move = FindMove(position, castle)!.Value;
+        Assert.True(move.Kind is MoveKind.CastleKingSide or MoveKind.CastleQueenSide);
+        position.MakeMove(move);
+        Assert.Equal(6, position.HalfMoveClock);
+        position.UnmakeMove();
+        Assert.Equal(5, position.HalfMoveClock);
+    }
+
     [Fact]
     public void RepetitionCountSeesEarlierIdenticalPositions()
     {

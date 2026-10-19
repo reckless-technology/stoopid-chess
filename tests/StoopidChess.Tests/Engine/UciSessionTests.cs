@@ -68,6 +68,9 @@ public class UciSessionTests
             // In this position the en passant capture is illegal: it would expose the king along the rank
             session.HandleCommand("position fen 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1 moves e2e4 f4e3");
             Assert.Equal("8/2p5/3p4/KP5r/1R2Pp1k/8/6P1/8 b - e3 0 1", session.Position.ToFen());
+            // Castling is neither a pawn move nor a capture, so each castle adds a ply to the clock
+            session.HandleCommand("position fen r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 7 20 moves e1g1 e8c8");
+            Assert.Equal("2kr3r/8/8/8/8/8/8/R4RK1 w - - 9 21", session.Position.ToFen());
         }
     }
 

@@ -51,6 +51,22 @@ public class GameTests
     }
 
     [Fact]
+    public void FiftyMoveRuleCountsAcrossCastling()
+    {
+        // Castling is neither a pawn move nor a capture, so two castles take the 98th ply to the 100th
+        var game = Game.FromFen("r3k3/8/8/8/8/8/8/4K2R w Kq - 98 60");
+        Assert.True(game.TryMakeMove("e1g1"));
+        Assert.Equal(99, game.Position.HalfMoveClock);
+        Assert.Equal(GameStatus.InProgress, game.Status);
+        Assert.True(game.TryMakeMove("e8c8"));
+        Assert.Equal(100, game.Position.HalfMoveClock);
+        Assert.Equal(GameStatus.DrawByFiftyMoveRule, game.Status);
+        Assert.Equal("2kr4/8/8/8/8/8/8/5RK1 w - - 100 61", game.Position.ToFen());
+        game.UndoMove();
+        Assert.Equal(GameStatus.InProgress, game.Status);
+    }
+
+    [Fact]
     public void InsufficientMaterialIsADraw()
     {
         Assert.Equal(GameStatus.DrawByInsufficientMaterial, Game.FromFen("4k3/8/8/8/8/8/8/4KN2 w - - 0 1").Status);

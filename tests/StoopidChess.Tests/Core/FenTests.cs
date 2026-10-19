@@ -71,6 +71,21 @@ public class FenTests
     }
 
     [Fact]
+    public void CastlingAdvancesTheClockInTheFen()
+    {
+        // Each castle adds a ply to the half-move clock, and the FEN written reads back to the same position
+        var position = Position.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 7 20");
+        position.MakeMove(BoardTests.FindMove(position, "e1g1")!.Value);
+        position.MakeMove(BoardTests.FindMove(position, "e8c8")!.Value);
+        string fen = position.ToFen();
+        Assert.Equal("2kr3r/8/8/8/8/8/8/R4RK1 w - - 9 21", fen);
+        var read = Position.FromFen(fen);
+        Assert.Equal(9, read.HalfMoveClock);
+        Assert.Equal(position.Key, read.Key);
+        Assert.Equal(fen, read.ToFen());
+    }
+
+    [Fact]
     public void ClockFieldsAreOptional()
     {
         var position = Position.FromFen("4k3/8/8/8/8/8/8/4K3 w - -");

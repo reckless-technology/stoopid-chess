@@ -98,6 +98,19 @@ public class SearchTests
     }
 
     [Fact]
+    public void CastlingDoesNotEscapeTheFiftyMoveRule()
+    {
+        // A rook up with no pawns, nothing to capture and no mate in one: the hundredth half-move
+        // draws whatever it is. Were castling to reset the clock, O-O or O-O-O would keep the win
+        // alive and the search would score it far above a draw, at the root and below it.
+        Position position = Position.FromFen("8/8/8/3k4/8/8/8/R3K2R w KQ - 99 80");
+        Assert.Equal(Searcher.DrawScore, NewSearcher().Search(position, SearchLimits.ForDepth(4)).Score);
+        // With a fresh clock the same position is the win it looks like
+        Position fresh = Position.FromFen("8/8/8/3k4/8/8/8/R3K2R w KQ - 0 80");
+        Assert.True(NewSearcher().Search(fresh, SearchLimits.ForDepth(4)).Score > 300);
+    }
+
+    [Fact]
     public void TableScoresAreRelativeToTheNode()
     {
         // A mate in 5 plies found at ply 3 is a mate in 2 plies from that node; read back at ply 7 it is a mate in 9

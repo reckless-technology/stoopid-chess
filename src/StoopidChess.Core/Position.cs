@@ -62,7 +62,8 @@ public sealed class Position
     public Square EnPassantSquare { get; private set; } = Square.None;
 
     /// <summary>
-    /// Plies since the last capture or pawn move (for the fifty-move rule).
+    /// Plies since the last capture or pawn move (for the fifty-move rule). En passant resets it, being
+    /// both; castling does not, being neither.
     /// </summary>
     public int HalfMoveClock { get; private set; }
 
@@ -489,6 +490,7 @@ public sealed class Position
         Color them = us.Opponent();
 
         SetEnPassantSquare(Square.None);
+        // Castling moves the king and captures nothing, so it counts towards the fifty-move rule
         HalfMoveClock = move.Piece == Piece.Pawn || move.IsCapture ? 0 : Math.Min(HalfMoveClock + 1, MaxHalfMoveClock);
 
         switch (move.Kind)
