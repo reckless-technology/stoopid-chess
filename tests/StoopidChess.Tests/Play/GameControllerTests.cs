@@ -306,6 +306,46 @@ public class GameControllerTests
     }
 
     [Fact]
+    public async Task AnEngineThatAnswersAtOnceLeavesTheNextSearchToWaitFor()
+    {
+        // The engine plays both sides. Its first reply is in before the controller awaits it; its second is
+        // held until the test sends it; its third finds no move, which ends the game's progress. Handling the first reply inside the call that started the search
+        // used to leave the controller holding that finished search instead of the one it started next, so
+        // waiting for idle returned while the engine was still thinking.
+        int searches = 0;
+        InstantEngine? instant = null;
+        using var controller = new GameController
+        {
+            LimitsFor = _ => SearchLimits.ForDepth(1),
+            StartExternalEngine = path =>
+            {
+                instant = InstantEngine.Start(path, command =>
+                    !command.StartsWith("go", StringComparison.Ordinal) ? []
+                        : Interlocked.Increment(ref searches) switch
+                        {
+                            1 => ["bestmove e2e4"],
+                            2 => [],
+                            _ => ["bestmove 0000"],
+                        });
+                return instant.Client;
+            },
+        };
+        Assert.True(await controller.StartEngineAsync("instant").WaitAsync(Timeout));
+        controller.NewGame(Color.None);
+        Task idle = controller.WaitUntilIdleAsync();
+        DateTime deadline = DateTime.UtcNow + Timeout;
+        while (Volatile.Read(ref searches) < 2)
+        {
+            Assert.True(DateTime.UtcNow < deadline, "the second search never started");
+            await Task.Delay(5);
+        }
+        Assert.False(idle.IsCompleted);                     // Black's search is still running
+        instant!.Send("bestmove e7e5");
+        await idle.WaitAsync(Timeout);
+        Assert.Equal(["e2e4", "e7e5"], controller.Game.UciMoves);
+    }
+
+    [Fact]
     public async Task EngineOptionsAreAppliedAtStart()
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(2) };

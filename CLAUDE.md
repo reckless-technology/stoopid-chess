@@ -222,7 +222,11 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
   position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), clocks and save/load, and raises `Changed`,
   `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
-  caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. `Level` maps
+  caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. A reply is always
+  handled after a yield, never inside the call that started the search, even when the engine has
+  answered before the await (`ConfigureAwaitOptions.ForceYielding`): handled inline it would start the
+  next search before the first was stored, and the controller would wait on the wrong one
+  (`InstantEngine` in the tests answers that fast every time). `Level` maps
   difficulty to `SearchLimits`; with a `TimeControl` set (`SetTimeControl`) the clocks count down
   instead, the mover gains the increment and, under a session control ("40 moves in 5 minutes",
   `TimeControl.Standard`), the base time again whenever it completes a session, the engine budgets

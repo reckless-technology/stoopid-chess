@@ -11,8 +11,8 @@ namespace StoopidChess.Play;
 /// saving. The GUI calls the methods and redraws on <see cref="Changed"/>.
 ///
 /// Not thread safe: call it from one thread. Engine replies arrive through async continuations,
-/// which run on the <see cref="SynchronizationContext"/> of that thread when it has one (a Windows
-/// Forms UI thread does); otherwise await <see cref="WaitUntilIdleAsync"/> before reading state.
+/// which run on the <see cref="SynchronizationContext"/> of that thread when it has one (the GUI's UI
+/// thread does); otherwise await <see cref="WaitUntilIdleAsync"/> before reading state.
 /// </summary>
 public sealed class GameController : IDisposable
 {
@@ -354,7 +354,13 @@ public sealed class GameController : IDisposable
         string? failure = null;
         try
         {
-            bestMove = await client.GoAsync(CurrentLimits(), cancellation.Token);
+            // Always yield before handling the reply. An engine can answer before the await is reached
+            // (the reply is already in when "go" has been written), and continuing synchronously would
+            // play the move and start the next search inside StartThinkingIfEngineTurn, before it has
+            // stored this task: it would then store this finished task over the running one, and
+            // WaitUntilIdleAsync would report idle while that search ran on.
+            bestMove = await client.GoAsync(CurrentLimits(), cancellation.Token)
+                .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext | ConfigureAwaitOptions.ForceYielding);
         }
         catch (InvalidOperationException ex)
         {
