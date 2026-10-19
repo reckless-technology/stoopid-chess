@@ -6,8 +6,9 @@ namespace StoopidChess.Tests.Play;
 
 /// <summary>
 /// The game state machine behind the GUI, driven against the in-process engine exactly as the
-/// window drives it. Tests await <see cref="GameController.WaitUntilIdleAsync"/> before reading
-/// state because the test thread has no synchronization context.
+/// window drives it: on a <see cref="ControllerThread"/>, where the engine's replies are handled between
+/// the test's steps as on the UI thread. Tests await <see cref="GameController.WaitUntilIdleAsync"/> for
+/// the engine to finish thinking before they read the result.
 /// </summary>
 public class GameControllerTests
 {
@@ -23,7 +24,7 @@ public class GameControllerTests
     }
 
     [Fact]
-    public async Task EnginePlaysWhiteWhenTheHumanIsBlack()
+    public Task EnginePlaysWhiteWhenTheHumanIsBlack() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         int changes = 0;
@@ -35,10 +36,10 @@ public class GameControllerTests
         Assert.True(controller.IsHumanTurn);
         Assert.False(controller.IsThinking);
         Assert.True(changes >= 2);
-    }
+    });
 
     [Fact]
-    public async Task HumanMoveIsAnsweredByTheEngine()
+    public Task HumanMoveIsAnsweredByTheEngine() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Color.White);
@@ -50,10 +51,10 @@ public class GameControllerTests
         Assert.Equal(2, controller.Game.Moves.Count);
         Assert.True(controller.IsHumanTurn);
         Assert.False(controller.TryHumanMove(Square.Parse("e4"), Square.Parse("e5")) && controller.Game.Moves.Count != 3);
-    }
+    });
 
     [Fact]
-    public async Task PromotionNeedsAChoice()
+    public Task PromotionNeedsAChoice() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.Load(new SavedGame { StartFen = "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", HumanColor = Color.White });
@@ -64,10 +65,10 @@ public class GameControllerTests
         Assert.True(controller.TryHumanMove(from, to, Piece.Knight));
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal((Color.White, Piece.Knight), controller.Game.Position[to]);
-    }
+    });
 
     [Fact]
-    public async Task UndoDuringTheEngineSearchDiscardsItsReply()
+    public Task UndoDuringTheEngineSearchDiscardsItsReply() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.LimitsFor = _ => new SearchLimits { Infinite = true };
@@ -79,10 +80,10 @@ public class GameControllerTests
         Assert.Empty(controller.Game.Moves);
         Assert.True(controller.IsHumanTurn);
         Assert.False(controller.IsThinking);
-    }
+    });
 
     [Fact]
-    public async Task UndoTakesBackBothMovesSoItIsTheHumansTurn()
+    public Task UndoTakesBackBothMovesSoItIsTheHumansTurn() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Color.White);
@@ -93,10 +94,10 @@ public class GameControllerTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Empty(controller.Game.Moves);
         Assert.True(controller.IsHumanTurn);
-    }
+    });
 
     [Fact]
-    public async Task MoveNowPlaysTheEnginesCurrentBestMove()
+    public Task MoveNowPlaysTheEnginesCurrentBestMove() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.LimitsFor = _ => new SearchLimits { Infinite = true };
@@ -106,10 +107,10 @@ public class GameControllerTests
         controller.MoveNow();
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Single(controller.Game.Moves);
-    }
+    });
 
     [Fact]
-    public async Task SwitchSidesHandsTheMoveToTheEngine()
+    public Task SwitchSidesHandsTheMoveToTheEngine() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Color.White);
@@ -120,10 +121,10 @@ public class GameControllerTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Single(controller.Game.Moves);
         Assert.True(controller.IsHumanTurn);
-    }
+    });
 
     [Fact]
-    public async Task EngineVersusEnginePlaysOn()
+    public Task EngineVersusEnginePlaysOn() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Color.None);
@@ -137,10 +138,10 @@ public class GameControllerTests
         Assert.False(controller.IsHumanTurn);
         controller.Dispose();
         Assert.False(controller.HasEngine);
-    }
+    });
 
     [Fact]
-    public async Task EditingIntoALegalPositionStartsTheEngineIfItIsItsTurn()
+    public Task EditingIntoALegalPositionStartsTheEngineIfItIsItsTurn() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.NewGame(Color.White);
@@ -156,10 +157,10 @@ public class GameControllerTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Single(controller.Game.Moves);     // Black (the engine) has moved
         Assert.Equal(Color.White, controller.Game.SideToMove);
-    }
+    });
 
     [Fact]
-    public async Task SaveAndLoadRoundTrip()
+    public Task SaveAndLoadRoundTrip() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.Level = Level.Hard;
@@ -177,10 +178,10 @@ public class GameControllerTests
         Assert.Equal(Level.Hard, controller.Level);
         Assert.Single(controller.Game.Moves);
         Assert.False(controller.Load(new SavedGame { StartFen = "not a fen" }));
-    }
+    });
 
     [Fact]
-    public async Task ClocksRunForTheSideToMoveAndStopAtTheEnd()
+    public Task ClocksRunForTheSideToMoveAndStopAtTheEnd() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.Load(new SavedGame { StartFen = "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", HumanColor = Color.White });
@@ -195,7 +196,7 @@ public class GameControllerTests
         controller.ClearBoard();
         controller.Tick(TimeSpan.FromSeconds(1));
         Assert.Equal(TimeSpan.FromSeconds(1), controller.WhiteClock);
-    }
+    });
 
     [Fact]
     public void TimeControlCountsDownAndCreditsTheIncrementToTheMover()
@@ -246,7 +247,7 @@ public class GameControllerTests
     }
 
     [Fact]
-    public async Task AStandardSessionCreditsTheBaseWhenItsMovesAreCompleted()
+    public Task AStandardSessionCreditsTheBaseWhenItsMovesAreCompleted() => ControllerThread.Run(async () =>
     {
         var session = new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.Zero, MovesPerSession: 2);
         using GameController controller = await StartAsync();
@@ -260,10 +261,10 @@ public class GameControllerTests
         Assert.Equal(TimeSpan.FromSeconds(4), controller.WhiteClock);   // Second move completes the session
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(TimeSpan.FromSeconds(4), controller.BlackClock);
-    }
+    });
 
     [Fact]
-    public async Task ATimeControlChosenDuringTheFirstThinkArmsTheClockAtOnce()
+    public Task ATimeControlChosenDuringTheFirstThinkArmsTheClockAtOnce() => ControllerThread.Run(async () =>
     {
         var clock = new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100));
         using GameController controller = await StartAsync();
@@ -275,10 +276,10 @@ public class GameControllerTests
         Assert.Single(controller.Game.Moves);
         // The restarted search played under the new clock, so the mover was credited its increment
         Assert.Equal(TimeSpan.FromSeconds(2.1), controller.WhiteClock);
-    }
+    });
 
     [Fact]
-    public async Task TheEnginePlaysOnTheClockWhenATimeControlIsSet()
+    public Task TheEnginePlaysOnTheClockWhenATimeControlIsSet() => ControllerThread.Run(async () =>
     {
         using GameController controller = await StartAsync();
         controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100)));
@@ -287,10 +288,10 @@ public class GameControllerTests
         Assert.Single(controller.Game.Moves);
         // No timer ticked, so white's clock is its base plus the increment for the move it made
         Assert.Equal(TimeSpan.FromSeconds(2.1), controller.WhiteClock);
-    }
+    });
 
     [Fact]
-    public async Task AnEngineMatchPlaysBothSidesWithTwoEngines()
+    public Task AnEngineMatchPlaysBothSidesWithTwoEngines() => ControllerThread.Run(async () =>
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };
         Assert.True(await controller.StartMatchAsync(null, null).WaitAsync(Timeout));
@@ -303,10 +304,10 @@ public class GameControllerTests
         controller.NewGame(Color.White);    // A human game ends the match
         Assert.False(controller.IsMatch);
         Assert.Null(controller.OpponentName);
-    }
+    });
 
     [Fact]
-    public async Task AnEngineThatAnswersAtOnceLeavesTheNextSearchToWaitFor()
+    public Task AnEngineThatAnswersAtOnceLeavesTheNextSearchToWaitFor() => ControllerThread.Run(async () =>
     {
         // The engine plays both sides. Its first reply is in before the controller awaits it; its second is
         // held until the test sends it; its third finds no move, which ends the game's progress. Handling the first reply inside the call that started the search
@@ -343,20 +344,20 @@ public class GameControllerTests
         instant!.Send("bestmove e7e5");
         await idle.WaitAsync(Timeout);
         Assert.Equal(["e2e4", "e7e5"], controller.Game.UciMoves);
-    }
+    });
 
     [Fact]
-    public async Task EngineOptionsAreAppliedAtStart()
+    public Task EngineOptionsAreAppliedAtStart() => ControllerThread.Run(async () =>
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(2) };
         Assert.True(await controller.StartEngineAsync(null, new Dictionary<string, string> { ["Hash"] = "16" }).WaitAsync(Timeout));
         controller.NewGame(Color.Black);
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Single(controller.Game.Moves);
-    }
+    });
 
     [Fact]
-    public async Task AMissingExternalEngineFallsBackToTheBuiltInOne()
+    public Task AMissingExternalEngineFallsBackToTheBuiltInOne() => ControllerThread.Run(async () =>
     {
         using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };
         var failures = new List<string>();
@@ -366,10 +367,10 @@ public class GameControllerTests
         Assert.True(controller.HasEngine);
         Assert.Null(controller.EnginePath);
         Assert.StartsWith("Stoopid Chess", controller.EngineName, StringComparison.Ordinal);
-    }
+    });
 
     [Fact]
-    public async Task DisposeStopsEverything()
+    public Task DisposeStopsEverything() => ControllerThread.Run(async () =>
     {
         GameController controller = await StartAsync();
         controller.LimitsFor = _ => new SearchLimits { Infinite = true };
@@ -378,5 +379,5 @@ public class GameControllerTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.False(controller.HasEngine);
         Assert.Throws<ObjectDisposedException>(() => controller.NewGame(Color.White));
-    }
+    });
 }

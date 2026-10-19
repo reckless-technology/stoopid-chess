@@ -82,7 +82,7 @@ public class GameControllerEngineFailureTests
     }
 
     [Fact]
-    public async Task AnIllegalReplyIsReportedAndNotPlayed()
+    public Task AnIllegalReplyIsReportedAndNotPlayed() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("illegal", ScriptedEngine.Plays("a1a8"));
@@ -94,10 +94,10 @@ public class GameControllerEngineFailureTests
         Assert.Equal(["a1a8"], rig.IllegalMoves);
         Assert.Empty(rig.Controller.Game.Moves);
         Assert.Empty(rig.Failures);
-    }
+    });
 
     [Fact]
-    public async Task AnEngineWithNoMoveMakesNoComplaint()
+    public Task AnEngineWithNoMoveMakesNoComplaint() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("resigns", ScriptedEngine.Plays("0000"));
@@ -107,10 +107,10 @@ public class GameControllerEngineFailureTests
         Assert.Empty(rig.IllegalMoves);
         Assert.Empty(rig.Controller.Game.Moves);
         Assert.False(rig.Controller.IsThinking);
-    }
+    });
 
     [Fact]
-    public async Task AnEngineThatDiesWhileThinkingIsDropped()
+    public Task AnEngineThatDiesWhileThinkingIsDropped() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("dies on go", command => command.StartsWith("go", StringComparison.Ordinal) ? null : []);
@@ -121,10 +121,10 @@ public class GameControllerEngineFailureTests
         Assert.Contains("stopped responding", rig.Failures[0], StringComparison.Ordinal);
         Assert.Null(rig.Controller.EngineName);
         Assert.False(rig.Controller.IsThinking);
-    }
+    });
 
     [Fact]
-    public async Task AnEngineFoundDeadWhenItIsToMoveIsDropped()
+    public Task AnEngineFoundDeadWhenItIsToMoveIsDropped() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("dies on new game", command => command == "ucinewgame" ? null : []);
@@ -135,10 +135,10 @@ public class GameControllerEngineFailureTests
         Assert.False(rig.Controller.HasEngine);
         Assert.Single(rig.Failures);
         Assert.Contains("stopped responding", rig.Failures[0], StringComparison.Ordinal);
-    }
+    });
 
     [Fact]
-    public async Task ANewGameNoticesADeadEngine()
+    public Task ANewGameNoticesADeadEngine() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("dies on new game", command => command == "ucinewgame" ? null : []);
@@ -148,10 +148,10 @@ public class GameControllerEngineFailureTests
         rig.Controller.NewGame(Color.White);
         Assert.False(rig.Controller.HasEngine);
         Assert.Single(rig.Failures);
-    }
+    });
 
     [Fact]
-    public async Task AMatchWhoseWhiteEngineWillNotStartFallsBackToTheBuiltInEngine()
+    public Task AMatchWhoseWhiteEngineWillNotStartFallsBackToTheBuiltInEngine() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         Assert.False(await rig.Controller.StartMatchAsync("missing", null).WaitAsync(Timeout));
@@ -160,10 +160,10 @@ public class GameControllerEngineFailureTests
         Assert.False(rig.Controller.IsMatch);
         Assert.True(rig.Controller.HasEngine);
         Assert.Null(rig.Controller.EnginePath);
-    }
+    });
 
     [Fact]
-    public async Task AMatchWhoseBlackEngineWillNotStartFallsBackToTheBuiltInEngine()
+    public Task AMatchWhoseBlackEngineWillNotStartFallsBackToTheBuiltInEngine() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         Assert.False(await rig.Controller.StartMatchAsync(null, "missing").WaitAsync(Timeout));
@@ -171,10 +171,10 @@ public class GameControllerEngineFailureTests
         Assert.StartsWith("Black's engine could not be started", rig.Failures[0], StringComparison.Ordinal);
         Assert.False(rig.Controller.IsMatch);
         Assert.True(rig.Controller.HasEngine);
-    }
+    });
 
     [Fact]
-    public async Task AMatchOpponentThatDiesIsDroppedAndNamed()
+    public Task AMatchOpponentThatDiesIsDroppedAndNamed() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string black = rig.Register("black dies", command => command.StartsWith("go", StringComparison.Ordinal) ? null : []);
@@ -184,15 +184,14 @@ public class GameControllerEngineFailureTests
         Assert.Single(rig.Failures);
         Assert.Equal("black dies stopped responding: the engine has exited", rig.Failures[0]);
         Assert.True(rig.Controller.HasEngine);         // White's engine plays on
-    }
+    });
 
     [Fact]
-    public async Task ARematchShrugsOffADeadOpponentUntilItHasToMove()
+    public Task ARematchShrugsOffADeadOpponentUntilItHasToMove() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
-        // White never finds a move, so the game stands still; black dies as soon as it has started. The
-        // controller is single-threaded and the test thread has no synchronization context, so each step
-        // waits until no engine reply is pending.
+        // White never finds a move, so the game stands still; black dies as soon as it has started. Each
+        // step waits until no engine reply is pending.
         string white = rig.Register("white", ScriptedEngine.Plays("0000"));
         string black = rig.Register("black", _ => [], dieAfterHandshake: true);
         Assert.True(await rig.Controller.StartMatchAsync(white, black).WaitAsync(Timeout));
@@ -203,7 +202,7 @@ public class GameControllerEngineFailureTests
         Assert.True(rig.Controller.IsMatch);
         Assert.Empty(rig.Failures);
         Assert.Empty(rig.Controller.Game.Moves);
-    }
+    });
 
     [Fact]
     public async Task AnEngineCannotBeStartedWhileAnotherIsStarting()
@@ -230,7 +229,7 @@ public class GameControllerEngineFailureTests
     }
 
     [Fact]
-    public async Task EngineInfoReachesTheSubscriberAndKeepsTheLastVariation()
+    public Task EngineInfoReachesTheSubscriberAndKeepsTheLastVariation() => ControllerThread.Run(async () =>
     {
         using var rig = new Rig();
         string path = rig.Register("talks", command => command.StartsWith("go", StringComparison.Ordinal)
@@ -247,10 +246,10 @@ public class GameControllerEngineFailureTests
         {
             Assert.Equal(2, lines.Count);
         }
-    }
+    });
 
     [Fact]
-    public async Task TheEngineIsToldTheMovesToGoInASession()
+    public Task TheEngineIsToldTheMovesToGoInASession() => ControllerThread.Run(async () =>
     {
         var commands = new List<string>();
         using var rig = new Rig();
@@ -271,7 +270,7 @@ public class GameControllerEngineFailureTests
         {
             Assert.Contains("go wtime 300000 btime 300000 winc 0 binc 0 movestogo 40", commands);
         }
-    }
+    });
 
     [Fact]
     public void WithoutAnEngineNothingThinks()
@@ -316,7 +315,7 @@ public class GameControllerEngineFailureTests
     }
 
     [Fact]
-    public async Task SwitchingSidesWhileTheEngineThinksHandsTheMoveToTheHuman()
+    public Task SwitchingSidesWhileTheEngineThinksHandsTheMoveToTheHuman() => ControllerThread.Run(async () =>
     {
         using var controller = new GameController { LimitsFor = _ => new SearchLimits { Infinite = true } };
         Assert.True(await controller.StartEngineAsync(null).WaitAsync(Timeout));
@@ -328,7 +327,7 @@ public class GameControllerEngineFailureTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Single(controller.Game.Moves);               // The engine's reply was discarded
         Assert.True(controller.IsHumanTurn);
-    }
+    });
 
     [Fact]
     public void AnUntimedClockCountsUpForBlackToo()

@@ -11,8 +11,10 @@ namespace StoopidChess.Play;
 /// saving. The GUI calls the methods and redraws on <see cref="Changed"/>.
 ///
 /// Not thread safe: call it from one thread. Engine replies arrive through async continuations,
-/// which run on the <see cref="SynchronizationContext"/> of that thread when it has one (the GUI's UI
-/// thread does); otherwise await <see cref="WaitUntilIdleAsync"/> before reading state.
+/// which run on the <see cref="SynchronizationContext"/> of that thread: call it from a thread with a
+/// single-threaded one (the GUI's UI thread; the tests run it on one of their own), or a reply is handled
+/// on another thread while the caller goes on. <see cref="WaitUntilIdleAsync"/> completes once the engine
+/// has stopped thinking and its last reply has been handled.
 /// </summary>
 public sealed class GameController : IDisposable
 {

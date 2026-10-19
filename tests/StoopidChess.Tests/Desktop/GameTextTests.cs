@@ -22,9 +22,9 @@ public class GameTextTests
     }
 
     /// <summary>
-    /// A controller whose engines are scripted ones named by their paths, which never find a move. The
-    /// test thread has no synchronization context, so a test waits for the engine to be idle before it
-    /// touches the controller again (GameController is single-threaded).
+    /// A controller whose engines are scripted ones named by their paths, which never find a move. A test
+    /// that starts one runs on a <see cref="ControllerThread"/> (GameController is single-threaded) and
+    /// waits for the engine to be idle before it reads what it shows.
     /// </summary>
     private static GameController WithScriptedEngines() => new()
     {
@@ -32,7 +32,7 @@ public class GameTextTests
     };
 
     [Fact]
-    public async Task TheTitleNamesTheEngineOrTheMatch()
+    public Task TheTitleNamesTheEngineOrTheMatch() => ControllerThread.Run(async () =>
     {
         using GameController controller = WithScriptedEngines();
         Assert.Equal("Stoopid Chess", GameText.Title(controller));
@@ -46,10 +46,10 @@ public class GameTextTests
         controller.NewGame(Color.None);                 // A rematch between the same two engines
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal("Stoopid Chess - Alpha vs Beta", GameText.Title(controller));
-    }
+    });
 
     [Fact]
-    public async Task PlayerNamesPutTheHumanOnItsSide()
+    public Task PlayerNamesPutTheHumanOnItsSide() => ControllerThread.Run(async () =>
     {
         using GameController controller = WithScriptedEngines();
         Assert.Equal(("Human", "Engine"), GameText.PlayerNames(controller));
@@ -61,7 +61,7 @@ public class GameTextTests
         controller.NewGame(Color.None);
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(("Alpha", "Alpha"), GameText.PlayerNames(controller));
-    }
+    });
 
     [Fact]
     public void TheModeIsTheRunningClockOrTheLevelWithAPendingChangeMarked()
@@ -151,7 +151,7 @@ public class GameTextTests
     }
 
     [Fact]
-    public async Task TheEnginesLastReportIsShownWhenAsked()
+    public Task TheEnginesLastReportIsShownWhenAsked() => ControllerThread.Run(async () =>
     {
         using var controller = new GameController
         {
@@ -164,7 +164,7 @@ public class GameTextTests
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal($" 1. e4       {NL}", GameText.MoveList(controller, showEngineOutput: false));
         Assert.Equal($" 1. e4       {NL}{NL}info depth 1 score cp 25 nodes 30 pv e2e4", GameText.MoveList(controller, showEngineOutput: true));
-    }
+    });
 
     [Theory]
     [InlineData("info depth 12 seldepth 18 score cp 34 nodes 1234 nps 5000 pv e2e4 e7e5",

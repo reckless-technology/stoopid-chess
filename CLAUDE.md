@@ -222,7 +222,10 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
   position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), clocks and save/load, and raises `Changed`,
   `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
-  caller's `SynchronizationContext`; tests `await WaitUntilIdleAsync()` instead. A reply is always
+  caller's `SynchronizationContext` (the GUI's UI thread). The tests drive it on a `ControllerThread`, a
+  single-threaded context of their own, so a reply is handled between a test's steps and never beside
+  them (on xunit's own context a reply ran on another worker while the test read the controller), and
+  `await WaitUntilIdleAsync()` for the engine to finish thinking. A reply is always
   handled after a yield, never inside the call that started the search, even when the engine has
   answered before the await (`ConfigureAwaitOptions.ForceYielding`): handled inline it would start the
   next search before the first was stored, and the controller would wait on the wrong one
