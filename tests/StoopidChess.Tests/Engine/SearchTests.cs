@@ -95,6 +95,13 @@ public class SearchTests
         // Without the mate (and without pawn moves to reset the clock) every line is a draw
         SearchResult drawn = NewSearcher().Search(Position.FromFen("6k1/8/8/8/8/8/8/R5K1 w - - 99 1"), SearchLimits.ForDepth(3));
         Assert.Equal(Searcher.DrawScore, drawn.Score);
+        // The same mate the three other engines are held to: Ra8 mates on the hundredth ply and is played
+        SearchResult backRank = NewSearcher().Search(Position.FromFen("6k1/5ppp/8/8/8/8/8/R5K1 w - - 99 80"), SearchLimits.ForDepth(4));
+        Assert.Equal("a1a8", backRank.BestMove.ToUci());
+        Assert.True(backRank.IsMateScore);
+        // A check on the hundredth ply that leaves a move (Kf7, the f7 pawn gone) draws, as every quiet move there does
+        SearchResult escape = NewSearcher().Search(Position.FromFen("6k1/6pp/8/8/8/8/8/R5K1 w - - 99 80"), SearchLimits.ForDepth(4));
+        Assert.Equal(Searcher.DrawScore, escape.Score);
     }
 
     [Fact]

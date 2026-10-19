@@ -51,6 +51,21 @@ public class GameTests
     }
 
     [Fact]
+    public void CheckmateOnTheHundredthPlyIsCheckmate()
+    {
+        // Checkmate takes precedence over the fifty-move rule (FIDE 5.1.1): Ra8 on a clock of 99 is the
+        // hundredth ply and mates, and the mate stands
+        var mated = Game.FromFen("6k1/5ppp/8/8/8/8/8/R5K1 w - - 99 80");
+        Assert.True(mated.TryMakeMove("a1a8"));
+        Assert.Equal(100, mated.Position.HalfMoveClock);
+        Assert.Equal(GameStatus.Checkmate, mated.Status);
+        // A check on the hundredth ply that leaves a move (Kf7, the f7 pawn gone) is the draw
+        var drawn = Game.FromFen("6k1/6pp/8/8/8/8/8/R5K1 w - - 99 80");
+        Assert.True(drawn.TryMakeMove("a1a8"));
+        Assert.Equal(GameStatus.DrawByFiftyMoveRule, drawn.Status);
+    }
+
+    [Fact]
     public void FiftyMoveRuleCountsAcrossCastling()
     {
         // Castling is neither a pawn move nor a capture, so two castles take the 98th ply to the 100th
