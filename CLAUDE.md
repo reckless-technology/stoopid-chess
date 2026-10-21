@@ -41,8 +41,10 @@ dotnet run --project src/StoopidChess.Desktop                     # the Avalonia
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
-CI (`.github/workflows/ci.yml`) runs the full test suite, perft 3 and bench on Linux, on the org's
-Apple-silicon runner and (suite only) on Windows, the line-coverage gate on Linux, and publishes self-contained engine + GUI binaries
+CI (`.github/workflows/ci.yml`) runs on GitHub-hosted runners (free for a public repository), each image pinned by
+version - `ubuntu-24.04`, `macos-15` (Apple silicon), `windows-2025` - with setup-dotnet's default install on each
+fresh machine; so does `release.yml`. CI runs the full test suite, perft 3 and bench on Linux, on
+macOS and (suite only) on Windows, the line-coverage gate on Linux, and publishes self-contained engine + GUI binaries
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
 hand on `main`): built and tested from nothing on all three platforms, the Avalonia GUI the download on each (Windows
@@ -287,4 +289,4 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   and the release workflow creates `vMAJOR.MINOR.BUILD` itself. CI checks out the full history and
   the tags so its builds carry the version. The Avalonia GUI answers `--version` without starting,
   and `--smoke` starts it, says when its main window opens and quits it ten seconds later with exit
-  code 0: the release's check that the Windows GUI starts on a runner with no interactive desktop.
+  code 0: the release's check that the Windows GUI starts on a runner whose screen no one watches.

@@ -113,7 +113,8 @@ cannot judge, while the logic the window shows lives in `GameText` and `EngineRo
 smoke check from a command prompt. The two commands under "Build and test" measure it locally; `--uncovered`
 lists every line no test runs.
 
-CI (`.github/workflows/ci.yml`) runs the full test suite on Linux, macOS (arm64) and Windows — with
+CI (`.github/workflows/ci.yml`) runs on GitHub-hosted runners, each image pinned by version (`ubuntu-24.04`,
+`macos-15` on Apple silicon, `windows-2025`). It runs the full test suite on Linux, macOS (arm64) and Windows — with
 perft and bench gates on Linux and macOS and the coverage gate on Linux — and keeps self-contained engine and GUI binaries for all
 three platforms as a day's artifacts.
 
@@ -139,7 +140,8 @@ the tags) builds as `0.0.0`, with a warning.
   nothing.
 
 It refuses a mark that isn't `vMAJOR.MINOR`, a commit not on `main`, and a version already released. Each platform is
-built from nothing on the organisation's self-hosted runners, with the suite, perft and the bench signature. Each file
+built from nothing on a fresh GitHub-hosted runner (`ubuntu-24.04`, `windows-2025`, `macos-15`), with the suite, perft
+and the bench signature, as CI builds every push and pull request on the same images. Each file
 shipped must report the version, and each GUI is started before it ships. The workflow creates the release
 `vMAJOR.MINOR.BUILD` and its tag itself. It never runs for a pull request.
 
@@ -152,8 +154,8 @@ shipped must report the version, and each GUI is started before it ships. The wo
 
 The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
 `packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime.
-The Linux and Windows GUIs carry their native libraries inside their single files. The Windows runner has no
-interactive desktop, so the Windows GUI is started there by its own `--smoke`: it opens its main window as usual, says
+The Linux and Windows GUIs carry their native libraries inside their single files. No one watches the Windows
+runner's screen, so the Windows GUI is started there by its own `--smoke`: it opens its main window as usual, says
 so, and quits itself ten seconds later with exit code 0. Before 3.0 the macOS and Linux GUIs shipped without those
 libraries and did not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the
 macOS engine's up online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the

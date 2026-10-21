@@ -13,7 +13,8 @@
 # The organisation's other apps (vst-plugins, ir-capture) and the other chess engines are released the same way, with
 # the same organisation secrets for signing:
 #   - Windows: the engine and the GUI (the Avalonia app, as on macOS and Linux) are Authenticode-signed through
-#     SSL.com's eSigner (CodeSignTool pinned by version and hash, in the runner's tool cache; tools/sign-windows.ps1),
+#     SSL.com's eSigner (CodeSignTool pinned by version and hash, fetched into the runner's tool cache;
+#     tools/sign-windows.ps1),
 #     the account checked before the build, which spends no signing. Only a publishing run signs, and only the two files
 #     it ships.
 #   - macOS: the engine and "Stoopid Chess.app" (the Avalonia GUI, its native libraries beside its executable) are
@@ -28,13 +29,15 @@
 # single file) and -macos-arm64.zip ("Stoopid Chess.app"); and the source as stoopid-chess-<version>-source.tar.gz.
 # The Windows GUI was the Windows Forms one up to 3.0.0; the Avalonia app replaced it, and the Windows Forms GUI is gone.
 # Before 3.0 the macOS and Linux GUIs shipped without the native libraries Avalonia loads and did not start; each GUI is
-# now started for ten seconds before it ships (on Windows, whose runner has no interactive desktop, by the app's own
-# --smoke). verify opens the release as a draft and each job uploads straight onto it; publish makes the source (in a
+# now started for ten seconds before it ships (on Windows by the app's own --smoke, which quits by itself and gives
+# its verdict in its exit code). verify opens the release as a draft and each job uploads straight onto it; publish makes the source (in a
 # dry run too), checks all seven files are on the draft, pushes the tag and takes the draft public. A failed job can be
 # run again; a run that fails before it publishes leaves only a draft, which the next run replaces.
 #
-# Every job runs on the organisation's self-hosted runners, never a hosted image, and never for a pull request: this
-# workflow holds the signing secrets.
+# Every job runs on a GitHub-hosted runner (free for a public repository), its image pinned by version rather than
+# -latest: ubuntu-24.04, windows-2025 and macos-15 (Apple silicon). Each job starts on a fresh machine, so every
+# platform is built from nothing and nothing - a certificate, a checkout, a download - outlives the job. It never runs
+# for a pull request: this workflow holds the signing secrets.
 name: Release
 
 on:
@@ -64,7 +67,7 @@ env:
 jobs:
   verify:
     name: version and commit
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -162,7 +165,7 @@ jobs:
   linux:
     name: build + test (linux x86_64)
     needs: verify
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       VERSION: ${{ needs.verify.outputs.version }}
@@ -172,14 +175,9 @@ jobs:
         with:
           fetch-depth: 0 # Directory.Build.targets reads the version from the tags
           fetch-tags: true
-      - name: Start from nothing
-        run: rm -rf publish out
-      # As in ci.yml: setup-dotnet's default install root is not writable by the runner's service account.
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
       - name: Build Avalonia GUI
@@ -211,7 +209,8 @@ jobs:
           said=$("out/stoopid-chess-gui-$VERSION-linux-x86_64" --version)
           echo "$said"
           [ "$said" = "Stoopid Chess $VERSION" ] || { echo "::error::the GUI says '$said'"; exit 1; }
-          # Alone in a folder of its own, as a download is, on Xvfb's display: still running after ten seconds.
+          # Alone in a folder of its own, as a download is, on Xvfb's display (the image carries xvfb-run): still
+          # running after ten seconds.
           command -v xvfb-run > /dev/null || { echo "::error::xvfb-run is not on the runner's PATH"; exit 1; }
           lone="$RUNNER_TEMP/lone-gui" && rm -rf "$lone" && mkdir "$lone"
           cp "out/stoopid-chess-gui-$VERSION-linux-x86_64" "$lone/"
@@ -236,10 +235,8 @@ jobs:
           set -o pipefail
           for file in out/*; do
             name=$(basename "$file")
-            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again (where the
-            # runner has gh; a first attempt needs no removal).
-            command -v gh > /dev/null || echo "no gh here: a file an earlier attempt left would stop this upload"
-            for stale in $(command -v gh > /dev/null && gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
+            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again.
+            for stale in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$stale"
             done
             curl --fail-with-body --silent --show-error -X POST \
@@ -255,16 +252,13 @@ jobs:
           name: linux
           path: out/*
           retention-days: 1
-      - name: The workspace left clean
-        if: always()
-        run: rm -rf publish out
 
   # Windows: the solution and the suite, as CI builds them, and the engine's perft and bench; the engine and the Avalonia
   # GUI published as single files and, in a publishing run, signed.
   windows:
     name: build + test (windows x86_64)
     needs: verify
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: windows-2025
     timeout-minutes: 60
     env:
       VERSION: ${{ needs.verify.outputs.version }}
@@ -277,15 +271,12 @@ jobs:
         with:
           fetch-depth: 0 # Directory.Build.targets reads the version from the tags
           fetch-tags: true
-      - name: Start from nothing
-        run: rm -rf publish out
       - uses: actions/setup-dotnet@v5
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
           dotnet-version: 10.0.x
-      # SSL.com's CodeSignTool, pinned by version and hash and kept in the tool cache, and the account signed in to and
-      # its certificate listed - which spends no signing - before the build rides on it.
+      # SSL.com's CodeSignTool, pinned by version and hash and fetched into the tool cache (empty on a fresh hosted
+      # machine, so each publishing run fetches it), and the account signed in to and its certificate listed - which
+      # spends no signing - before the build rides on it.
       - name: eSigner's signing tool, and the account checked
         if: env.PUBLISH == 'true'
         shell: pwsh
@@ -351,8 +342,8 @@ jobs:
             "out/stoopid-chess-gui-$env:VERSION-windows-x86_64.exe"
           if ($LASTEXITCODE -ne 0) { throw "the Windows files were not signed" }
       # The engine answers over UCI. The GUI answers --version, and its version resource (what Explorer shows) must
-      # agree. Then it is started, alone in a folder of its own as a download is, by --smoke: the runner is a service
-      # with no interactive desktop, so no one could see a window, nor a dialog an app that died would leave open. The
+      # agree. Then it is started, alone in a folder of its own as a download is, by --smoke: no one watches the runner's
+      # screen, so no one could see a window, nor close a dialog an app that died would leave open. The
       # app opens its main window as usual, says so, quits itself ten seconds later and exits 0; anything else fails.
       # A GUI-subsystem .exe has no console of its own, so each is run with its output redirected, and waited for.
       - name: The shipped files report the version, the GUI starts on its own, and they are signed where they must be
@@ -424,10 +415,8 @@ jobs:
           set -o pipefail
           for file in out/*; do
             name=$(basename "$file")
-            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again (where the
-            # runner has gh; a first attempt needs no removal).
-            command -v gh > /dev/null || echo "no gh here: a file an earlier attempt left would stop this upload"
-            for stale in $(command -v gh > /dev/null && gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
+            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again.
+            for stale in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$stale"
             done
             curl --fail-with-body --silent --show-error -X POST \
@@ -443,16 +432,13 @@ jobs:
           name: windows
           path: out/*
           retention-days: 1
-      - name: The workspace left clean
-        if: always()
-        run: rm -rf publish out
 
   # macOS (Apple silicon): every gate, the engine and "Stoopid Chess.app" signed, notarised (the app stapled) and
   # started before they ship.
   macos:
     name: build + test (macos arm64)
     needs: verify
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macos-15
     timeout-minutes: 240 # Apple's notary service
     env:
       VERSION: ${{ needs.verify.outputs.version }}
@@ -463,8 +449,6 @@ jobs:
         with:
           fetch-depth: 0 # Directory.Build.targets reads the version from the tags
           fetch-tags: true
-      - name: Start from nothing
-        run: rm -rf publish out stage
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
@@ -562,10 +546,8 @@ jobs:
           set -o pipefail
           for file in out/*; do
             name=$(basename "$file")
-            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again (where the
-            # runner has gh; a first attempt needs no removal).
-            command -v gh > /dev/null || echo "no gh here: a file an earlier attempt left would stop this upload"
-            for stale in $(command -v gh > /dev/null && gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
+            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again.
+            for stale in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$stale"
             done
             curl --fail-with-body --silent --show-error -X POST \
@@ -584,9 +566,6 @@ jobs:
       - name: Close the signing keychain
         if: always()
         run: tools/sign-macos.sh close
-      - name: The workspace left clean
-        if: always()
-        run: rm -rf publish out stage "$RUNNER_TEMP/unzipped"
 
   # The source, made in a dry run too; then, in a publishing run, the draft checked and published. Every step is safe
   # to run again: an upload replaces a file of the same name an earlier attempt left on the draft, and a tag an earlier
@@ -594,7 +573,7 @@ jobs:
   publish:
     name: source, publish
     needs: [verify, linux, windows, macos]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
@@ -610,7 +589,7 @@ jobs:
       - name: The source
         run: |
           set -euo pipefail
-          rm -rf out && mkdir out
+          mkdir out
           git archive --format=tar.gz --prefix="stoopid-chess-$VERSION/" -o "out/stoopid-chess-$VERSION-source.tar.gz" "$GITHUB_SHA"
           ls -l out
       - name: Upload to the draft release
@@ -622,10 +601,8 @@ jobs:
           set -o pipefail
           for file in out/*; do
             name=$(basename "$file")
-            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again (where the
-            # runner has gh; a first attempt needs no removal).
-            command -v gh > /dev/null || echo "no gh here: a file an earlier attempt left would stop this upload"
-            for stale in $(command -v gh > /dev/null && gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
+            # A file of the same name an earlier attempt left on the draft is replaced, so the job can run again.
+            for stale in $(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --jq ".[] | select(.name == \"$name\") | .id"); do
               gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$stale"
             done
             curl --fail-with-body --silent --show-error -X POST \
@@ -650,9 +627,8 @@ jobs:
             grep -qx "$file" <<< "$assets" || { echo "::error::$file is not on the draft $TAG"; missing="$missing $file"; }
           done
           [ -z "$missing" ] || exit 1
-          # The release's own tag on the commit built, made with git and pushed. The tagger is named on the command
-          # alone: the runner keeps this clone, and an identity written into its config would outlive the job.
-          git tag -d "$TAG" > /dev/null 2>&1 || true
+          # The release's own tag on the commit built, made with git and pushed, the tagger named on the command. A tag
+          # an earlier attempt pushed is fetched and taken as it stands when it names this commit.
           if git fetch --quiet origin "refs/tags/$TAG:refs/tags/$TAG" 2> /dev/null; then
             [ "$(git rev-parse "$TAG^{commit}")" = "$GITHUB_SHA" ] ||
               { echo "::error::$TAG already names another commit than $GITHUB_SHA"; exit 1; }
@@ -664,6 +640,3 @@ jobs:
           gh api -X PATCH "$release" -F draft=false -f make_latest=true --jq .html_url
           gh api "$release" --jq '.assets[] | "  \(.name)  \(.size) bytes"'
           echo "### Released [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"
-      - name: The workspace left clean
-        if: always()
-        run: rm -rf out

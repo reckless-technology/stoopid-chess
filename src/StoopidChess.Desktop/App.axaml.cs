@@ -30,7 +30,7 @@ public partial class App : Application
 
     /// <summary>
     /// "--smoke", the release workflow's check that a shipped GUI starts where no one can look at it (the
-    /// Windows runner has no interactive desktop): the GUI starts as usual, says on standard output when its
+    /// Windows runner, whose screen no one watches): the GUI starts as usual, says on standard output when its
     /// main window has opened, and quits by itself ten seconds later with exit code 0. A GUI that fails to
     /// start, or dies while it runs, exits with anything but 0 or never says its window opened.
     /// </summary>

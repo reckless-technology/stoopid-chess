@@ -1,5 +1,5 @@
 # Checks that the Windows GUI's --version and --smoke print into the command prompt they are typed in, as a person sees
-# them, on a machine with no interactive desktop (the release workflow's Windows runner, a service).
+# them, on a machine whose screen no one watches (the release workflow's Windows runner).
 #
 #   pwsh -NoProfile -File tools/check-windows-console.ps1 -Gui <the GUI's .exe> -Version <X.Y.Z>
 #
