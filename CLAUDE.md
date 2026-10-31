@@ -51,7 +51,8 @@ hand on `main`): built and tested from nothing on all three platforms, the Avalo
 too after 3.0.0, whose Windows GUI was the since-removed Windows Forms one), the Windows engine and GUI
 eSigner-signed (publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
 ID-signed and notarised, every file checked to report the version and each GUI started, published as
-`vMAJOR.MINOR.BUILD` with a source archive (README, "Versions and releases"). `gh workflow run release.yml --ref
+`vMAJOR.MINOR.BUILD`. No source archive is published - the source is the repository, to clone or fork, as in the
+sibling engines (README, "Versions and releases"). `gh workflow run release.yml --ref
 <branch> -f dry_run=true` proves a change to it without publishing or spending a Windows signing.
 
 ## The testing discipline
