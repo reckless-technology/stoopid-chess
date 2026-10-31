@@ -150,7 +150,10 @@ shipped must report the version, and each GUI is started before it ships. The wo
 | `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the Avalonia GUI (each one self-contained file), Authenticode-signed through SSL.com eSigner (Jonathan Reckless); up to 3.0.0 the Windows GUI was the Windows Forms one |
 | `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the Avalonia GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
 | `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the Avalonia GUI for Linux, each one self-contained file |
-| `stoopid-chess-<version>-source.tar.gz` | the source at the commit |
+
+**No source archive is published**, as in the sibling engines pawnstar and zenith. The source is this repository:
+clone or fork it. (GitHub attaches its own automatic "Source code" archives to every release, which are its doing and
+not the workflow's.)
 
 The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
 `packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime.
