@@ -170,7 +170,7 @@ file fails.
 
 The engine executable works in any UCI GUI (Arena, Cute Chess, Banksia) and with tournament tools
 such as `cutechess-cli` or `fastchess`, which is how it can be measured against pawnstar or zenith.
-In the Stoopid Chess GUI, *Engine > Choose UCI engine...* swaps the built-in engine for an external one.
+In the Stoopid Chess GUI, *Engine > Add UCI engine...* swaps the built-in engine for an external one.
 
 ## Saved games
 
