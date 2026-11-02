@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
 protocol, wrapped by the `StoopidChess.Uci` console) and a GUI over the `StoopidChess.Play`
-controller that plays against any UCI engine: `StoopidChess.Desktop` (Avalonia, any OS; the Windows
-Forms GUI it replaced was removed after 3.0.0). .NET 10;
+controller that plays against any UCI engine: `StoopidChess.Desktop` (SkiaSharp in an SDL3 window, any OS; it
+replaced the Avalonia GUI, which had replaced the Windows Forms one, removed after 3.0.0). .NET 10;
 `Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
 project. Read [README.md](README.md) for the architecture and
 [docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
@@ -37,7 +37,7 @@ dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runset
 dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # per-assembly line coverage, fails under 90%
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes
-dotnet run --project src/StoopidChess.Desktop                     # the Avalonia GUI (any OS)
+dotnet run --project src/StoopidChess.Desktop                     # the GUI (any OS); -- --smoke, -- --version
 ```
 
 `.vscode/tasks.json` wraps the same commands and `.vscode/launch.json` debugs the GUI and the engine.
@@ -47,8 +47,9 @@ fresh machine; so does `release.yml`. CI runs the full test suite, perft 3 and b
 macOS and (suite only) on Windows, the line-coverage gate on Linux, and publishes self-contained engine + GUI binaries
 for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
-hand on `main`): built and tested from nothing on all three platforms, the Avalonia GUI the download on each (Windows
-too after 3.0.0, whose Windows GUI was the since-removed Windows Forms one), the Windows engine and GUI
+hand on `main`): built and tested from nothing on all three platforms, the GUI the download on each (up to 3.0.0
+the Windows GUI was the since-removed Windows Forms one), its native libraries - libSkiaSharp and SDL3 - inside the
+single file on Linux and Windows and beside the executable in the macOS app, the Windows engine and GUI
 eSigner-signed (publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
 ID-signed and notarised, every file checked to report the version and each GUI started, published as
 `vMAJOR.MINOR.BUILD`. No source archive is published - the source is the repository, to clone or fork, as in the
@@ -81,10 +82,13 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 4. **Line coverage of the product code stays at 90% or more**, gated in CI on Linux by
    `tools/coverage-gate.cs` (the one place the threshold lives; it also fails when a gated assembly is missing
    from the report). Gated: Core, Engine, Play, the Uci console and the Desktop GUI. Left out, in
-   `tests/coverage.runsettings`: the test assembly, the XAML code-behind (`*.axaml.cs`) and the code generated
-   into `obj/` (layout and wiring), and `WindowsConsole.cs` (Windows-only console P/Invoke). So logic does not
-   go in code-behind: the window's text is `GameText`, the roster file `EngineRosterFile`, both tested without a
-   window; a new control or dialog is tested under Avalonia.Headless (`BoardControlTests`, `DialogTests`).
+   `tests/coverage.runsettings`: the test assembly, the GUI's SDL host (`src/StoopidChess.Desktop/Sdl/`: windows,
+   event loop, presenting, file dialogs, clipboard, key codes), the code generated into `obj/`, and
+   `WindowsConsole.cs` (Windows-only console P/Invoke). So no logic goes in the SDL host: it only calls SDL and the
+   views. Every view is product code, tested without a window by drawing it to a bitmap and driving it with
+   synthesized events (`ViewHarness`): a new widget, dialog or menu gets a test there (`WidgetTests`, `MenuTests`,
+   `BoardViewTests`, `DialogTests`), and the main view's wiring is driven against `FakePlatform` and scripted engines
+   (`MainViewTests`). The window's text is `GameText`, the roster file `EngineRosterFile`.
    `GameController`'s failure paths are played against scripted fake engines (`ScriptedEngine`, through the
    internal `GameController.StartExternalEngine` and `UciEngineClient.Connect`).
 5. Strength changes should be checked by self-play or a match against another engine with
@@ -244,25 +248,49 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
   match). `EngineRoster` is the JSON-persisted list of registered external engines with their
   options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
-- **Desktop.** The Avalonia GUI, the only one: `MainWindow` (menus, status bar, dialogs and the
-  wiring; it redraws on `Changed`, its text from `GameText`, the engine list's file through `EngineRosterFile`), `BoardControl` and `CaptureBinControl` (rendering and pointer
-  input), `PieceImages` (the PNGs in `Assets/`). Beyond the original Windows Forms GUI's feature set
-  (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it is a small UCI host: registered engines
-  (the Engine menu is built from `EngineRoster`, persisted at
-  `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by
-  their UCI reply), per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine
-  start), time controls (a new game opens `NewGameDialog` to pick its clock — the standard 40-move
-  sessions, the 5+5 incremental, or `CustomTimeControlDialog` with minutes, increment and moves per
-  session; clock play with flagging) and engine matches (`MatchDialog`: any two registered engines
-  or the built-in play each other on the clock). The move list is SAN, View > Analysis window shows
-  the engine's info lines (depth, score, nodes, PV), File imports and exports PGN, and Ctrl+C /
-  Ctrl+V copy and paste the position as FEN (pasting behaves like a finished board edit). The board
-  draws coordinates, the checked king and the dragged piece's legal destinations; the common menu
-  actions have keyboard shortcuts. The application icon (the Windows .ico, the window's PNG, the
-  macOS app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a
-  rounded square of the board's light colour: run it again, and commit what it writes, when either
-  changes. Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their
-  grey square.
+- **Desktop.** The GUI, the only one, drawn with SkiaSharp (3.119.4, its Linux natives the no-dependencies build) in
+  SDL3 windows (ppy.SDL3-CS, natives for every desktop platform in the package), in the Reckless series' look as
+  Amphitheater wears it. Three layers:
+  - **`Look/`**: `Theme` (Amphitheater's `src/app/Theme.h` tokens), `Fonts` (Noto Serif for the interface, Monaspace
+    Xenon for the move list, analysis lines and clocks, embedded from `Assets/Fonts` with their OFL licences),
+    `Plates` (a C# translation of reckless-toolkit's `look/LookDrawing.cpp` legend plate, arrow and lamp), `Drawing`
+    (text in a box, fitted and wrapped; pictures drawn mipmapped down or cubic up) and `Assets` (embedded resources).
+  - **`Views/`**: a small retained view tree with no window system under it. `View` draws in its own coordinates and
+    takes `PointerEvent`/`WheelEvent`/`KeyEvent`/text; `ViewRoot` is a window's top, holding the content and the
+    overlays over it (an open `MenuPopup`, a modal `DialogView`), routing a press to the topmost view that takes it
+    (which then has the pointer until the release) and keys to the focused view and up, the top overlay first, so a
+    dialog is modal. Widgets: `PlateButton`, `MenuBarView` (drawn on every OS, as the toolkit's Linux
+    `app/MenuBarView.h`; `KeyModifiers.Primary` is Cmd on macOS, Ctrl elsewhere), `MenuPopup` (submenus, ticks,
+    shortcuts, keyboard), `TextField`, `NumberField`, `ChoiceList` (lamps, for radio choices), `ChoiceButton` (a plate
+    opening a menu), `LabelView`, `TextListView` (scrolls both ways) and `DialogView` (the veil and card; Return and
+    Escape press its default and cancel buttons, Tab moves between fields; `ShowAsync` completes on close, inline).
+  - **The app**: `MainView` (menus, status bar, dialogs and the wiring - everything the Avalonia `MainWindow` did; it
+    redraws on `Changed`, its text from `GameText`, the engine list's file through `EngineRosterFile`, and asks the
+    window system only through `IDesktopPlatform`: file dialogs, clipboard, title, another window, quit), `BoardView`
+    and `CaptureBinView` (drawing and pointer input), `StatusBarView`, `AnalysisView`, `PieceImages` (the PNGs in
+    `Assets/`), `Dialogs/` (message, promotion, new game, custom time control, engine options, engine match) and
+    `UiSynchronizationContext` (the UI thread's queue; engine replies continue there). `Sdl/` is the host: `SdlHost`
+    (the event loop, the clock's 100 ms tick, `--smoke`), `SdlWindow` (Skia draws into a raster bitmap at the window's
+    physical pixels, presented through an SDL streaming texture - no GL context of the app's own; logical pixels are
+    physical over the window's display scale), `SdlPlatform` (SDL's native file dialogs, whose answers are posted to
+    the UI context, and its clipboard) and `SdlKeys`.
+
+  Beyond the original Windows Forms GUI's feature set (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it is a
+  small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
+  `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by their UCI reply),
+  per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine start), time controls (a new game opens
+  `NewGameDialog` to pick its clock — the standard 40-move sessions, the 5+5 incremental, or
+  `CustomTimeControlDialog` with minutes, increment and moves per session; clock play with flagging) and engine
+  matches (`MatchDialog`: any two registered engines or the built-in play each other on the clock). The move list is
+  SAN, View > Analysis window shows the engine's info lines (depth, score, nodes, PV) in a window of its own, File
+  imports and exports PGN, and Ctrl+C / Ctrl+V copy and paste the position as FEN (pasting behaves like a finished
+  board edit). The board draws coordinates, the last move, the checked king and the dragged piece's legal
+  destinations; the common menu actions have keyboard shortcuts, and Alt with a title's first letter opens its menu.
+  `ScreenshotTests` renders the main window, a menu, two dialogs, a drag and the Analysis window, and writes them as
+  PNGs to the folder `STOOPID_CHESS_SCREENSHOTS` names. The application icon (the Windows .ico, the window's PNG, the
+  macOS app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a rounded square of
+  the board's light colour: run it again, and commit what it writes, when either changes. Keep the square's corners
+  circular: macOS 26+ put a superellipse-cornered icon on their grey square.
 
 ## Conventions
 
@@ -288,6 +316,6 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   commits since it, stamped by Directory.Build.targets at build time; 0.0.0 with no such tag
   reachable. Nothing in the tree is edited to release: tag `main` `vMAJOR.MINOR` and push the tag,
   and the release workflow creates `vMAJOR.MINOR.BUILD` itself. CI checks out the full history and
-  the tags so its builds carry the version. The Avalonia GUI answers `--version` without starting,
+  the tags so its builds carry the version. The GUI answers `--version` without starting SDL,
   and `--smoke` starts it, says when its main window opens and quits it ten seconds later with exit
   code 0: the release's check that the Windows GUI starts on a runner whose screen no one watches.

@@ -51,7 +51,7 @@
     },
     {
       "label": "build",
-      "detail": "Debug build of the whole solution, the Avalonia GUI included (Linux, macOS and Windows)",
+      "detail": "Debug build of the whole solution, the GUI included (Linux, macOS and Windows)",
       "type": "process",
       "command": "dotnet",
       "args": ["build", "${workspaceFolder}/StoopidChess.slnx", "-c", "Debug", "/consoleloggerparameters:NoSummary"],
@@ -142,7 +142,7 @@
     },
     {
       "label": "run desktop gui",
-      "detail": "Build and run the Avalonia GUI (Linux, macOS and Windows)",
+      "detail": "Build and run the GUI (Linux, macOS and Windows)",
       "type": "process",
       "command": "dotnet",
       "args": ["run", "--project", "${workspaceFolder}/src/StoopidChess.Desktop/StoopidChess.Desktop.csproj", "-c", "Debug"],
@@ -178,7 +178,7 @@
     },
     {
       "label": "publish",
-      "detail": "Self-contained single-file Release builds of the engine and the Avalonia GUI into publish/",
+      "detail": "Self-contained single-file Release builds of the engine and the GUI into publish/",
       "dependsOn": ["publish engine", "publish desktop gui"],
       "dependsOrder": "sequence",
       "problemMatcher": []
@@ -212,7 +212,7 @@
     },
     {
       "label": "publish desktop gui",
-      "detail": "Self-contained single-file Release build of the Avalonia GUI into publish/desktop (as CI publishes it)",
+      "detail": "Self-contained single-file Release build of the GUI into publish/desktop (as CI publishes it)",
       "type": "process",
       "command": "dotnet",
       "linux": {

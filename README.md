@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml/badge.svg)](https://github.com/reckless-technology/stoopid-chess/actions/workflows/ci.yml)
 
-A chess engine and a cross-platform chess GUI (Avalonia) in C#. The engine speaks
+A chess engine and a cross-platform chess GUI in C#. The engine speaks
 [UCI](https://www.chessprogramming.org/UCI), so it can be used from any chess GUI and tested against other engines;
 the GUI can play against any UCI engine, with the built-in one as the default. Originally written in 2009 as a Windows
-Forms program, ported to .NET 10 and restructured in 2026; the Avalonia GUI replaced the Windows Forms one after
-3.0.0.
+Forms program, ported to .NET 10 and restructured in 2026; an Avalonia GUI replaced the Windows Forms one after 3.0.0,
+and was itself replaced by the GUI drawn with SkiaSharp in an SDL3 window, in the look of the Reckless series.
 
 ## Layout
 
@@ -16,7 +16,7 @@ Forms program, ported to .NET 10 and restructured in 2026; the Avalonia GUI repl
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
 | `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
-| `src/StoopidChess.Desktop` | Avalonia GUI for Linux, macOS and Windows: drawing, mouse and menus over `GameController`, talking to the engine only through UCI, and a small UCI host — registered external engines and Fischer time controls with flagging. |
+| `src/StoopidChess.Desktop` | The GUI for Linux, macOS and Windows, drawn with SkiaSharp in an SDL3 window: drawing, mouse, keyboard and menus over `GameController`, talking to the engine only through UCI, and a small UCI host — registered external engines and Fischer time controls with flagging. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
 Everything builds and runs on Linux, macOS and Windows.
@@ -40,7 +40,7 @@ dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
 dotnet test tests/StoopidChess.Tests -c Release    # the test suite
 dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
 dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # line coverage per assembly, the 90% gate
-dotnet run --project src/StoopidChess.Desktop      # play (any OS, Avalonia)
+dotnet run --project src/StoopidChess.Desktop      # play (any OS)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # search signature and speed
 dotnet run --project src/StoopidChess.Uci -c Release -- perft      # move generation check
 ```
@@ -98,19 +98,22 @@ Modelled on the sibling engines pawnstar and zenith:
 - **Play**: `GameController` against the in-process engine and against scripted fake engines (an illegal
   reply, an engine dying mid-game, an engine match whose engines will not start or stop answering), the
   clocks and time controls, saved games and the engine roster.
-- **GUI**, under Avalonia's headless platform: the dialogs' choices, the board drawn in every state and its
-  drags and right clicks turned into squares, the capture bin, the message box, and the window's text
-  (`GameText`: the move list, the status bar, the analysis lines, the PGN names and result).
+- **GUI**, with no window: every view is drawn to a bitmap and driven by synthesized pointer, wheel, key and text
+  events - the widgets (plates, menus, fields, lists, the dialog frame), the board drawn in every state and its drags
+  and right clicks turned into squares, the capture bin, each dialog's fields, OK and Cancel, and the main view's
+  wiring (its menus, shortcuts, files, clipboard, engines and matches) against a fake window system and scripted
+  engines - and the window's text (`GameText`: the move list, the status bar, the analysis lines, the PGN names and
+  result). With `STOOPID_CHESS_SCREENSHOTS` naming a folder, `ScreenshotTests` also writes the main window, a menu, two
+  dialogs, a drag and the Analysis window there as PNGs.
 - **Bench signature**.
 
 **Coverage.** CI fails the Linux job when the line coverage of the product code falls under 90%
 (`tools/coverage-gate.cs` holds the threshold, the one place it lives; currently about 97%). The gated code is
 Core, Engine, Play, the Uci console and the Desktop GUI. Left out (`tests/coverage.runsettings`): the test
-assembly; the GUI's XAML code-behind (`*.axaml.cs`: `MainWindow`'s menus, dialogs, file pickers and event wiring,
-`App`'s start-up) and the code generated into `obj/` - layout and wiring, which the headless tests construct but
-cannot judge, while the logic the window shows lives in `GameText` and `EngineRosterFile` and is gated; and
-`WindowsConsole.cs`, Win32 console calls that run only on Windows when the GUI is asked for its version or its
-smoke check from a command prompt. The two commands under "Build and test" measure it locally; `--uncovered`
+assembly; the GUI's SDL host (`src/StoopidChess.Desktop/Sdl/`: the windows, the event loop, presenting, the native
+file dialogs, the clipboard), which only calls SDL and needs a display, while every view and the main view's wiring
+are gated; the code generated into `obj/`; and `WindowsConsole.cs`, Win32 console calls that run only on Windows when
+the GUI is asked for its version or its smoke check from a command prompt. The two commands under "Build and test" measure it locally; `--uncovered`
 lists every line no test runs.
 
 CI (`.github/workflows/ci.yml`) runs on GitHub-hosted runners, each image pinned by version (`ubuntu-24.04`,
@@ -147,15 +150,16 @@ shipped must report the version, and each GUI is started before it ships. The wo
 
 | File | What it is |
 |---|---|
-| `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the Avalonia GUI (each one self-contained file), Authenticode-signed through SSL.com eSigner (Jonathan Reckless); up to 3.0.0 the Windows GUI was the Windows Forms one |
-| `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the Avalonia GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
-| `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the Avalonia GUI for Linux, each one self-contained file |
+| `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the GUI (each one self-contained file), Authenticode-signed through SSL.com eSigner (Jonathan Reckless); up to 3.0.0 the Windows GUI was the Windows Forms one |
+| `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
+| `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the GUI for Linux, each one self-contained file |
 
 **No source archive is published**, as in the sibling engines pawnstar and zenith. The source is this repository:
 clone or fork it. (GitHub attaches its own automatic "Source code" archives to every release, which are its doing and
 not the workflow's.)
 
-The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries sit beside its executable, and
+The macOS GUI is a proper app bundle, so it opens from Finder; its native libraries (`libSkiaSharp.dylib`,
+`libSDL3.dylib`) sit beside its executable, each signed with it, and
 `packaging/macos/` holds its Info.plist, its icon and the one entitlement .NET's JIT needs under the hardened runtime.
 The Linux and Windows GUIs carry their native libraries inside their single files. No one watches the Windows
 runner's screen, so the Windows GUI is started there by its own `--smoke`: it opens its main window as usual, says
@@ -165,6 +169,26 @@ macOS engine's up online. The signing runs from `tools/sign-macos.sh` and `tools
 organisation's signing secrets (the same ones as its other apps). The Windows files are signed only in a run that
 publishes, since every signing spends the eSigner account's allowance. A publishing run that would ship an unsigned
 file fails.
+
+## The GUI
+
+The board with the captured pieces under it, the move list (SAN) with *Move now!* under it at the right, the drawn
+menu bar across the top and the status bar along the foot; the Analysis window (*View > Analysis window*) is a window
+of its own. It is drawn in the Reckless series' look, as Reckless Amphitheater wears it: charcoal, cream ink and an
+amber accent, the light and dark squares of its board, the toolkit's legend plates for buttons and choices, Noto
+Serif for the interface and Monaspace Xenon for the moves, the engine's lines and the clocks, and every dialog drawn
+in the window over a veil.
+
+- **Views** (`Views/`, `Look/`, and `MainView`, `BoardView`, `Dialogs/` beside them) draw on any `SKCanvas` and take
+  the app's own pointer, wheel, key and text events, so the suite runs them with no window. The look is a C#
+  translation of reckless-toolkit's drawing (`look/LookDrawing.cpp`, `app/MenuBarView.h`, `view/Menu.h`,
+  `view/Dialog.h`; GPLv3, as this repository is), in Amphitheater's colours (`src/app/Theme.h`). The menu bar is drawn
+  on every OS; its shortcuts use the platform's command key, Cmd on macOS and Ctrl elsewhere.
+- **The SDL host** (`Sdl/`) opens the windows, pumps SDL's events into the views, and presents each frame: Skia draws
+  into a raster bitmap at the window's physical pixels, which an SDL streaming texture shows - no GL context of the
+  app's own, so the GUI runs on any display, a CI runner's included. It also does the native file dialogs (on Linux
+  through the desktop portal, or zenity), the clipboard and the UI thread's synchronization context, which engine
+  replies continue on.
 
 ## Playing against other engines
 
@@ -188,6 +212,11 @@ review that preceded the restructuring and `docs/ARCHITECTURE_REVIEW.md` the pro
 Stoopid Chess is free software, licensed under the **GNU General Public License, version 3** (GPLv3). You may
 redistribute and/or modify it under the terms of that license; it comes with **no warranty**. See the
 [LICENSE](LICENSE) file for the full text, or <https://www.gnu.org/licenses/gpl-3.0.html>.
+
+The GUI's fonts are embedded in it with their licences (`src/StoopidChess.Desktop/Assets/Fonts/`): Noto Serif,
+Copyright 2022 The Noto Project Authors, and Monaspace Xenon, Copyright 2023 GitHub, both under the SIL Open Font
+License, version 1.1, as reckless-toolkit carries them. It is built on SkiaSharp (MIT; Skia itself under the BSD
+licence) and on SDL3 (the zlib licence) through the ppy.SDL3-CS binding (MIT), whose native libraries ship inside it.
 
 The chess piece images, in the GUI and in the application icon, are the "cburnett" set by
 [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public

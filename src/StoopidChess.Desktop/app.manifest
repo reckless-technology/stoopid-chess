@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Windows application manifest of the Avalonia GUI, as Avalonia's templates ship it: used on Windows only. It
-     declares Windows 10 and 11 supported, so Windows gives the app their behaviour rather than an older version's. -->
+<!-- The Windows application manifest of the GUI: used on Windows only. It declares Windows 10 and 11 supported, so
+     Windows gives the app their behaviour rather than an older version's. SDL3 makes the process per-monitor DPI aware
+     itself as it starts, and the views are drawn at the window's display scale. -->
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="1.0.0.0" name="StoopidChess.Desktop" />
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">

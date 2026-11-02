@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Desktop GUI (Avalonia)",
+      "name": "Debug Desktop GUI",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",

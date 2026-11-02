@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text;
 using StoopidChess.Core;
 using StoopidChess.Play;
-using Color = StoopidChess.Core.Color;   // The chess color, not Avalonia.Media.Color
 
 namespace StoopidChess.Desktop;
 

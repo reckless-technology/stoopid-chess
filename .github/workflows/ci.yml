@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The engine and the Avalonia GUI are cross-platform. Every job runs on a GitHub-hosted runner (free
-  # for a public repository), its image pinned by version rather than -latest, and starts from a fresh
+  # The engine and the GUI (SkiaSharp in an SDL3 window) are cross-platform. Every job runs on a GitHub-hosted
+  # runner (free for a public repository), its image pinned by version rather than -latest, and starts from a fresh
   # machine: setup-dotnet installs the SDK in its default place each run. Every job
   # uploads versioned, self-contained binaries as artifacts, for a look at a commit's build: releases
   # are built from nothing by release.yml on a pushed vMAJOR.MINOR tag, and signed. The artifacts are
@@ -31,10 +31,10 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
-      - name: Build Avalonia GUI
+      - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       # The suite with line coverage (tests/coverage.runsettings: the product assemblies, less the test assembly,
-      # the XAML code-behind, generated code and the Windows-only console calls), and the gate on it: the job
+      # the GUI's SDL host, generated code and the Windows-only console calls), and the gate on it: the job
       # fails when the gated lines' coverage is under the threshold tools/coverage-gate.cs holds, or when an
       # assembly is missing from the report. runner.temp is emptied at every job's start.
       - name: Test, with line coverage
@@ -47,8 +47,9 @@ jobs:
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
       - name: Publish engine
         run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o publish/engine
-      - name: Publish Avalonia GUI
-        # Its native libraries inside the single file, as release.yml publishes it: alone, it would not start.
+      - name: Publish GUI
+        # Its native libraries (libSkiaSharp, libSDL3) inside the single file, as release.yml publishes it: alone, it
+        # would not start.
         run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop
       - name: Upload binaries
         uses: actions/upload-artifact@v6
@@ -73,7 +74,7 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
-      - name: Build Avalonia GUI
+      - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
@@ -83,13 +84,14 @@ jobs:
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
       - name: Publish engine
         run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/engine
-      - name: Publish Avalonia GUI
+      - name: Publish GUI
         run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -o publish/desktop
       - name: Upload binaries
         uses: actions/upload-artifact@v6
         with:
           name: stoopid-chess-macos-arm64
-          # The GUI's native libraries beside it: alone, it would not start (release.yml ships them in an app).
+          # The GUI's native libraries (libSkiaSharp.dylib, libSDL3.dylib) beside it: alone, it would not start
+          # (release.yml ships them in an app).
           path: |
             publish/engine/stoopid-chess
             publish/desktop/StoopidChess.Desktop
@@ -111,8 +113,9 @@ jobs:
         run: dotnet build StoopidChess.slnx -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --no-build
-      - name: Publish Avalonia GUI
-        # Its native libraries inside the single file, as release.yml publishes it for Windows and Linux.
+      - name: Publish GUI
+        # Its native libraries (libSkiaSharp, SDL3) inside the single file, as release.yml publishes it for Windows and
+        # Linux.
         run: dotnet publish src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish/desktop
       - name: Publish engine
         run: dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/engine

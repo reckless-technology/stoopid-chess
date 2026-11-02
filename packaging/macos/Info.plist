@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- The Info.plist of "Stoopid Chess.app", the Avalonia GUI as macOS opens it from Finder. The release workflow
+<!-- The Info.plist of "Stoopid Chess.app", the GUI as macOS opens it from Finder. The release workflow
      (.github/workflows/release.yml) copies it into the bundle and writes the version over @VERSION@. -->
 <plist version="1.0">
 <dict>

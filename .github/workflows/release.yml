@@ -12,29 +12,30 @@
 #
 # The organisation's other apps (vst-plugins, ir-capture) and the other chess engines are released the same way, with
 # the same organisation secrets for signing:
-#   - Windows: the engine and the GUI (the Avalonia app, as on macOS and Linux) are Authenticode-signed through
+#   - Windows: the engine and the GUI (the SkiaSharp app, as on macOS and Linux) are Authenticode-signed through
 #     SSL.com's eSigner (CodeSignTool pinned by version and hash, fetched into the runner's tool cache;
 #     tools/sign-windows.ps1),
 #     the account checked before the build, which spends no signing. Only a publishing run signs, and only the two files
 #     it ships.
-#   - macOS: the engine and "Stoopid Chess.app" (the Avalonia GUI, its native libraries beside its executable) are
-#     signed with the Developer ID Application identity, the hardened runtime, a secure timestamp and the one
+#   - macOS: the engine and "Stoopid Chess.app" (the GUI, libSkiaSharp.dylib and libSDL3.dylib beside its executable)
+#     are signed with the Developer ID Application identity, the hardened runtime, a secure timestamp and the one
 #     entitlement .NET's JIT needs (packaging/macos/entitlements.plist), on a keychain of the job's own
 #     (tools/sign-macos.sh), and notarised. The app's ticket is stapled to it, so it opens from Finder offline; a bare
 #     engine binary can carry no ticket, so Gatekeeper finds the engine's online.
 #   A publishing run that would ship anything unsigned fails instead.
 #
 # The files: stoopid-chess-<version>-linux-x86_64, -windows-x86_64.exe and -macos-arm64.zip (the engine);
-# stoopid-chess-gui-<version>-linux-x86_64 and -windows-x86_64.exe (the Avalonia GUI, its native libraries inside the
-# single file) and -macos-arm64.zip ("Stoopid Chess.app"). No source archive is published: the source is this
-# repository, to clone or fork, as it is for the sibling engines. (GitHub attaches its own automatic "Source code"
-# archives to every release, which are its doing and not this workflow's.)
-# The Windows GUI was the Windows Forms one up to 3.0.0; the Avalonia app replaced it, and the Windows Forms GUI is gone.
-# Before 3.0 the macOS and Linux GUIs shipped without the native libraries Avalonia loads and did not start; each GUI is
-# now started for ten seconds before it ships (on Windows by the app's own --smoke, which quits by itself and gives
-# its verdict in its exit code). verify opens the release as a draft and each job uploads straight onto it; publish
-# checks all six files are on the draft, pushes the tag and takes the draft public. A failed job can be
-# run again; a run that fails before it publishes leaves only a draft, which the next run replaces.
+# stoopid-chess-gui-<version>-linux-x86_64 and -windows-x86_64.exe (the GUI, its native libraries - libSkiaSharp and
+# SDL3 - inside the single file) and -macos-arm64.zip ("Stoopid Chess.app"). No source archive is published: the source
+# is this repository, to clone or fork, as it is for the sibling engines. (GitHub attaches its own automatic "Source
+# code" archives to every release, which are its doing and not this workflow's.)
+# The Windows GUI was the Windows Forms one up to 3.0.0; an Avalonia app replaced it on every platform, and that in
+# turn the GUI drawn with SkiaSharp in an SDL3 window. Before 3.0 the macOS and Linux GUIs shipped without the native
+# libraries the GUI loads and did not start; each GUI is now started for ten seconds before it ships (on Windows by the
+# app's own --smoke, which quits by itself and gives its verdict in its exit code). verify opens the release as a draft
+# and each job uploads straight onto it; publish checks all six files are on the draft, pushes the tag and takes the
+# draft public. A failed job can be run again; a run that fails before it publishes leaves only a draft, which the next
+# run replaces.
 #
 # Every job runs on a GitHub-hosted runner (free for a public repository), its image pinned by version rather than
 # -latest: ubuntu-24.04, windows-2025 and macos-15 (Apple silicon). Each job starts on a fresh machine, so every
@@ -162,7 +163,7 @@ jobs:
             echo "release_id=$release_id"
           } >> "$GITHUB_OUTPUT"
           echo "Stoopid Chess $version (git describe: ${describe:-none}); publish=$publish"
-  # Linux: the engine and the Avalonia GUI, every gate CI runs (the suite, perft 3, the bench signature), and the GUI
+  # Linux: the engine and the GUI, every gate CI runs (the suite, perft 3, the bench signature), and the GUI
   # started under Xvfb.
   linux:
     name: build + test (linux x86_64)
@@ -182,7 +183,7 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
-      - name: Build Avalonia GUI
+      - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
@@ -190,8 +191,8 @@ jobs:
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
-      # The GUI's native libraries (SkiaSharp, HarfBuzzSharp) go inside its single file, extracted at its first start:
-      # a single-file publish otherwise leaves them beside it, where a lone download has none.
+      # The GUI's native libraries (libSkiaSharp.so, libSDL3.so) go inside its single file, extracted at its first
+      # start: a single-file publish otherwise leaves them beside it, where a lone download has none.
       - name: Publish
         run: |
           dotnet publish src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained \
@@ -255,7 +256,7 @@ jobs:
           path: out/*
           retention-days: 1
 
-  # Windows: the solution and the suite, as CI builds them, and the engine's perft and bench; the engine and the Avalonia
+  # Windows: the solution and the suite, as CI builds them, and the engine's perft and bench; the engine and the
   # GUI published as single files and, in a publishing run, signed.
   windows:
     name: build + test (windows x86_64)
@@ -313,7 +314,7 @@ jobs:
         run: |
           dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
           dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
-      # The GUI's native libraries (SkiaSharp, HarfBuzzSharp, ANGLE) go inside its single file, as on Linux, extracted
+      # The GUI's native libraries (libSkiaSharp.dll, SDL3.dll) go inside its single file, as on Linux, extracted
       # at its first start: one .exe to download, and to sign.
       - name: Publish
         run: |
@@ -456,7 +457,7 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build engine
         run: dotnet build src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release
-      - name: Build Avalonia GUI
+      - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
         run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
@@ -464,7 +465,8 @@ jobs:
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- bench
-      # The app: the GUI's single-file executable and the native libraries Avalonia loads beside it in Contents/MacOS,
+      # The app: the GUI's single-file executable and the native libraries it loads beside it in Contents/MacOS
+      # (libSkiaSharp.dylib and libSDL3.dylib, both checked for, and each signed by tools/sign-macos.sh with the rest),
       # its icon (packaging/macos/StoopidChess.icns, which tools/make-icons.py draws from packaging/icon/BlackQueen.svg)
       # and packaging/macos/Info.plist at the version.
       - name: Publish, and the app assembled
@@ -476,6 +478,9 @@ jobs:
           mkdir -p "stage/engine" "stage/$APP/Contents/MacOS" "stage/$APP/Contents/Resources"
           cp publish/engine/stoopid-chess "stage/engine/stoopid-chess-$VERSION-macos-arm64"
           cp publish/desktop/StoopidChess.Desktop publish/desktop/*.dylib "stage/$APP/Contents/MacOS/"
+          for library in libSkiaSharp.dylib libSDL3.dylib; do
+            [ -f "stage/$APP/Contents/MacOS/$library" ] || { echo "::error::the app has no $library"; exit 1; }
+          done
           sed "s/@VERSION@/$VERSION/g" packaging/macos/Info.plist > "stage/$APP/Contents/Info.plist"
           plutil -lint "stage/$APP/Contents/Info.plist"
           cp packaging/macos/StoopidChess.icns "stage/$APP/Contents/Resources/StoopidChess.icns"

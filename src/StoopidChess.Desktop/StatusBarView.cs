@@ -50,7 +50,7 @@ internal sealed class StatusBarView : View
         float right = Width - Inset;
         foreach (StatusSegment clock in segments.Where(segment => segment.IsClock).Reverse())
         {
-            right = DrawSegment(canvas, clock, right - SegmentWidth(clock), Width - Inset) - SegmentWidth(clock) - Gap;
+            right = DrawSegment(canvas, clock, right - SegmentWidth(clock), Width) - SegmentWidth(clock) - Gap;
         }
         float x = Inset;
         foreach (StatusSegment segment in segments.Where(segment => !segment.IsClock))
