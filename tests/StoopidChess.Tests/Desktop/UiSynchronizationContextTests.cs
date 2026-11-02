@@ -39,23 +39,51 @@ public class UiSynchronizationContextTests
         context.Send(_ => value = 1, null);
         Assert.Equal(1, value);
 
-        Task sent = Task.Run(() => context.Send(_ => value = 2, null));
-        while (!context.HasPending)
-        {
-            await Task.Delay(1);
-        }
+        Task sent = OnAnotherThread(() => context.Send(_ => value = 2, null));
+        await UntilPendingAsync(context);
         Assert.False(sent.IsCompleted);
         context.RunPending();
         await sent.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal(2, value);
 
-        Task failing = Task.Run(() => context.Send(_ => throw new InvalidDataException("bad"), null));
-        while (!context.HasPending)
-        {
-            await Task.Delay(1);
-        }
+        Task failing = OnAnotherThread(() => context.Send(_ => throw new InvalidDataException("bad"), null));
+        await UntilPendingAsync(context);
         context.RunPending();
         InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => failing.WaitAsync(TimeSpan.FromSeconds(10)));
         Assert.IsType<InvalidDataException>(failure.InnerException);
+    }
+
+    /// <summary>
+    /// Run <paramref name="action"/> on a thread of its own: never the thread the context was made on, as a pool
+    /// thread might be.
+    /// </summary>
+    private static Task OnAnotherThread(Action action)
+    {
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                action();
+                done.SetResult();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                done.SetException(ex);
+            }
+        })
+        { IsBackground = true };
+        thread.Start();
+        return done.Task;
+    }
+
+    private static async Task UntilPendingAsync(UiSynchronizationContext context)
+    {
+        DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (!context.HasPending)
+        {
+            Assert.True(DateTime.UtcNow < deadline, "nothing was posted");
+            await Task.Delay(1);
+        }
     }
 }

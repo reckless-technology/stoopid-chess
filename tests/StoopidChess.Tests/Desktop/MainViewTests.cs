@@ -374,6 +374,8 @@ public sealed class MainViewTests : IDisposable
         await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
         Assert.Equal(("Engine", "The engine played an illegal move: a1a8"), rig.TakeMessage());
 
+        rig.Controller.NewGame(Color.White);                      // The person's move, so the next engine is asked nothing
+        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         string dies = rig.Register("dies", command => command.StartsWith("go", StringComparison.Ordinal) ? null : []);
         Assert.True(await rig.Controller.StartEngineAsync(dies));
         rig.Controller.NewGame(Color.Black);
@@ -523,7 +525,7 @@ public sealed class MainViewTests : IDisposable
         string exported = Path.Combine(folder, "game");
         rig.Platform.FileAnswers.Enqueue(exported);
         rig.Choose("File", "Export PGN...");
-        await rig.SettleAsync(() => File.Exists(exported + ".pgn") && File.ReadAllText(exported + ".pgn").Contains("Nf3", StringComparison.Ordinal));
+        await rig.SettleAsync(() => ReadBack(exported + ".pgn").Contains("Nf3", StringComparison.Ordinal));
 
         rig.Controller.NewGame(Color.White);
         rig.Platform.FileAnswers.Enqueue(exported + ".pgn");
@@ -551,6 +553,21 @@ public sealed class MainViewTests : IDisposable
         rig.Choose("File", "Export PGN...");
         Assert.Equal(("Export PGN", "Finish editing the position before exporting."), rig.TakeMessage());
     });
+
+    /// <summary>
+    /// A file's text once it can be read: empty while it is missing or still held open by its writer.
+    /// </summary>
+    private static string ReadBack(string path)
+    {
+        try
+        {
+            return File.ReadAllText(path);
+        }
+        catch (IOException)
+        {
+            return "";
+        }
+    }
 
     [Fact]
     public void ASaveDialogsPathKeepsItsOwnExtension()
