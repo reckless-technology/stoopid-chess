@@ -16,6 +16,9 @@
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+    <PackageReference Include="ppy.SDL3-CS" Version="2026.1002.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +33,7 @@
   <ItemGroup>
     <!-- The piece images (the cburnett set, see the README) and AppIcon.ico and AppIcon.png, the window's icon. -->
     <AvaloniaResource Include="Assets\**" />
+    <EmbeddedResource Include="Assets\**" />
   </ItemGroup>
 
 </Project>

@@ -6,6 +6,8 @@
 *.png binary
 *.ico binary
 *.icns binary
+*.ttf binary
+*.otf binary
 
 # Shell scripts must keep LF endings whatever the platform, or sh cannot run them
 .githooks/* text eol=lf
