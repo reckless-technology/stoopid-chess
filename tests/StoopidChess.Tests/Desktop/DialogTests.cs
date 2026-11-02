@@ -1,224 +1,201 @@
-using Avalonia.Controls;
-using Avalonia.Interactivity;
-using Avalonia.LogicalTree;
 using StoopidChess.Core;
 using StoopidChess.Desktop;
+using StoopidChess.Desktop.Dialogs;
+using StoopidChess.Desktop.Views;
 using StoopidChess.Play;
 
 namespace StoopidChess.Tests.Desktop;
 
 /// <summary>
-/// The GUI's dialogs under the headless platform: what each one starts with, and what it hands back when
-/// its buttons are pressed - the choices the main window acts on.
+/// The GUI's dialogs, each open over a window: what it starts with, and what it hands back when its buttons are
+/// pressed - the choices the main view acts on - and the Analysis window's lines.
 /// </summary>
-[Collection(HeadlessGui.Name)]
-public class DialogTests(HeadlessSessionFixture fixture)
+public sealed class DialogTests : IDisposable
 {
-    private Task<T> OnUiThread<T>(Func<T> test) => fixture.Session.Dispatch(test, CancellationToken.None);
+    private readonly ViewHarness window = new(new TestPanel());
 
-    private static T Find<T>(Window window, Func<T, bool>? match = null) where T : Control =>
-        window.GetLogicalDescendants().OfType<T>().First(control => match?.Invoke(control) ?? true);
+    public void Dispose() => window.Dispose();
 
-    private static List<T> FindAll<T>(Window window) where T : Control =>
-        [.. window.GetLogicalDescendants().OfType<T>()];
+    private T Open<T>(T dialog) where T : DialogView
+    {
+        _ = dialog.ShowAsync(window.Root);
+        window.Render();
+        return dialog;
+    }
 
-    private static void Press(Window window, string content) =>
-        Find<Button>(window, b => Equals(b.Content, content)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    private void Press(DialogView dialog, string text) => window.Click(dialog.Buttons.Single(button => button.Text == text));
 
     [Fact]
-    public async Task TheNewGameDialogOffersTheDefaultClock()
+    public void TheNewGameDialogOffersTheDefaultClock()
     {
-        (bool confirmed, bool custom, TimeControl? choice) = await OnUiThread(() =>
-        {
-            var dialog = new NewGameDialog(current: null);
-            Press(dialog, "Start game");
-            return (dialog.Confirmed, dialog.CustomRequested, dialog.Choice);
-        });
-        Assert.True(confirmed);
-        Assert.False(custom);
-        Assert.Equal(TimeControl.Standard(40, 5), choice);
+        NewGameDialog dialog = Open(new NewGameDialog(current: null));
+        Assert.False(dialog.Confirmed);
+        Press(dialog, "Start game");
+        Assert.True(dialog.Confirmed);
+        Assert.False(dialog.CustomRequested);
+        Assert.Equal(TimeControl.Standard(40, 5), dialog.Choice);
     }
 
     [Fact]
-    public async Task TheNewGameDialogStartsOnTheCurrentClock()
+    public void TheNewGameDialogStartsOnTheCurrentClock()
     {
-        TimeControl? choice = await OnUiThread(() =>
-        {
-            var dialog = new NewGameDialog(TimeControl.OfMinutes(5, 5));
-            Press(dialog, "Start game");
-            return dialog.Choice;
-        });
-        Assert.Equal(TimeControl.OfMinutes(5, 5), choice);
+        NewGameDialog dialog = Open(new NewGameDialog(TimeControl.OfMinutes(5, 5)));
+        Assert.Equal(3, dialog.Choices.SelectedIndex);
+        window.Key(Key.Up);                                     // The list holds the keyboard
+        Press(dialog, "Start game");
+        Assert.Equal(TimeControl.Standard(40, 1), dialog.Choice);
     }
 
     [Fact]
-    public async Task TheNewGameDialogAsksForACustomClockItCannotOffer()
+    public void TheNewGameDialogAsksForACustomClockItCannotOffer()
     {
-        (bool confirmed, bool custom, TimeControl? choice) = await OnUiThread(() =>
-        {
-            var dialog = new NewGameDialog(TimeControl.OfMinutes(15, 10));
-            Press(dialog, "Start game");
-            return (dialog.Confirmed, dialog.CustomRequested, dialog.Choice);
-        });
-        Assert.True(confirmed);
-        Assert.True(custom);
-        Assert.Null(choice);
+        NewGameDialog dialog = Open(new NewGameDialog(TimeControl.OfMinutes(15, 10)));
+        Press(dialog, "Start game");
+        Assert.True(dialog.Confirmed);
+        Assert.True(dialog.CustomRequested);
+        Assert.Null(dialog.Choice);
     }
 
     [Fact]
-    public async Task TheNewGameDialogGoesNowhereWithoutAChoiceOrWhenCancelled()
+    public void TheNewGameDialogGoesNowhereWithoutAChoiceOrWhenCancelled()
     {
-        (bool noChoice, bool cancelled) = await OnUiThread(() =>
-        {
-            var dialog = new NewGameDialog(current: null);
-            foreach (RadioButton button in FindAll<RadioButton>(dialog))
-            {
-                button.IsChecked = false;
-            }
-            Press(dialog, "Start game");
-            var other = new NewGameDialog(current: null);
-            Press(other, "Cancel");
-            return (dialog.Confirmed, other.Confirmed);
-        });
-        Assert.False(noChoice);
-        Assert.False(cancelled);
+        NewGameDialog dialog = Open(new NewGameDialog(current: null));
+        dialog.Choices.SelectedIndex = -1;
+        Press(dialog, "Start game");
+        NewGameDialog other = Open(new NewGameDialog(current: null));
+        Press(other, "Cancel");
+        Assert.False(dialog.Confirmed);
+        Assert.False(other.Confirmed);
     }
 
     [Fact]
-    public async Task TheCustomClockDialogReturnsItsFields()
+    public void TheCustomClockDialogReturnsItsFields()
     {
-        (TimeControl? kept, TimeControl? session, TimeControl? cancelled) = await OnUiThread(() =>
-        {
-            var dialog = new CustomTimeControlDialog(TimeControl.OfMinutes(15, 10));
-            Press(dialog, "OK");
-            var withSession = new CustomTimeControlDialog(null);
-            FindAll<NumericUpDown>(withSession)[2].Value = 40;
-            Press(withSession, "OK");
-            var other = new CustomTimeControlDialog(null);
-            Press(other, "Cancel");
-            return (dialog.Choice, withSession.Choice, other.Choice);
-        });
-        Assert.Equal(TimeControl.OfMinutes(15, 10), kept);
-        Assert.Equal(new TimeControl(TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(3), 40), session);
-        Assert.Null(cancelled);
+        CustomTimeControlDialog dialog = Open(new CustomTimeControlDialog(TimeControl.OfMinutes(15, 10)));
+        Assert.Equal(15, dialog.Minutes.Value);
+        Press(dialog, "OK");
+        Assert.Equal(TimeControl.OfMinutes(15, 10), dialog.Choice);
+
+        CustomTimeControlDialog withSession = Open(new CustomTimeControlDialog(null));
+        Assert.True(withSession.Minutes.Field.IsFocused);
+        window.Type("7");                                      // Replaces the 5 taking the keyboard selected
+        window.Key(Key.Tab);
+        window.Key(Key.Tab);
+        window.Type("40");
+        window.Key(Key.Return);
+        Assert.Equal(new TimeControl(TimeSpan.FromMinutes(7), TimeSpan.FromSeconds(3), 40), withSession.Choice);
+
+        CustomTimeControlDialog other = Open(new CustomTimeControlDialog(null));
+        Press(other, "Cancel");
+        Assert.Null(other.Choice);
     }
 
     [Fact]
-    public async Task TheMatchDialogPairsTwoEngines()
+    public void TheMatchDialogPairsTwoEngines()
     {
-        ((int, int)? pair, (int, int)? alone, (int, int)? unselected, (int, int)? cancelled) = await OnUiThread(() =>
-        {
-            var dialog = new MatchDialog(["Built-in engine", "Pawnstar"]);
-            Press(dialog, "Start match");
-            var single = new MatchDialog(["Built-in engine"]);
-            Press(single, "Start match");
-            var none = new MatchDialog(["Built-in engine", "Pawnstar"]);
-            Find<ComboBox>(none).SelectedIndex = -1;
-            Press(none, "Start match");
-            var other = new MatchDialog(["Built-in engine", "Pawnstar"]);
-            Press(other, "Cancel");
-            return (dialog.Choice, single.Choice, none.Choice, other.Choice);
-        });
-        Assert.Equal((0, 1), pair);
-        Assert.Equal((0, 0), alone);
-        Assert.Null(unselected);
-        Assert.Null(cancelled);
-        await Assert.ThrowsAsync<ArgumentNullException>(() => OnUiThread(() => new MatchDialog(null!)));
+        MatchDialog dialog = Open(new MatchDialog(["Built-in engine", "Pawnstar"]));
+        Press(dialog, "Start match");
+        Assert.Equal((0, 1), dialog.Choice);
+
+        MatchDialog single = Open(new MatchDialog(["Built-in engine"]));
+        Press(single, "Start match");
+        Assert.Equal((0, 0), single.Choice);
+
+        MatchDialog none = Open(new MatchDialog(["Built-in engine", "Pawnstar"]));
+        none.White.SelectedIndex = -1;
+        Press(none, "Start match");
+        Assert.Null(none.Choice);
+
+        MatchDialog chosen = Open(new MatchDialog(["Built-in engine", "Pawnstar"]));
+        window.Click(chosen.White);
+        MenuPopup menu = chosen.White.Menu!;
+        window.Click(menu.RowCentre(0, 1));
+        Press(chosen, "Start match");
+        Assert.Equal((1, 1), chosen.Choice);
+
+        MatchDialog other = Open(new MatchDialog(["Built-in engine", "Pawnstar"]));
+        Press(other, "Cancel");
+        Assert.Null(other.Choice);
+        Assert.Throws<ArgumentNullException>(() => new MatchDialog(null!));
     }
 
     [Fact]
-    public async Task TheEngineOptionsDialogEditsHashAndThreadsAndKeepsTheRest()
+    public void TheEngineOptionsDialogEditsHashAndThreadsAndKeepsTheRest()
     {
-        (string title, Dictionary<string, string>? saved) = await OnUiThread(() =>
-        {
-            var dialog = new EngineOptionsDialog("Pawnstar", new Dictionary<string, string> { ["Hash"] = "64", ["Threads"] = "4", ["Ponder"] = "false" });
-            List<NumericUpDown> fields = FindAll<NumericUpDown>(dialog);
-            fields[0].Value = 128;
-            Press(dialog, "OK");
-            return (dialog.Title ?? "", dialog.Saved);
-        });
-        Assert.Equal("Pawnstar options", title);
-        Assert.Equal(new Dictionary<string, string> { ["Ponder"] = "false", ["Hash"] = "128", ["Threads"] = "4" }, saved);
+        EngineOptionsDialog dialog = Open(new EngineOptionsDialog("Pawnstar",
+            new Dictionary<string, string> { ["Hash"] = "64", ["Threads"] = "4", ["Ponder"] = "false" }));
+        Assert.Equal("Pawnstar options", dialog.Title);
+        dialog.Hash.Value = 128;
+        Press(dialog, "OK");
+        Assert.Equal(new Dictionary<string, string> { ["Ponder"] = "false", ["Hash"] = "128", ["Threads"] = "4" }, dialog.Saved);
     }
 
     [Fact]
-    public async Task TheEngineOptionsDialogLeavesZeroAndNonsenseToTheEngine()
+    public void TheEngineOptionsDialogLeavesZeroAndNonsenseToTheEngine()
     {
-        (decimal? hash, decimal? threads, Dictionary<string, string>? saved, Dictionary<string, string>? cancelled) = await OnUiThread(() =>
-        {
-            var dialog = new EngineOptionsDialog("Engine", new Dictionary<string, string> { ["Hash"] = "lots", ["Threads"] = "999" });
-            List<NumericUpDown> fields = FindAll<NumericUpDown>(dialog);
-            (decimal? hashValue, decimal? threadsValue) = (fields[0].Value, fields[1].Value);
-            fields[1].Value = 0;
-            Press(dialog, "OK");
-            var other = new EngineOptionsDialog("Engine", new Dictionary<string, string>());
-            Press(other, "Cancel");
-            return (hashValue, threadsValue, dialog.Saved, other.Saved);
-        });
-        Assert.Equal(0m, hash);
-        Assert.Equal(64m, threads);          // Clamped to the field's range
-        Assert.Equal(new Dictionary<string, string>(), saved);
-        Assert.Null(cancelled);
-        await Assert.ThrowsAsync<ArgumentNullException>(() => OnUiThread(() => new EngineOptionsDialog("Engine", null!)));
+        EngineOptionsDialog dialog = Open(new EngineOptionsDialog("Engine",
+            new Dictionary<string, string> { ["Hash"] = "lots", ["Threads"] = "999" }));
+        Assert.Equal(0, dialog.Hash.Value);
+        Assert.Equal(64, dialog.Threads.Value);                // Held to the field's range
+        dialog.Threads.Value = 0;
+        Press(dialog, "OK");
+        Assert.Equal(new Dictionary<string, string>(), dialog.Saved);
+
+        EngineOptionsDialog other = Open(new EngineOptionsDialog("Engine", new Dictionary<string, string>()));
+        Press(other, "Cancel");
+        Assert.Null(other.Saved);
+        Assert.Throws<ArgumentNullException>(() => new EngineOptionsDialog("Engine", null!));
     }
 
     [Fact]
-    public async Task ThePromotionDialogReturnsThePiecePressed()
+    public void ThePromotionDialogReturnsThePiecePressedOrAQueen()
     {
-        Piece choice = await OnUiThread(() =>
-        {
-            var dialog = new PromotionDialog(Color.Black);
-            FindAll<Button>(dialog)[3].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            return dialog.Choice;
-        });
-        Assert.Equal(Piece.Knight, choice);
-    }
+        PromotionDialog dialog = Open(new PromotionDialog(Color.Black));
+        Assert.Equal(Piece.Queen, dialog.Choice);
+        window.Click(dialog.Pieces[3]);
+        Assert.Equal(Piece.Knight, dialog.Choice);
 
-    [Fact]
-    public async Task TheAnalysisWindowKeepsItsLatestLinesAndClears()
-    {
-        (string? full, string? cleared) = await OnUiThread(() =>
-        {
-            var window = new AnalysisWindow();
-            for (int i = 0; i < 450; i++)
-            {
-                window.Append($"line {i}");
-            }
-            TextBox output = Find<TextBox>(window);
-            string? text = output.Text;
-            Press(window, "Clear");
-            return (text, output.Text);
-        });
-        string[] lines = full!.Split('\n');
-        Assert.Equal(400, lines.Length);
-        Assert.Equal("line 50", lines[0]);
-        Assert.Equal("line 449", lines[^1]);
-        Assert.Equal("", cleared);
+        PromotionDialog closed = Open(new PromotionDialog(Color.White));
+        window.Key(Key.Escape);
+        Assert.True(closed.IsClosed);
+        Assert.Equal(Piece.Queen, closed.Choice);
     }
 
     [Fact]
     public async Task AMessageDialogShowsItsMessageAndClosesOnOk()
     {
-        (string? title, string? message, bool closed) = await fixture.Session.Dispatch(async () =>
+        Task shown = MessageDialog.ShowAsync(window.Root, "Engine", "The engine could not be started.");
+        MessageDialog dialog = Assert.IsType<MessageDialog>(window.Root.Overlays.Single());
+        window.Render();
+        Assert.Equal("Engine", dialog.Title);
+        Assert.Equal("The engine could not be started.", dialog.Message.Text);
+        Press(dialog, "OK");
+        await shown;
+        Assert.Empty(window.Root.Overlays);
+    }
+
+    [Fact]
+    public void TheAnalysisViewKeepsItsLatestLinesAndClears()
+    {
+        var analysis = new AnalysisView();
+        using var analysisWindow = new ViewHarness(analysis, 720, 400);
+        for (int i = 0; i < 450; i++)
         {
-            var owner = new Window();
-            owner.Show();
-            Task shown = MessageDialog.ShowAsync(owner, "Engine", "The engine could not be started.");
-            Window dialog = owner.OwnedWindows[0];
-            string? text = Find<TextBlock>(dialog).Text;
-            Press(dialog, "OK");
-            await shown.WaitAsync(TimeSpan.FromSeconds(10));
-            owner.Close();
-            return (dialog.Title, text, shown.IsCompleted);
-        }, CancellationToken.None);
-        Assert.Equal("Engine", title);
-        Assert.Equal("The engine could not be started.", message);
-        Assert.True(closed);
+            analysis.Append($"line {i}");
+        }
+        IReadOnlyList<string> lines = analysis.Output.Lines;
+        Assert.Equal(AnalysisView.MaximumLines, lines.Count);
+        Assert.Equal("line 50", lines[0]);
+        Assert.Equal("line 449", lines[^1]);
+        Assert.Equal(analysis.Output.MaximumScrollY, analysis.Output.ScrollY);
+        analysisWindow.Render();
+        analysisWindow.Click(analysis.ClearButton);
+        Assert.Empty(analysis.Output.Lines);
     }
 
     [Fact]
     public void TheVersionIsTheBuildsThreeNumbers()
     {
-        Assert.Matches(@"^\d+\.\d+\.\d+$", StoopidChess.Desktop.Program.Version);
+        Assert.Matches(@"^\d+\.\d+\.\d+$", Program.Version);
     }
 }

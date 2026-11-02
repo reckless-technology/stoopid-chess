@@ -73,6 +73,9 @@ internal sealed class MenuPopup : View
         return new SKPoint(box.MidX, box.MidY);
     }
 
+    /// <summary>The rows of menu <paramref name="level"/>.</summary>
+    public IReadOnlyList<MenuItem> ItemsOf(int level) => levels[level].Items;
+
     /// <summary>The row under the pointer in menu <paramref name="level"/>; -1 for none.</summary>
     public int HoveredRow(int level) => levels[level].Hover;
 

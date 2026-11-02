@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>StoopidChess.Desktop</RootNamespace>
     <AssemblyName>StoopidChess.Desktop</AssemblyName>
-    <Description>Stoopid Chess: a cross-platform Avalonia chess GUI that plays against any UCI engine.</Description>
+    <Description>Stoopid Chess: a cross-platform chess GUI, drawn with SkiaSharp in an SDL3 window, that plays against any UCI engine.</Description>
     <!-- The .exe's icon on Windows; tools/make-icons.py draws it, and the macOS app's .icns, from packaging/icon. -->
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -13,9 +13,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.2" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
     <PackageReference Include="ppy.SDL3-CS" Version="2026.1002.1" />
@@ -31,8 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The piece images (the cburnett set, see the README) and AppIcon.ico and AppIcon.png, the window's icon. -->
-    <AvaloniaResource Include="Assets\**" />
+    <!-- Embedded in the assembly: the piece images (the cburnett set, see the README), AppIcon.png (the window's icon;
+         AppIcon.ico is the .exe's) and the fonts with their licences (Assets/Fonts, the SIL Open Font License). -->
     <EmbeddedResource Include="Assets\**" />
   </ItemGroup>
 

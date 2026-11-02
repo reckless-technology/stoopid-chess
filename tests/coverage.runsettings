@@ -8,10 +8,10 @@
   the collector's filter syntax cannot spell the console's hyphenated name.)
   Left out:
     - the test assembly;
-    - the GUI's XAML code-behind (*.axaml.cs: MainWindow's menus, dialogs, file pickers and event wiring, App's
-      start-up) and the code generated into obj/ (the XAML compiler's and the P/Invoke generator's): layout and
-      wiring, which the headless smoke tests construct but no assertion can judge. The logic the window shows
-      lives outside it, in GameText and EngineRosterFile, and is gated;
+    - the GUI's SDL host (src/StoopidChess.Desktop/Sdl/: the windows, the event loop, presenting, the native file
+      dialogs, the clipboard and the key codes), which only calls SDL and needs a display to run; every view, the
+      main view's wiring and the UI thread's context are product code the suite drives without a window, and gated;
+    - the code generated into obj/ (the P/Invoke generator's);
     - WindowsConsole.cs, Win32 console P/Invoke that runs only on Windows and only when the GUI is started from
       a command prompt to print its version or run its smoke check; the gate runs on Linux.
 -->
@@ -22,7 +22,7 @@
         <Configuration>
           <Format>cobertura</Format>
           <Exclude>[StoopidChess.Tests]*</Exclude>
-          <ExcludeByFile>**/*.axaml.cs,**/obj/**/*.cs,**/WindowsConsole.cs</ExcludeByFile>
+          <ExcludeByFile>**/Sdl/*.cs,**/obj/**/*.cs,**/WindowsConsole.cs</ExcludeByFile>
           <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
         </Configuration>
       </DataCollector>

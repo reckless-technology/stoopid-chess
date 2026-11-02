@@ -1,19 +1,17 @@
 using System.Reflection;
-using Avalonia;
+using StoopidChess.Desktop.Sdl;
 
 namespace StoopidChess.Desktop;
 
 internal static class Program
 {
-    // Avalonia configuration happens in BuildAvaloniaApp; don't touch Avalonia types in Main
-    // before it runs, or the previewer and platform detection break.
     [STAThread]
     public static int Main(string[] args)
     {
-        // "--version" prints the version and exits before Avalonia starts, so it needs no display: the
-        // release workflow asks each shipped GUI for it. "--smoke" starts the GUI as usual and quits it
-        // after a few seconds (App.OnFrameworkInitializationCompleted), the exit code saying whether it ran. On
-        // Windows both print to the console they were started from (WindowsConsole), or where they are redirected.
+        // "--version" prints the version and exits before SDL starts, so it needs no display: the release workflow
+        // asks each shipped GUI for it. "--smoke" starts the GUI as usual and quits it ten seconds after its main
+        // window opens (SdlHost), the exit code saying whether it ran. On Windows both print to the console they were
+        // started from (WindowsConsole), or where they are redirected.
         if (OperatingSystem.IsWindows() && args is ["--version"] or ["--smoke"])
         {
             WindowsConsole.AttachToParent();
@@ -23,10 +21,8 @@ internal static class Program
             Console.WriteLine($"Stoopid Chess {Version}");
             return 0;
         }
-        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        return SdlHost.Run(isSmokeTest: args is ["--smoke"]);
     }
-
-    public static AppBuilder BuildAvaloniaApp() => AppBuilder.Configure<App>().UsePlatformDetect().LogToTrace();
 
     /// <summary>
     /// The version the build stamped (Directory.Build.targets: MAJOR.MINOR.BUILD from the git tags).
