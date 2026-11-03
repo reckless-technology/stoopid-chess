@@ -508,9 +508,11 @@ jobs:
           ditto -c -k --keepParent "stage/$APP" "$RUNNER_TEMP/app-to-notarise.zip"
           tools/sign-macos.sh notarize "out/stoopid-chess-$VERSION-macos-arm64.zip"
           tools/sign-macos.sh notarize "$RUNNER_TEMP/app-to-notarise.zip"
-          # The app's ticket stapled to it, then zipped again: what ships opens from Finder with no network.
-          xcrun stapler staple "stage/$APP"
-          xcrun stapler validate "stage/$APP"
+          # The app's ticket stapled to it, then zipped again: what ships opens from Finder with no network. Stapling,
+          # validating and check's online notarisation check and Gatekeeper assessment ask Apple's servers, so the
+          # script tries each again, for about three minutes, when Apple's network drops or a ticket just issued is not
+          # served yet - and fails at once on anything else.
+          tools/sign-macos.sh staple "stage/$APP"
           ditto -c -k --keepParent "stage/$APP" "out/stoopid-chess-gui-$VERSION-macos-arm64.zip"
           rm -f "$RUNNER_TEMP/app-to-notarise.zip"
           tools/sign-macos.sh check "$engine" "stage/$APP"
@@ -526,7 +528,7 @@ jobs:
           find "$unzipped" -maxdepth 4 | sort
           codesign --verify --strict --verbose=2 "$unzipped/stoopid-chess-$VERSION-macos-arm64"
           codesign --verify --deep --strict --verbose=2 "$unzipped/$APP"
-          xcrun stapler validate "$unzipped/$APP"
+          tools/sign-macos.sh validate "$unzipped/$APP"
           name=$(printf 'uci\nquit\n' | "$unzipped/stoopid-chess-$VERSION-macos-arm64" | grep -m1 '^id name' || true)
           echo "$name"
           [ "$name" = "id name Stoopid Chess $VERSION" ] || { echo "::error::the engine says '$name'"; exit 1; }
