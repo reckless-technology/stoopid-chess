@@ -51,6 +51,11 @@ public sealed class UciEngineClient : IDisposable
     public bool HasExited => exited;
 
     /// <summary>
+    /// The external engine's process id; null for an engine in this process.
+    /// </summary>
+    internal int? ProcessId => process?.Id;
+
+    /// <summary>
     /// Raised on the reader thread for every "info" line the engine sends.
     /// </summary>
     public event EventHandler<string>? InfoReceived;
@@ -326,8 +331,8 @@ public sealed class UciEngineClient : IDisposable
     }
 
     /// <summary>
-    /// Ask the engine to quit and release the connection. An external engine that does not exit
-    /// promptly is killed.
+    /// Ask the engine to quit and release the connection: the pipes, and the process of an external engine, which is
+    /// killed when it does not exit promptly. Disposing an engine that has already died does not throw.
     /// </summary>
     public void Dispose()
     {
@@ -344,23 +349,33 @@ public sealed class UciEngineClient : IDisposable
             // Already gone
         }
         disposed = true;
-        if (process is not null)
+        if (process is not null && !process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds))
         {
-            if (!process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds))
+            try
             {
-                try
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-                catch (InvalidOperationException)
-                {
-                }
+                process.Kill(entireProcessTree: true);
             }
-            process.Dispose();
+            catch (InvalidOperationException)
+            {
+                // It exited after all
+            }
         }
         shutdown?.Invoke();
         readerThread.Join(ShutdownTimeout);
-        writer.Dispose();
-        reader.Dispose();
+        try
+        {
+            writer.Dispose();
+        }
+        catch (IOException) when (exited)
+        {
+            // A command the engine died before taking is still buffered (a write to a dead engine fails with the
+            // command left in the writer, or in the stream under it), and closing the writer tries to send it again.
+            // The writer and its stream close their pipe whether or not that last flush succeeds.
+        }
+        finally
+        {
+            reader.Dispose();
+            process?.Dispose();
+        }
     }
 }

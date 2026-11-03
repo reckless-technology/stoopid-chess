@@ -2,6 +2,7 @@ using StoopidChess.Core;
 using StoopidChess.Engine;
 using StoopidChess.Engine.Uci;
 using StoopidChess.Play;
+using StoopidChess.Tests.Engine;
 
 namespace StoopidChess.Tests.Play;
 
@@ -94,6 +95,28 @@ public class GameControllerEngineFailureTests
         Assert.Equal(["a1a8"], rig.IllegalMoves);
         Assert.Empty(rig.Controller.Game.Moves);
         Assert.Empty(rig.Failures);
+    });
+
+    [Fact]
+    public Task AnEngineThatDiesJustAsANewGameStartsIsDroppedWithoutAThrow() => ControllerThread.Run(async () =>
+    {
+        DeafEngine? deaf = null;
+        using var controller = new GameController
+        {
+            LimitsFor = _ => SearchLimits.ForDepth(1),
+            StartExternalEngine = path => (deaf = DeafEngine.StartAnswering(path, TimeSpan.FromMilliseconds(500))).Client,
+        };
+        var failures = new List<string>();
+        controller.EngineFailed += (_, message) => failures.Add(message);
+        Assert.True(await controller.StartEngineAsync("deaf").WaitAsync(Timeout));
+        using DeafEngine engine = deaf!;
+        engine.WaitUntilDeaf(Timeout);              // Dead, and the client cannot know yet
+        controller.NewGame(Color.White);            // "ucinewgame" fails; dropping the engine threw IOException
+        Assert.False(controller.HasEngine);
+        Assert.Null(controller.EngineName);
+        Assert.Equal(["The engine stopped responding: the engine has exited"], failures);
+        Assert.True(engine.IsCommandPipeReleased);
+        Assert.True(engine.IsReplyPipeReleased);
     });
 
     [Fact]

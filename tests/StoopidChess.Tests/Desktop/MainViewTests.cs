@@ -374,8 +374,6 @@ public sealed class MainViewTests : IDisposable
         await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
         Assert.Equal(("Engine", "The engine played an illegal move: a1a8"), rig.TakeMessage());
 
-        rig.Controller.NewGame(Color.White);                      // The person's move, so the next engine is asked nothing
-        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         string dies = rig.Register("dies", command => command.StartsWith("go", StringComparison.Ordinal) ? null : []);
         Assert.True(await rig.Controller.StartEngineAsync(dies));
         rig.Controller.NewGame(Color.Black);
