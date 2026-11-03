@@ -18,13 +18,18 @@ internal sealed class ViewHarness : IDisposable
 
     public ViewRoot Root { get; } = new();
 
-    public SKBitmap Bitmap { get; }
+    public SKBitmap Bitmap { get; private set; }
 
     /// <summary>
     /// The window drawn afresh; returns the bitmap.
     /// </summary>
     public SKBitmap Render()
     {
+        if (Bitmap.Width != (int)Root.Width || Bitmap.Height != (int)Root.Height)
+        {
+            Bitmap.Dispose();
+            Bitmap = new SKBitmap(new SKImageInfo((int)Root.Width, (int)Root.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        }
         using var canvas = new SKCanvas(Bitmap);
         Root.Render(canvas);
         canvas.Flush();

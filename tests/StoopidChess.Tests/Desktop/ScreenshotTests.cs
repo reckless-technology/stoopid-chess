@@ -48,6 +48,11 @@ public class ScreenshotTests
         {
             Save(window, "main-window");
             Assert.Equal(new SKColor(0xff1b1a1d), window.Bitmap.GetPixel(400, 5));     // The menu bar
+            window.Root.Resize(680, 540);
+            Save(window, "main-window-minimum");
+            window.Root.Resize(1400, 600);
+            Save(window, "main-window-wide");
+            window.Root.Resize(860, 660);
         }
     }
 

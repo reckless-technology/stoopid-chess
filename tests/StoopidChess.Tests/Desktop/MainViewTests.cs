@@ -139,12 +139,9 @@ public sealed class MainViewTests : IDisposable
         MainView view = rig.View;
         Assert.Equal(["File", "Edit", "Game", "View", "Engine", "Help"], view.MenuBar.Menus.Select(menu => menu.Text));
         Assert.Equal(MenuBarView.BarHeight, view.MenuBar.Height);
-        Assert.Equal(MainView.ColumnWidth, view.MoveList.Width);
         Assert.Equal(view.MoveList.Left(), view.MoveNowButton.Left());
         Assert.True(view.MoveNowButton.Bounds.Top > view.MoveList.Bounds.Bottom);
-        Assert.True(view.Board.Bounds.Right < view.MoveList.Bounds.Left);
         Assert.Equal(MainView.CaptureBinHeight, view.CaptureBin.Height);
-        Assert.True(view.CaptureBin.Bounds.Top > view.Board.Bounds.Bottom);
         Assert.Equal(660 - StatusBarView.BarHeight, view.StatusBar.Bounds.Top);
         Assert.False(view.MoveNowButton.IsEnabled);
         Assert.Equal("Stoopid Chess", rig.Platform.Title);
@@ -158,6 +155,52 @@ public sealed class MainViewTests : IDisposable
         Assert.Throws<ArgumentNullException>(() => new MainView(null!, rig.Controller, rig.Roster, rig.RosterPath));
         Assert.Throws<ArgumentNullException>(() => new MainView(rig.Platform, null!, rig.Roster, rig.RosterPath));
         Assert.Throws<ArgumentNullException>(() => new MainView(rig.Platform, rig.Controller, null!, rig.RosterPath));
+    }
+
+    [Theory]
+    [InlineData(860, 660)]      // The default size
+    [InlineData(680, 540)]      // The least
+    [InlineData(700, 1000)]     // Tall and narrow: the board is as wide as the column's least width allows
+    [InlineData(1400, 600)]     // Short and wide: the column takes the width the board cannot use
+    [InlineData(1200, 900)]
+    [InlineData(681, 541)]      // An odd size: the board is a whole number of pixels per square
+    public void TheBoardIsSquareAndTheMoveListColumnTakesTheRestOfTheWidth(int width, int height)
+    {
+        using var rig = new Rig(folder);
+        rig.Window.Root.Resize(width, height);
+        MainView view = rig.View;
+        BoardView board = view.Board;
+        float side = (8 * board.SquareSize) + (2 * BoardView.Edge);
+        Assert.Equal(side, board.Width);
+        Assert.Equal(side, board.Height);
+        Assert.Equal(MainView.Margin, board.Bounds.Left);
+        Assert.Equal(MenuBarView.BarHeight + MainView.Margin, board.Bounds.Top);
+        // The capture bin under the board, as wide as it
+        Assert.Equal(board.Bounds.Left, view.CaptureBin.Bounds.Left);
+        Assert.Equal(board.Width, view.CaptureBin.Width);
+        Assert.Equal(board.Bounds.Bottom + MainView.Margin, view.CaptureBin.Bounds.Top);
+        Assert.True(view.CaptureBin.Bounds.Bottom <= view.StatusBar.Bounds.Top - MainView.Margin);
+        // The column one margin right of the board, to the window's edge, never narrower than its least width
+        Assert.Equal(board.Bounds.Right + MainView.Margin, view.MoveList.Bounds.Left);
+        Assert.Equal(width - MainView.Margin, view.MoveList.Bounds.Right);
+        Assert.True(view.MoveList.Width >= MainView.ColumnWidth);
+        Assert.Equal(view.MoveList.Bounds.Left, view.MoveNowButton.Bounds.Left);
+        Assert.Equal(view.MoveList.Bounds.Right, view.MoveNowButton.Bounds.Right);
+        Assert.Equal(view.StatusBar.Bounds.Top - MainView.Margin, view.MoveNowButton.Bounds.Bottom);
+        // The board as large as it can be: one more pixel per square would cross the column's least width or the bin
+        float larger = side + 8;
+        Assert.True(larger > width - MainView.ColumnWidth - (3 * MainView.Margin)
+            || larger > view.StatusBar.Bounds.Top - MainView.Margin - MainView.CaptureBinHeight - MainView.Margin - board.Bounds.Top);
+        rig.Window.Render();
+    }
+
+    [Fact]
+    public void AtTheDefaultSizeTheBoardFillsTheHeightAndTheColumnTheWidth()
+    {
+        using var rig = new Rig(folder);
+        Assert.Equal(64, rig.View.Board.SquareSize);
+        Assert.Equal(332, rig.View.MoveList.Width);
+        Assert.Equal(0, rig.View.MoveList.Bounds.Left - rig.View.Board.Bounds.Right - MainView.Margin);
     }
 
     [Fact]

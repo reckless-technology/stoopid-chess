@@ -264,7 +264,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
     shortcuts, keyboard), `TextField`, `NumberField`, `ChoiceList` (lamps, for radio choices), `ChoiceButton` (a plate
     opening a menu), `LabelView`, `TextListView` (scrolls both ways) and `DialogView` (the veil and card; Return and
     Escape press its default and cancel buttons, Tab moves between fields; `ShowAsync` completes on close, inline).
-  - **The app**: `MainView` (menus, status bar, dialogs and the wiring - everything the Avalonia `MainWindow` did; it
+  - **The app**: `MainView` (the layout - the board as large as fits beside a right column of at least 290 px, the
+    capture bin under it as wide, the column taking all the rest of the width - and the menus, status bar, dialogs
+    and the wiring: everything the Avalonia `MainWindow` did; it
     redraws on `Changed`, its text from `GameText`, the engine list's file through `EngineRosterFile`, and asks the
     window system only through `IDesktopPlatform`: file dialogs, clipboard, title, another window, quit), `BoardView`
     and `CaptureBinView` (drawing and pointer input), `StatusBarView`, `AnalysisView`, `PieceImages` (the PNGs in

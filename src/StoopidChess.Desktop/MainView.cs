@@ -22,13 +22,14 @@ internal sealed class MainView : View, IDisposable
     /// <summary>The window's least size.</summary>
     public static readonly SKSizeI MinimumSize = new(680, 540);
 
-    /// <summary>The right column's width.</summary>
+    /// <summary>The right column's least width: it takes all the width the board leaves, and never less.</summary>
     public const float ColumnWidth = 290.0f;
 
     /// <summary>The capture bin's height.</summary>
     public const float CaptureBinHeight = 68.0f;
 
-    private const float Margin = 4.0f;
+    /// <summary>The margin round the panels, and between them.</summary>
+    public const float Margin = 4.0f;
 
     private const string HelpText =
         "To make a move, click the piece you wish to move, drag it to the target square and drop it. "
@@ -185,17 +186,26 @@ internal sealed class MainView : View, IDisposable
         controller.Dispose();
     }
 
+    /// <summary>
+    /// The board as large as the room left of the right column's least width allows, square and a whole number of
+    /// pixels per square, with the capture bin under it, as wide; the right column takes every pixel beside the board,
+    /// so nothing stands empty between them. The column is never narrower than <see cref="ColumnWidth"/>.
+    /// </summary>
     protected override void Layout()
     {
         MenuBar.SetBounds(SKRect.Create(0, 0, Width, MenuBarView.BarHeight));
         StatusBar.SetBounds(SKRect.Create(0, Height - StatusBarView.BarHeight, Width, StatusBarView.BarHeight));
         float top = MenuBarView.BarHeight + Margin;
         float bottom = Height - StatusBarView.BarHeight - Margin;
-        float columnLeft = Width - Margin - ColumnWidth;
+        float roomAcross = Width - ColumnWidth - (3 * Margin);
+        float roomDown = bottom - top - CaptureBinHeight - Margin;
+        float square = Math.Max(0, MathF.Floor((Math.Min(roomAcross, roomDown) - (2 * BoardView.Edge)) / 8));
+        float side = (8 * square) + (2 * BoardView.Edge);
+        Board.SetBounds(SKRect.Create(Margin, top, side, side));
+        CaptureBin.SetBounds(SKRect.Create(Margin, Board.Bounds.Bottom + Margin, side, CaptureBinHeight));
+        float columnLeft = Board.Bounds.Right + Margin;
         MoveList.SetBounds(new SKRect(columnLeft, top, Width - Margin, bottom - DialogView.ButtonHeight - Margin));
         MoveNowButton.SetBounds(new SKRect(columnLeft, bottom - DialogView.ButtonHeight, Width - Margin, bottom));
-        Board.SetBounds(new SKRect(Margin, top, columnLeft - Margin, bottom - CaptureBinHeight - Margin));
-        CaptureBin.SetBounds(new SKRect(Margin, bottom - CaptureBinHeight, columnLeft - Margin, bottom));
     }
 
     // ---------------------------------------------------------------------------------------------
