@@ -13,8 +13,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp" Version="3.119.4" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+    <!-- SkiaSharp and its native libraries, every one pinned at the same version: Windows' and macOS' come with
+         SkiaSharp itself and are named here so the pin is explicit; Linux's is the no-dependencies build (no
+         fontconfig or FreeType: the fonts are embedded). -->
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.154.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.154.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
     <PackageReference Include="ppy.SDL3-CS" Version="2026.1002.1" />
   </ItemGroup>
 

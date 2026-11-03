@@ -139,16 +139,17 @@ case "$os" in
     *) echo "unsupported system: $os (tools/setup-dev.ps1 is the Windows script)" >&2; exit 2 ;;
 esac
 
-# The shared libraries .NET loads (ICU for globalisation, OpenSSL for NuGet's HTTPS, zlib) and the GUI's SDL3 opens at
-# run time (X11 and its extensions, Wayland and xkbcommon, EGL and GL for a hardware renderer, D-Bus for the desktop
-# portal's file dialogs; its SkiaSharp is the build with no dependencies, its fonts embedded), looked for by file so the
-# check holds whatever a distribution release names their packages; a missing one is installed through the package
-# that provides it under a name every Debian-family release shares.
+# The shared libraries .NET loads (ICU for globalisation, OpenSSL for NuGet's HTTPS, zlib, and the C++ runtime, which
+# the GUI's SkiaSharp 4 also links) and the GUI's SDL3 opens at run time (X11 and its extensions, Wayland and
+# xkbcommon, EGL and GL for a hardware renderer, D-Bus for the desktop portal's file dialogs; its SkiaSharp is the
+# no-dependencies build, which needs no fontconfig or FreeType, its fonts embedded), looked for by file so the check
+# holds whatever a distribution release names their packages; a missing one is installed through the package that
+# provides it under a name every Debian-family release shares.
 if [ "$os" = Linux ] && have apt-get; then
     ldconfig_cmd=$(command -v ldconfig || echo /sbin/ldconfig)
     libs=$("$ldconfig_cmd" -p 2>/dev/null || true)
     lacking=()
-    for pair in libicuuc.so:libicu-dev libssl.so.3:libssl-dev libz.so.1:zlib1g \
+    for pair in libicuuc.so:libicu-dev libssl.so.3:libssl-dev libz.so.1:zlib1g libstdc++.so.6:libstdc++6 \
         libX11.so.6:libx11-6 libXext.so.6:libxext6 libXcursor.so.1:libxcursor1 libXi.so.6:libxi6 \
         libXrandr.so.2:libxrandr2 libxkbcommon.so.0:libxkbcommon0 libwayland-client.so.0:libwayland-client0 \
         libwayland-cursor.so.0:libwayland-cursor0 libwayland-egl.so.1:libwayland-egl1 libEGL.so.1:libegl1 \
@@ -156,7 +157,7 @@ if [ "$os" = Linux ] && have apt-get; then
         # A match on the text, not a pipe into grep -q: under pipefail, grep leaving early fails the writer with SIGPIPE.
         case "$libs" in *"${pair%%:*}"*) ;; *) lacking+=("${pair#*:}") ;; esac
     done
-    if [ ${#lacking[@]} = 0 ]; then ok 'runtime libraries' 'ICU, OpenSSL, zlib, X11, Wayland, EGL, GL, D-Bus'
+    if [ ${#lacking[@]} = 0 ]; then ok 'runtime libraries' 'ICU, OpenSSL, zlib, libstdc++, X11, Wayland, EGL, GL, D-Bus'
     else apt_packages "${lacking[@]}"; fi
 fi
 

@@ -381,10 +381,11 @@ internal sealed class MenuPopup : View
             {
                 // A tick: two strokes in the left column
                 var box = new SKRect(row.Left + 8, row.Top + 8, row.Left + TickColumn - 8, row.Bottom - 8);
-                using var tick = new SKPath();
-                tick.MoveTo(box.Left, box.Top + (box.Height * 0.55f));
-                tick.LineTo(box.Left + (box.Width * 0.4f), box.Bottom);
-                tick.LineTo(box.Right, box.Top);
+                using var strokes = new SKPathBuilder();
+                strokes.MoveTo(box.Left, box.Top + (box.Height * 0.55f));
+                strokes.LineTo(box.Left + (box.Width * 0.4f), box.Bottom);
+                strokes.LineTo(box.Right, box.Top);
+                using SKPath tick = strokes.Detach();
                 paint.Style = SKPaintStyle.Stroke;
                 paint.StrokeWidth = 1.8f;
                 paint.StrokeCap = SKStrokeCap.Round;
@@ -403,11 +404,12 @@ internal sealed class MenuPopup : View
                 // An arrow: a small triangle pointing right, in the right column
                 float x = row.Right - Padding - (ArrowColumn / 2);
                 float y = row.MidY;
-                using var arrow = new SKPath();
-                arrow.MoveTo(x - 3, y - 4);
-                arrow.LineTo(x - 3, y + 4);
-                arrow.LineTo(x + 3, y);
-                arrow.Close();
+                using var outline = new SKPathBuilder();
+                outline.MoveTo(x - 3, y - 4);
+                outline.LineTo(x - 3, y + 4);
+                outline.LineTo(x + 3, y);
+                outline.Close();
+                using SKPath arrow = outline.Detach();
                 paint.Style = SKPaintStyle.Fill;
                 paint.Color = ink;
                 canvas.DrawPath(arrow, paint);

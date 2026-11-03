@@ -215,7 +215,7 @@ redistribute and/or modify it under the terms of that license; it comes with **n
 
 The GUI's fonts are embedded in it with their licences (`src/StoopidChess.Desktop/Assets/Fonts/`): Noto Serif,
 Copyright 2022 The Noto Project Authors, and Monaspace Xenon, Copyright 2023 GitHub, both under the SIL Open Font
-License, version 1.1, as reckless-toolkit carries them. It is built on SkiaSharp (MIT; Skia itself under the BSD
+License, version 1.1, as reckless-toolkit carries them. It is built on SkiaSharp 4 (MIT; Skia itself under the BSD
 licence) and on SDL3 (the zlib licence) through the ppy.SDL3-CS binding (MIT), whose native libraries ship inside it.
 
 The chess piece images, in the GUI and in the application icon, are the "cburnett" set by

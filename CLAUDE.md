@@ -248,7 +248,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
   black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
   match). `EngineRoster` is the JSON-persisted list of registered external engines with their
   options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
-- **Desktop.** The GUI, the only one, drawn with SkiaSharp (3.119.4, its Linux natives the no-dependencies build) in
+- **Desktop.** The GUI, the only one, drawn with SkiaSharp (4.154.0, pinned with its Linux natives, the
+  no-dependencies build - no fontconfig, only the C and C++ runtimes; paths are built with `SKPathBuilder`, since v4
+  makes `SKPath`'s own mutators obsolete) in
   SDL3 windows (ppy.SDL3-CS, natives for every desktop platform in the package), in the Reckless series' look as
   Amphitheater wears it. Three layers:
   - **`Look/`**: `Theme` (Amphitheater's `src/app/Theme.h` tokens), `Fonts` (Noto Serif for the interface, Monaspace

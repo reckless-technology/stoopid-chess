@@ -53,11 +53,12 @@ internal static class Plates
         SKRect rect = Reduced(bounds, 1.0f);
         float x = rect.Right - ArrowInset;
         float y = rect.MidY;
-        using var triangle = new SKPath();
-        triangle.MoveTo(x - ArrowHalfWidth, y - 2.5f);
-        triangle.LineTo(x + ArrowHalfWidth, y - 2.5f);
-        triangle.LineTo(x, y + 3.0f);
-        triangle.Close();
+        using var outline = new SKPathBuilder();
+        outline.MoveTo(x - ArrowHalfWidth, y - 2.5f);
+        outline.LineTo(x + ArrowHalfWidth, y - 2.5f);
+        outline.LineTo(x, y + 3.0f);
+        outline.Close();
+        using SKPath triangle = outline.Detach();
         using var paint = new SKPaint { Color = color, IsAntialias = true };
         canvas.DrawPath(triangle, paint);
     }
