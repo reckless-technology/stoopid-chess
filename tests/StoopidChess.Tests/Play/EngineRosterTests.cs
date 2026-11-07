@@ -9,7 +9,7 @@ public class EngineRosterTests
     {
         var roster = new EngineRoster();
         roster.Add("Pawnstar 0.13.593", "/home/user/tools/pawnstar");
-        roster.Add("Zenith 1.2", "/home/user/tools/zenith");
+        roster.Add("Trebuchet 1.2", "/home/user/tools/trebuchet");
         using var stream = new MemoryStream();
         roster.Save(stream);
         stream.Position = 0;

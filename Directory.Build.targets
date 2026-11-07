@@ -1,7 +1,7 @@
 <Project>
 
   <!-- Stamp the version, MAJOR.MINOR.BUILD, from git alone - the rule every reckless-technology
-       project follows (pawnstar's cmake/version.cmake, zenith's and pawnstar-go's tools/version.sh):
+       project follows (pawnstar's cmake/version.cmake, trebuchet's and pawnstar-go's tools/version.sh):
        MAJOR.MINOR is the nearest annotated tag vMAJOR.MINOR reachable from HEAD, made by hand on main,
        and BUILD the number of commits since it, the tagged commit itself being 0. The release
        workflow's own three-component tags (vMAJOR.MINOR.BUILD) are excluded. A tree with no such tag

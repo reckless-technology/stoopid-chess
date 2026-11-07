@@ -4,7 +4,7 @@ namespace StoopidChess.Tests.Core;
 
 /// <summary>
 /// Move generation regression against the 128 standard perft positions embedded in the Core library
-/// (the Ethereal set, also used by pawnstar and zenith). To keep the suite fast, each position is
+/// (the Ethereal set, also used by pawnstar and trebuchet). To keep the suite fast, each position is
 /// searched to the deepest listed depth whose node count is below a budget; "StoopidChess.Uci perft"
 /// runs the full set to every listed depth.
 /// </summary>

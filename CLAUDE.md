@@ -58,7 +58,7 @@ sibling engines (README, "Versions and releases"). `gh workflow run release.yml 
 
 ## The testing discipline
 
-Same as the sibling engines pawnstar and zenith. Every change must keep the tests green, and:
+Same as the sibling engines pawnstar and trebuchet. Every change must keep the tests green, and:
 
 1. **Move generation is guarded by perft.** `tests/.../PerftTests.cs` runs every one of the 128
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
@@ -313,9 +313,9 @@ Same as the sibling engines pawnstar and zenith. Every change must keep the test
 - Everything must build, test and run on Linux, macOS and Windows (CI enforces it): no Windows-only
   APIs outside an `OperatingSystem.IsWindows()` guard.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
-  what pawnstar and zenith are for. Improve strength through hand-written terms, search and speed only.
+  what pawnstar and trebuchet are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
-- **Versioning** follows the organisation's rule (pawnstar, zenith, vst-plugins, ir-capture): the
+- **Versioning** follows the organisation's rule (pawnstar, trebuchet, vst-plugins, ir-capture): the
   version is `MAJOR.MINOR.BUILD` from git alone - the nearest annotated `vMAJOR.MINOR` tag and the
   commits since it, stamped by Directory.Build.targets at build time; 0.0.0 with no such tag
   reachable. Nothing in the tree is edited to release: tag `main` `vMAJOR.MINOR` and push the tag,

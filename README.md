@@ -75,7 +75,7 @@ figure; update it (and CLAUDE.md) whenever a change to search or evaluation is i
 
 ## Testing
 
-Modelled on the sibling engines pawnstar and zenith:
+Modelled on the sibling engines pawnstar and trebuchet:
 
 - **Perft** against the 128 standard positions (Ethereal's `standard.epd`, embedded in Core) is the
   move generation gate. The unit tests run each position to the deepest depth under 300k nodes;
@@ -154,7 +154,7 @@ shipped must report the version, and each GUI is started before it ships. The wo
 | `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
 | `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the GUI for Linux, each one self-contained file |
 
-**No source archive is published**, as in the sibling engines pawnstar and zenith. The source is this repository:
+**No source archive is published**, as in the sibling engines pawnstar and trebuchet. The source is this repository:
 clone or fork it. (GitHub attaches its own automatic "Source code" archives to every release, which are its doing and
 not the workflow's.)
 
@@ -193,7 +193,7 @@ in the window over a veil.
 ## Playing against other engines
 
 The engine executable works in any UCI GUI (Arena, Cute Chess, Banksia) and with tournament tools
-such as `cutechess-cli` or `fastchess`, which is how it can be measured against pawnstar or zenith.
+such as `cutechess-cli` or `fastchess`, which is how it can be measured against pawnstar or trebuchet.
 In the Stoopid Chess GUI, *Engine > Add UCI engine...* swaps the built-in engine for an external one.
 
 ## Saved games
