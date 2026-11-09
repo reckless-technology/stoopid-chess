@@ -65,13 +65,42 @@ the above and launch configurations for debugging the GUI and the engine.
 - Evaluation: the Simplified Evaluation Function (material and piece-square tables, with a separate
   king table in the endgame) as a baseline, plus whatever terms self-play has since justified;
   `docs/EVALUATION.md` is the log of every term tried, kept or not.
-- UCI: `uci`, `isready`, `setoption name Hash`, `ucinewgame`, `position`, `go` (depth, nodes,
+- UCI: `uci`, `isready`, `setoption` (see UCI options below), `ucinewgame`, `position`, `go` (depth, nodes,
   movetime, wtime/btime/winc/binc/movestogo, infinite), `stop`, `quit`; plus `d`, `eval`,
   `perft N` and `bench [depth]`.
 
 The search is deterministic, so the `bench` node count is a signature of the search and evaluation.
 Current values: depth 5 = 42,531 nodes, depth 6 = 79,698 nodes. A test asserts the depth-5
 figure; update it (and CLAUDE.md) whenever a change to search or evaluation is intended.
+
+## UCI options
+
+The engine advertises 34 options in answer to `uci`, all of type `spin`. A value outside its range
+is clamped to it, and an unknown option is ignored.
+
+| Option | Default | Min | Max | What it does |
+|---|---|---|---|---|
+| `Hash` | 64 | 1 | 1024 | Transposition table size in megabytes |
+
+The other 33 are the evaluation's tunable values, in centipawns. They exist so that the SPSA tuner
+(`tools/spsa.py`) can reach them, and the defaults are the tuned ones; there is seldom a reason to
+change them in play. Each is a bonus or a penalty applied for the term it is named after.
+
+| Option | Default | Range |
+|---|---|---|
+| `KnightValue`, `BishopValue`, `RookValue`, `QueenValue` | 324, 328, 510, 1016 | 200-500, 200-500, 350-750, 700-1400 |
+| `KnightMobility`, `BishopMobility`, `RookMobility`, `QueenMobility` | 5, 6, 7, 3 | 0-20 |
+| `KingZoneAttackPenalty`, `KingZoneQueenAttackPenalty`, `WeakKingSquarePenalty` | 4, 8, 16 | 0-20, 0-30, 0-50 |
+| `BishopPairBonus`, `TempoBonus`, `KnightOutpostBonus` | 43, 10, 27 | 0-120, 0-40, 0-60 |
+| `RookOpenFileBonus`, `RookSemiOpenFileBonus` | 15, 8 | 0-60 |
+| `IsolatedPawnPenalty`, `DoubledPawnPenalty`, `BackwardPawnPenalty`, `ConnectedPawnBonus` | 9, 11, 7, 6 | 0-40 |
+| `ShelterRank2`, `ShelterRank3`, `ShelterRank4` | 15, 11, 1 | 0-60 |
+| `ShelterMissing` | -16 | -80-0 |
+| `StormDistance2`, `StormDistance3`, `StormDistance4` | 19, 11, 9 | 0-60 |
+| `PassedRank2` to `PassedRank7` | 5, 6, 22, 42, 74, 124 | 0-60, 0-80, 0-120, 0-160, 0-240, 0-320 |
+
+The pawn terms are by rank from the pawn's own side (`Shelter` and `Passed`) or by the distance in
+ranks between the king and the pawn (`Storm`). `docs/EVALUATION.md` describes every term.
 
 ## Testing
 
