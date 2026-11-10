@@ -19,7 +19,7 @@
       <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura</Format>
-          <Exclude>[StoopidChess.Tests]*</Exclude>
+          <Exclude>[StoopidChess.Tests]*,[StoopidChess.App.Tests]*</Exclude>
           <ExcludeByFile>**/Sdl/*.cs,**/obj/**/*.cs</ExcludeByFile>
           <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
         </Configuration>

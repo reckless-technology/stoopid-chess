@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The tests of the application half: the game controller and UCI client (Play) and the GUI (Desktop), which
+       needs SkiaSharp and SDL3. The chess tests (Core, Engine, Uci) are in StoopidChess.Tests, which builds and runs
+       without any of that. -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>StoopidChess.Tests</RootNamespace>
+    <!-- Test methods are discovered by attribute; the analyzers' naming and design rules add noise here. -->
+    <NoWarn>$(NoWarn);CA1707;CA1861</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\StoopidChess.Core\StoopidChess.Core.csproj" />
+    <ProjectReference Include="..\..\src\StoopidChess.Desktop\StoopidChess.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\StoopidChess.Engine\StoopidChess.Engine.csproj" />
+    <ProjectReference Include="..\..\src\StoopidChess.Play\StoopidChess.Play.csproj" />
+    <!-- The engine executable the UCI client tests start as a child process is copied beside the tests. -->
+    <ProjectReference Include="..\..\src\StoopidChess.Uci\StoopidChess.Uci.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

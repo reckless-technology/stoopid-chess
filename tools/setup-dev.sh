@@ -240,5 +240,5 @@ if [ "$check" = 1 ]; then
     if [ "$missing" -gt 0 ]; then echo "$missing missing: run tools/setup-dev.sh (VS Code: the 'setup environment' task)."; exit 1; fi
     echo 'Everything is in place.'
 else
-    echo 'Done. Open a new terminal (or restart VS Code) for PATH changes to reach it, then: dotnet test tests/StoopidChess.Tests -c Release'
+    echo 'Done. Open a new terminal (or restart VS Code) for PATH changes to reach it, then: dotnet test StoopidChess.slnx -c Release'
 fi

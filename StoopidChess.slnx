@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/StoopidChess.Tests/StoopidChess.Tests.csproj" />
+    <Project Path="tests/StoopidChess.App.Tests/StoopidChess.App.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="Directory.Build.props" />

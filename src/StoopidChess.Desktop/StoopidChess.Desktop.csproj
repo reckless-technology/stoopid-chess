@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="StoopidChess.Tests" />
+    <InternalsVisibleTo Include="StoopidChess.App.Tests" />
   </ItemGroup>
 
   <ItemGroup>

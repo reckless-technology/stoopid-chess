@@ -74,7 +74,7 @@
       "detail": "Run the xunit test suite (Release, same as CI)",
       "type": "process",
       "command": "dotnet",
-      "args": ["test", "${workspaceFolder}/tests/StoopidChess.Tests/StoopidChess.Tests.csproj", "-c", "Release"],
+      "args": ["test", "${workspaceFolder}/StoopidChess.slnx", "-c", "Release"],
       "group": { "kind": "test", "isDefault": true },
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "clear": true }
@@ -84,7 +84,7 @@
       "detail": "Run the xunit test suite against a Debug build so Debug.Assert checks fire",
       "type": "process",
       "command": "dotnet",
-      "args": ["test", "${workspaceFolder}/tests/StoopidChess.Tests/StoopidChess.Tests.csproj", "-c", "Debug"],
+      "args": ["test", "${workspaceFolder}/StoopidChess.slnx", "-c", "Debug"],
       "group": "test",
       "problemMatcher": "$msCompile",
       "presentation": { "reveal": "always", "clear": true }

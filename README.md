@@ -13,7 +13,7 @@ and canonical as it can be, so that it is useful to someone learning chess progr
 Three commands, from a clone, with only the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) installed:
 
 ```bash
-dotnet test tests/StoopidChess.Tests -c Release                    # the test suite, a few seconds
+dotnet test StoopidChess.slnx -c Release                           # the test suite, a few seconds
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # the engine searches a fixed set of positions
 dotnet run --project src/StoopidChess.Desktop                      # play it
 ```
@@ -40,7 +40,8 @@ Nothing in `tools/` is needed to build, test or play; it holds the setup, match,
 | `src/StoopidChess.Play` | `GameController` and `UciEngineClient` (the GUI side of UCI: drives any engine, in-process or external): the state machine behind a chess GUI (game, the one engine it plays against, thinking, editing, chess clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level`, `SavedGame`, `BoardSetup` (a board being edited), and SAN and PGN. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
 | `src/StoopidChess.Desktop` | The GUI for Linux, macOS and Windows, drawn with SkiaSharp in an SDL3 window: drawing, mouse, keyboard and menus over `GameController`, talking to the engine only through UCI. It plays the built-in engine, or any UCI engine opened by its path; running matches between engines is what Amphitheater is for. |
-| `tests/StoopidChess.Tests` | xunit tests for everything above. |
+| `tests/StoopidChess.Tests` | xunit tests of the chess itself: Core, Engine and Uci. It builds and runs without the graphics stack. |
+| `tests/StoopidChess.App.Tests` | xunit tests of the application half: Play (`GameController`, the UCI client) and the GUI, which are drawn to bitmaps and driven by synthesized events. |
 
 Everything builds and runs on Linux, macOS and Windows.
 
@@ -60,8 +61,9 @@ Code they are the `setup environment`, `setup environment + tuning tools` and `c
 ```bash
 dotnet build StoopidChess.slnx -c Release          # everything (any OS)
 dotnet build src/StoopidChess.Uci -c Release       # engine only (any OS)
-dotnet test tests/StoopidChess.Tests -c Release    # the test suite
-dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
+dotnet test StoopidChess.slnx -c Release                        # the test suite, both projects
+dotnet test tests/StoopidChess.Tests -c Release    # only the chess tests (Core, Engine, Uci): no SkiaSharp or SDL3 needed
+dotnet test StoopidChess.slnx -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
 dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # line coverage per assembly, the 90% gate
 dotnet run --project src/StoopidChess.Desktop      # play (any OS)
 dotnet run --project src/StoopidChess.Uci -c Release -- bench      # search signature and speed

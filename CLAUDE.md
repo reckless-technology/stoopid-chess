@@ -30,11 +30,13 @@ In VS Code they are the `setup environment`, `setup environment + tuning tools` 
 ```bash
 dotnet build StoopidChess.slnx -c Release                         # everything, on any OS
 dotnet build src/StoopidChess.Uci -c Release                      # engine only
-dotnet test tests/StoopidChess.Tests -c Release                   # the xunit suite, a few seconds
-dotnet test tests/StoopidChess.Tests -c Release --filter "FullyQualifiedName~SearchTests"          # one class
-dotnet test tests/StoopidChess.Tests -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
-dotnet test tests/StoopidChess.Tests -c Debug                     # with the Debug.Assert checks in Position and Searcher on
-dotnet test tests/StoopidChess.Tests -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
+dotnet test StoopidChess.slnx -c Release                          # the whole xunit suite, a few seconds
+dotnet test tests/StoopidChess.Tests -c Release                   # only the chess tests (Core, Engine, Uci), no graphics stack
+dotnet test tests/StoopidChess.App.Tests -c Release               # only Play and the GUI
+dotnet test StoopidChess.slnx -c Release --filter "FullyQualifiedName~SearchTests"          # one class
+dotnet test StoopidChess.slnx -c Release --filter "Name=KeysAreMaintainedIncrementallyThroughRandomPlay"  # one test
+dotnet test StoopidChess.slnx -c Debug                            # with the Debug.Assert checks in Position and Searcher on
+dotnet test StoopidChess.slnx -c Release --settings tests/coverage.runsettings --collect "XPlat Code Coverage" --results-directory TestResults/coverage
 dotnet run tools/coverage-gate.cs -- TestResults/coverage --uncovered   # per-assembly line coverage, fails under 90%
 dotnet run --project src/StoopidChess.Uci -c Release -- bench 5   # deterministic node signature + nps (the test asserts depth 5; CI runs the default, 6)
 dotnet run --project src/StoopidChess.Uci -c Release -- perft 3   # all 128 standard perft positions, depths up to 3M nodes

@@ -186,7 +186,7 @@ jobs:
       - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
-        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
+        run: dotnet test StoopidChess.slnx -c Release
       - name: Perft (full standard set, depths up to 3M nodes)
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature
@@ -309,7 +309,7 @@ jobs:
       - name: Build solution
         run: dotnet build StoopidChess.slnx -c Release
       - name: Test
-        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release --no-build
+        run: dotnet test StoopidChess.slnx -c Release --no-build
       - name: Perft and the bench signature
         run: |
           dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
@@ -451,7 +451,7 @@ jobs:
       - name: Build GUI
         run: dotnet build src/StoopidChess.Desktop/StoopidChess.Desktop.csproj -c Release
       - name: Test
-        run: dotnet test tests/StoopidChess.Tests/StoopidChess.Tests.csproj -c Release
+        run: dotnet test StoopidChess.slnx -c Release
       - name: Perft (full standard set, depths up to 3M nodes)
         run: dotnet run --project src/StoopidChess.Uci -c Release --no-build -- perft 3
       - name: Bench signature

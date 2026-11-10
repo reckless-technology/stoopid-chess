@@ -208,5 +208,5 @@ if ($Check) {
   Write-Host 'Everything is in place.'
 }
 else {
-  Write-Host 'Done. Open a new terminal (or restart VS Code) for PATH changes to reach it, then: dotnet test tests/StoopidChess.Tests -c Release'
+  Write-Host 'Done. Open a new terminal (or restart VS Code) for PATH changes to reach it, then: dotnet test StoopidChess.slnx -c Release'
 }

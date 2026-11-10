@@ -152,7 +152,8 @@ to SDL or to a view, which is why the views can be tested without a window.
 
 ## Tests
 
-`tests/StoopidChess.Tests` holds everything. Perft against the standard positions gates move generation; make/unmake
+Two test projects, so the chess can be tested without the graphics stack: `tests/StoopidChess.Tests` holds Core, Engine
+and Uci; `tests/StoopidChess.App.Tests` holds Play and Desktop. Perft against the standard positions gates move generation; make/unmake
 invariants run over random games; the bench signature pins the search; the UCI session is driven through in-memory streams;
 `GameController` is played against the real in-process engine and against scripted fakes (an engine that answers at once,
 dies, or plays an illegal move); and every view is drawn to a bitmap and worked by synthesized events, so the whole
