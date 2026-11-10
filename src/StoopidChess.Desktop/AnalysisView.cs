@@ -15,7 +15,7 @@ internal sealed class AnalysisView : View
 
     private const float Margin = 6.0f;
 
-    private readonly List<string> lines = [];
+    private readonly List<string> _lines = [];
 
     public AnalysisView()
     {
@@ -35,12 +35,12 @@ internal sealed class AnalysisView : View
     /// </summary>
     public void Append(string line)
     {
-        lines.Add(line);
-        if (lines.Count > MaximumLines)
+        _lines.Add(line);
+        if (_lines.Count > MaximumLines)
         {
-            lines.RemoveRange(0, lines.Count - MaximumLines);
+            _lines.RemoveRange(0, _lines.Count - MaximumLines);
         }
-        Output.SetLines([.. lines]);
+        Output.SetLines([.. _lines]);
         Output.ScrollToEnd();
     }
 
@@ -49,15 +49,23 @@ internal sealed class AnalysisView : View
     /// </summary>
     public void Clear()
     {
-        lines.Clear();
+        _lines.Clear();
         Output.SetLines([]);
     }
 
     protected override void Layout()
     {
         float buttonWidth = 96;
-        Output.SetBounds(new SKRect(Margin, Margin, Width - Margin, Height - Margin - DialogView.ButtonHeight - Margin));
-        ClearButton.SetBounds(SKRect.Create(Width - Margin - buttonWidth, Height - Margin - DialogView.ButtonHeight,
-            buttonWidth, DialogView.ButtonHeight));
+        Output.SetBounds(
+            new SKRect(Margin, Margin, Width - Margin, Height - Margin - DialogView.ButtonHeight - Margin)
+        );
+        ClearButton.SetBounds(
+            SKRect.Create(
+                Width - Margin - buttonWidth,
+                Height - Margin - DialogView.ButtonHeight,
+                buttonWidth,
+                DialogView.ButtonHeight
+            )
+        );
     }
 }

@@ -23,15 +23,15 @@ namespace StoopidChess.Play;
 /// </summary>
 public sealed class GameController : IDisposable
 {
-    private static readonly TimeSpan EngineStartTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan s_engineStartTimeout = TimeSpan.FromSeconds(10);
 
-    private UciEngineClient? engine;
-    private bool startingEngine;
-    private CancellationTokenSource? thinking;
-    private Task? thinkingTask;
-    private int searchGeneration;               // Bumped whenever a pending engine reply must be discarded
-    private volatile string lastEngineInfo = "";
-    private bool disposed;
+    private UciEngineClient? _engine;
+    private bool _startingEngine;
+    private CancellationTokenSource? _thinking;
+    private Task? _thinkingTask;
+    private int _searchGeneration; // Bumped whenever a pending engine reply must be discarded
+    private volatile string _lastEngineInfo = "";
+    private bool _disposed;
 
     /// <summary>
     /// The game being played: the position, the moves so far and how it stands. Replaced by a new game, a loaded
@@ -101,17 +101,17 @@ public sealed class GameController : IDisposable
     /// Whether an engine is connected. It is not while one is starting, nor after one has died and the controller has
     /// given up on it.
     /// </summary>
-    public bool HasEngine => engine is not null;
+    public bool HasEngine => _engine is not null;
 
     /// <summary>
     /// Whether a search is under way, from the moment "go" is sent until the engine's reply has been handled.
     /// </summary>
-    public bool IsThinking => thinking is not null;
+    public bool IsThinking => _thinking is not null;
 
     /// <summary>
     /// The last "info" line with a principal variation from the engine, for display.
     /// </summary>
-    public string LastEngineInfo => lastEngineInfo;
+    public string LastEngineInfo => _lastEngineInfo;
 
     /// <summary>
     /// How the engine's search is limited for each level; replaceable for tests.
@@ -147,7 +147,8 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// The piece on a square of the board as shown; the default tuple is an empty square.
     /// </summary>
-    public (Color Color, Piece Type) PieceAt(Square square) => Editing is null ? Game.Position[square] : Editing[square];
+    public (Color Color, Piece Type) PieceAt(Square square) =>
+        Editing is null ? Game.Position[square] : Editing[square];
 
     /// <summary>
     /// Raised after any change to the game, the editor, the engine or the thinking state.
@@ -183,12 +184,12 @@ public sealed class GameController : IDisposable
     /// </summary>
     public async Task<bool> StartEngineAsync(string? path)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        if (startingEngine)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_startingEngine)
         {
             return false;
         }
-        startingEngine = true;
+        _startingEngine = true;
         try
         {
             // Throw away any search in progress and wait for it to unwind before the old engine goes
@@ -201,24 +202,24 @@ public sealed class GameController : IDisposable
             (UciEngineClient? client, string? failure) = await ConnectAsync(path);
             if (client is null)
             {
-                if (disposed)
+                if (_disposed)
                 {
                     return false;
                 }
                 EngineFailed?.Invoke(this, $"The engine could not be started: {failure}");
                 if (path is not null)
                 {
-                    startingEngine = false;
+                    _startingEngine = false;
                     await StartEngineAsync(null);
                 }
                 return false;
             }
-            engine = client;
+            _engine = client;
             EngineName = client.Name ?? Path.GetFileName(path) ?? "engine";
         }
         finally
         {
-            startingEngine = false;
+            _startingEngine = false;
         }
         Resume();
         return true;
@@ -235,11 +236,12 @@ public sealed class GameController : IDisposable
         {
             client = path is null ? UciEngineClient.StartInProcess() : StartExternalEngine(path);
             client.InfoReceived += OnEngineInfo;
-            using var timeout = new CancellationTokenSource(EngineStartTimeout);
+            using var timeout = new CancellationTokenSource(s_engineStartTimeout);
             await client.InitialiseAsync(timeout.Token);
             return (client, null);
         }
-        catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
+        catch (Exception ex)
+            when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
         {
             client?.Dispose();
             return (null, ex.Message);
@@ -251,7 +253,7 @@ public sealed class GameController : IDisposable
         // Raised on the engine reader thread; a volatile string reference needs no marshalling
         if (line.Contains(" pv ", StringComparison.Ordinal))
         {
-            lastEngineInfo = line;
+            _lastEngineInfo = line;
         }
         EngineInfo?.Invoke(this, line);
     }
@@ -262,11 +264,11 @@ public sealed class GameController : IDisposable
     /// </summary>
     private void StartThinkingIfEngineTurn()
     {
-        if (thinking is not null || !IsEngineTurn || disposed)
+        if (_thinking is not null || !IsEngineTurn || _disposed)
         {
             return;
         }
-        UciEngineClient? client = engine;
+        UciEngineClient? client = _engine;
         if (client is null)
         {
             return;
@@ -282,8 +284,8 @@ public sealed class GameController : IDisposable
             LoseEngine(ex.Message);
             return;
         }
-        thinking = new CancellationTokenSource();
-        thinkingTask = ThinkAsync(client, thinking, searchGeneration);
+        _thinking = new CancellationTokenSource();
+        _thinkingTask = ThinkAsync(client, _thinking, _searchGeneration);
         RaiseChanged();
     }
 
@@ -302,7 +304,8 @@ public sealed class GameController : IDisposable
             // play the move and start the next search inside StartThinkingIfEngineTurn, before it has
             // stored this task: it would then store this finished task over the running one, and
             // WaitUntilIdleAsync would report idle while that search ran on.
-            bestMove = await client.GoAsync(CurrentLimits(), cancellation.Token)
+            bestMove = await client
+                .GoAsync(CurrentLimits(), cancellation.Token)
                 .ConfigureAwait(ConfigureAwaitOptions.ContinueOnCapturedContext | ConfigureAwaitOptions.ForceYielding);
         }
         catch (InvalidOperationException ex)
@@ -311,26 +314,26 @@ public sealed class GameController : IDisposable
         }
         finally
         {
-            if (ReferenceEquals(thinking, cancellation))
+            if (ReferenceEquals(_thinking, cancellation))
             {
-                thinking.Dispose();
-                thinking = null;
+                _thinking.Dispose();
+                _thinking = null;
             }
         }
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
         if (failure is not null)
         {
-            if (ReferenceEquals(engine, client))
+            if (ReferenceEquals(_engine, client))
             {
-                LoseEngine(failure);        // Otherwise the engine was replaced deliberately
+                LoseEngine(failure); // Otherwise the engine was replaced deliberately
             }
             RaiseChanged();
             return;
         }
-        if (generation != searchGeneration)
+        if (generation != _searchGeneration)
         {
             // The game changed while the engine was thinking; its answer is for an old position
             Resume();
@@ -363,7 +366,9 @@ public sealed class GameController : IDisposable
             BlackTime = BlackClock,
             WhiteIncrement = TimeControl.Increment,
             BlackIncrement = TimeControl.Increment,
-            MovesToGo = TimeControl.MovesPerPeriod is int period ? period - (MovesMade(Game.SideToMove) % period) : null,
+            MovesToGo = TimeControl.MovesPerPeriod is int period
+                ? period - (MovesMade(Game.SideToMove) % period)
+                : null,
         };
     }
 
@@ -377,7 +382,7 @@ public sealed class GameController : IDisposable
     /// </summary>
     public async Task WaitUntilIdleAsync()
     {
-        while (thinkingTask is { IsCompleted: false } task)
+        while (_thinkingTask is { IsCompleted: false } task)
         {
             await task;
         }
@@ -391,9 +396,9 @@ public sealed class GameController : IDisposable
     {
         if (discardResult)
         {
-            searchGeneration++;
+            _searchGeneration++;
         }
-        thinking?.Cancel();
+        _thinking?.Cancel();
     }
 
     /// <summary>
@@ -424,8 +429,8 @@ public sealed class GameController : IDisposable
 
     private void DropEngine()
     {
-        engine?.Dispose();
-        engine = null;
+        _engine?.Dispose();
+        _engine = null;
         EngineName = null;
     }
 
@@ -438,14 +443,14 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void NewGame(Color human)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         CancelThinking(discardResult: true);
         Game = new Game();
         Editing = null;
         HumanColor = human;
         IsBoardFlipped = human == Color.Black;
         ResetClocks();
-        TryEngine(() => engine?.NewGame());
+        TryEngine(() => _engine?.NewGame());
         Resume();
     }
 
@@ -608,7 +613,7 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void SetPosition(Position position)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(position);
         if (position.IsValid)
         {
@@ -642,7 +647,7 @@ public sealed class GameController : IDisposable
         CancelThinking(discardResult: true);
         Game = new Game(position);
         Editing = null;
-        ResetClocks();      // A new position is a new game as far as the clocks are concerned
+        ResetClocks(); // A new position is a new game as far as the clocks are concerned
         Resume();
     }
 
@@ -655,10 +660,10 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void SetTimeControl(TimeControl timeControl)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(timeControl);
         TimeControl = timeControl;
-        CancelThinking(discardResult: true);     // A search under the old clock is restarted under the new
+        CancelThinking(discardResult: true); // A search under the old clock is restarted under the new
         ResetClocks();
         Resume();
     }
@@ -728,7 +733,7 @@ public sealed class GameController : IDisposable
         IsBoardFlipped = saved.IsBoardFlipped;
         Level = saved.Level;
         ResetClocks();
-        TryEngine(() => engine?.NewGame());
+        TryEngine(() => _engine?.NewGame());
         Resume();
         return true;
     }
@@ -737,13 +742,13 @@ public sealed class GameController : IDisposable
 
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
-        disposed = true;
+        _disposed = true;
         CancelThinking(discardResult: true);
         DropEngine();
-        thinking?.Dispose();
+        _thinking?.Dispose();
     }
 }

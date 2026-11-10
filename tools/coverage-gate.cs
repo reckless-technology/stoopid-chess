@@ -18,7 +18,14 @@ const double Threshold = 0.90;
 
 // Every assembly the gate covers must be in the report: one that vanished (a filter that stopped matching
 // it, a reference dropped from the test project) would otherwise raise the total by leaving its lines out.
-string[] gated = ["StoopidChess.Core", "StoopidChess.Engine", "StoopidChess.Play", "StoopidChess.Desktop", "stoopid-chess"];
+string[] gated =
+[
+    "StoopidChess.Core",
+    "StoopidChess.Engine",
+    "StoopidChess.Play",
+    "StoopidChess.Desktop",
+    "stoopid-chess",
+];
 
 bool listUncovered = args.Contains("--uncovered");
 List<string> reports = [];
@@ -40,7 +47,9 @@ foreach (string arg in args.Where(a => a != "--uncovered"))
 }
 if (reports.Count == 0)
 {
-    Console.Error.WriteLine("coverage-gate: no coverage.cobertura.xml found; usage: coverage-gate.cs <report or directory>... [--uncovered]");
+    Console.Error.WriteLine(
+        "coverage-gate: no coverage.cobertura.xml found; usage: coverage-gate.cs <report or directory>... [--uncovered]"
+    );
     return 2;
 }
 
@@ -72,16 +81,21 @@ foreach (string report in reports)
 
 int totalValid = 0;
 int totalCovered = 0;
-Console.WriteLine($"{"assembly",-24} {"lines",7} {"covered",8} {"rate",8}");
-foreach (IGrouping<string, KeyValuePair<(string Assembly, string File), SortedDictionary<int, bool>>> assembly in lines.GroupBy(e => e.Key.Assembly))
+Console.WriteLine($"{"assembly", -24} {"lines", 7} {"covered", 8} {"rate", 8}");
+foreach (
+    IGrouping<
+        string,
+        KeyValuePair<(string Assembly, string File), SortedDictionary<int, bool>>
+    > assembly in lines.GroupBy(e => e.Key.Assembly)
+)
 {
     int valid = assembly.Sum(e => e.Value.Count);
     int covered = assembly.Sum(e => e.Value.Count(l => l.Value));
     totalValid += valid;
     totalCovered += covered;
-    Console.WriteLine($"{assembly.Key,-24} {valid,7} {covered,8} {Percent(covered, valid),8}");
+    Console.WriteLine($"{assembly.Key, -24} {valid, 7} {covered, 8} {Percent(covered, valid), 8}");
 }
-Console.WriteLine($"{"total",-24} {totalValid,7} {totalCovered,8} {Percent(totalCovered, totalValid),8}");
+Console.WriteLine($"{"total", -24} {totalValid, 7} {totalCovered, 8} {Percent(totalCovered, totalValid), 8}");
 
 if (listUncovered)
 {
@@ -105,10 +119,14 @@ if (missing.Length > 0)
 double rate = totalValid == 0 ? 0 : (double)totalCovered / totalValid;
 if (rate < Threshold)
 {
-    Console.Error.WriteLine($"coverage-gate: line coverage {Percent(totalCovered, totalValid)} is under the {Threshold:P0} threshold.");
+    Console.Error.WriteLine(
+        $"coverage-gate: line coverage {Percent(totalCovered, totalValid)} is under the {Threshold:P0} threshold."
+    );
     return 1;
 }
-Console.WriteLine($"coverage-gate: line coverage {Percent(totalCovered, totalValid)} meets the {Threshold:P0} threshold.");
+Console.WriteLine(
+    $"coverage-gate: line coverage {Percent(totalCovered, totalValid)} meets the {Threshold:P0} threshold."
+);
 return 0;
 
 static string Percent(int covered, int valid) =>

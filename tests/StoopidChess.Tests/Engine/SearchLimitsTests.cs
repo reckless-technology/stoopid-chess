@@ -11,27 +11,45 @@ public class SearchLimitsTests
     {
         Assert.Null(new SearchLimits().TimeAllocation(Color.White)?.Budget);
         Assert.Null(SearchLimits.ForDepth(5).TimeAllocation(Color.White)?.Budget);
-        Assert.Null(new SearchLimits { Infinite = true, MoveTime = TimeSpan.FromSeconds(1) }.TimeAllocation(Color.White)?.Budget);
+        Assert.Null(
+            new SearchLimits { Infinite = true, MoveTime = TimeSpan.FromSeconds(1) }
+                .TimeAllocation(Color.White)
+                ?.Budget
+        );
     }
 
     [Fact]
     public void MoveTimeIsUsedExactly()
     {
-        Assert.Equal((TimeSpan.FromMilliseconds(1234), TimeSpan.FromMilliseconds(1234)), SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(1234)).TimeAllocation(Color.Black));
+        Assert.Equal(
+            (TimeSpan.FromMilliseconds(1234), TimeSpan.FromMilliseconds(1234)),
+            SearchLimits.ForMoveTime(TimeSpan.FromMilliseconds(1234)).TimeAllocation(Color.Black)
+        );
     }
 
     [Fact]
     public void TheCapIsMostOfTheClock()
     {
         var limits = new SearchLimits { WhiteTime = TimeSpan.FromSeconds(10), BlackTime = TimeSpan.FromSeconds(1) };
-        Assert.Equal(TimeSpan.FromSeconds(8) - SearchLimits.MoveOverhead, limits.TimeAllocation(Color.White)!.Value.Cap);
-        Assert.Equal(TimeSpan.FromMilliseconds(800) - SearchLimits.MoveOverhead, limits.TimeAllocation(Color.Black)!.Value.Cap);
+        Assert.Equal(
+            TimeSpan.FromSeconds(8) - SearchLimits.MoveOverhead,
+            limits.TimeAllocation(Color.White)!.Value.Cap
+        );
+        Assert.Equal(
+            TimeSpan.FromMilliseconds(800) - SearchLimits.MoveOverhead,
+            limits.TimeAllocation(Color.Black)!.Value.Cap
+        );
     }
 
     [Fact]
     public void ClockTimeIsSharedOverTheRemainingMoves()
     {
-        var limits = new SearchLimits { WhiteTime = TimeSpan.FromSeconds(60), BlackTime = TimeSpan.FromSeconds(6), WhiteIncrement = TimeSpan.FromSeconds(1) };
+        var limits = new SearchLimits
+        {
+            WhiteTime = TimeSpan.FromSeconds(60),
+            BlackTime = TimeSpan.FromSeconds(6),
+            WhiteIncrement = TimeSpan.FromSeconds(1),
+        };
         TimeSpan white = limits.TimeAllocation(Color.White)!.Value.Budget;
         TimeSpan black = limits.TimeAllocation(Color.Black)!.Value.Budget;
         // 60s / 20 moves + 80% of the increment, less overhead
@@ -51,7 +69,11 @@ public class SearchLimitsTests
     [Fact]
     public void NeverSpendsMoreThanMostOfTheClock()
     {
-        var limits = new SearchLimits { WhiteTime = TimeSpan.FromMilliseconds(100), WhiteIncrement = TimeSpan.FromSeconds(5) };
+        var limits = new SearchLimits
+        {
+            WhiteTime = TimeSpan.FromMilliseconds(100),
+            WhiteIncrement = TimeSpan.FromSeconds(5),
+        };
         Assert.True(limits.TimeAllocation(Color.White)!.Value.Budget <= TimeSpan.FromMilliseconds(80));
         var tiny = new SearchLimits { WhiteTime = TimeSpan.FromMilliseconds(1) };
         Assert.Equal(SearchLimits.MinimumThinkingTime, tiny.TimeAllocation(Color.White)?.Budget);
@@ -72,6 +94,9 @@ public class SearchLimitsTests
         };
         TimeSpan budget = limits.TimeAllocation(Color.White)!.Value.Budget;
         Assert.True(budget >= SearchLimits.MinimumThinkingTime);
-        Assert.True(budget <= TimeSpan.FromMilliseconds(Math.Max(clockMs, 0) + SearchLimits.MinimumThinkingTime.TotalMilliseconds));
+        Assert.True(
+            budget
+                <= TimeSpan.FromMilliseconds(Math.Max(clockMs, 0) + SearchLimits.MinimumThinkingTime.TotalMilliseconds)
+        );
     }
 }

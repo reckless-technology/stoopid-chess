@@ -32,16 +32,35 @@ for (int i = 0; i < args.Length; i++)
     string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException($"{args[i]} needs a value");
     switch (args[i])
     {
-        case "--opponent": opponent = Next(); break;
-        case "--baseline": isBaseline = true; break;
-        case "--opponent-option": opponentOptions.Add(Next()); break;
-        case "--fastchess": fastchess = Next(); break;
-        case "--openings": openings = Next(); break;
-        case "--tc": timeControl = Next(); break;
-        case "--rounds": rounds = Next(); break;
-        case "--concurrency": concurrency = Next(); break;
-        case "--pgn": pgn = Next(); break;
-        default: return Usage($"unknown argument: {args[i]}");
+        case "--opponent":
+            opponent = Next();
+            break;
+        case "--baseline":
+            isBaseline = true;
+            break;
+        case "--opponent-option":
+            opponentOptions.Add(Next());
+            break;
+        case "--fastchess":
+            fastchess = Next();
+            break;
+        case "--openings":
+            openings = Next();
+            break;
+        case "--tc":
+            timeControl = Next();
+            break;
+        case "--rounds":
+            rounds = Next();
+            break;
+        case "--concurrency":
+            concurrency = Next();
+            break;
+        case "--pgn":
+            pgn = Next();
+            break;
+        default:
+            return Usage($"unknown argument: {args[i]}");
     }
 }
 if (isBaseline)
@@ -56,7 +75,20 @@ rounds ??= isBaseline ? "50" : "20";
 pgn ??= isBaseline ? "selfplay.pgn" : "match.pgn";
 fastchess ??= FindFastchess();
 
-if (Run("dotnet", ["build", Path.Combine(repo, "src", "StoopidChess.Uci", "StoopidChess.Uci.csproj"), "-c", "Release", "--nologo", "-v", "q"]) != 0)
+if (
+    Run(
+        "dotnet",
+        [
+            "build",
+            Path.Combine(repo, "src", "StoopidChess.Uci", "StoopidChess.Uci.csproj"),
+            "-c",
+            "Release",
+            "--nologo",
+            "-v",
+            "q",
+        ]
+    ) != 0
+)
 {
     Console.Error.WriteLine("the engine did not build");
     return 1;
@@ -64,19 +96,42 @@ if (Run("dotnet", ["build", Path.Combine(repo, "src", "StoopidChess.Uci", "Stoop
 string engine = Path.Combine(repo, "src", "StoopidChess.Uci", "bin", "Release", "net10.0", "stoopid-chess" + exe);
 List<string> fastchessArguments =
 [
-    "-engine", $"cmd={engine}", "name=StoopidChess",
-    "-engine", $"cmd={opponent}", $"name={Path.GetFileNameWithoutExtension(opponent)}", .. opponentOptions,
-    "-each", $"tc={timeControl}", "-rounds", rounds, "-games", "2", "-repeat", "-concurrency", concurrency,
-    "-openings", $"file={openings}", "format=epd", "order=random",
-    "-pgnout", $"file={pgn}", "-ratinginterval", "10",
+    "-engine",
+    $"cmd={engine}",
+    "name=StoopidChess",
+    "-engine",
+    $"cmd={opponent}",
+    $"name={Path.GetFileNameWithoutExtension(opponent)}",
+    .. opponentOptions,
+    "-each",
+    $"tc={timeControl}",
+    "-rounds",
+    rounds,
+    "-games",
+    "2",
+    "-repeat",
+    "-concurrency",
+    concurrency,
+    "-openings",
+    $"file={openings}",
+    "format=epd",
+    "order=random",
+    "-pgnout",
+    $"file={pgn}",
+    "-ratinginterval",
+    "10",
 ];
 return Run(fastchess, fastchessArguments);
 
 static int Usage(string problem)
 {
     Console.Error.WriteLine(problem);
-    Console.Error.WriteLine("usage: dotnet run tools/match.cs -- (--opponent <uci engine> | --baseline) [--opponent-option option.X=Y]...");
-    Console.Error.WriteLine("       [--fastchess <path>] [--openings <epd>] [--tc 12+0.12] [--rounds 20|50] [--concurrency 8] [--pgn match.pgn]");
+    Console.Error.WriteLine(
+        "usage: dotnet run tools/match.cs -- (--opponent <uci engine> | --baseline) [--opponent-option option.X=Y]..."
+    );
+    Console.Error.WriteLine(
+        "       [--fastchess <path>] [--openings <epd>] [--tc 12+0.12] [--rounds 20|50] [--concurrency 8] [--pgn match.pgn]"
+    );
     return 2;
 }
 
@@ -95,13 +150,21 @@ static int Run(string command, IEnumerable<string> arguments)
 // The fastchess the setup script installed: the pinned line for this platform in tools/tuning-tools.txt, else the PATH's.
 string FindFastchess()
 {
-    string os = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
+    string os =
+        OperatingSystem.IsWindows() ? "windows"
+        : OperatingSystem.IsMacOS() ? "macos"
+        : "linux";
     string architecture = RuntimeInformation.OSArchitecture == Architecture.Arm64 ? "arm64" : "x64";
     string platform = $"{os}-{architecture}";
     foreach (string line in File.ReadLines(Path.Combine(repo, "tools", "tuning-tools.txt")))
     {
         string[] fields = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (fields.Length > 3 && fields[0] == "fastchess" && fields[2] == platform && File.Exists(Path.Combine(tools, fields[3])))
+        if (
+            fields.Length > 3
+            && fields[0] == "fastchess"
+            && fields[2] == platform
+            && File.Exists(Path.Combine(tools, fields[3]))
+        )
         {
             return Path.Combine(tools, fields[3]);
         }

@@ -37,8 +37,14 @@ internal static class Drawing
     /// One line of text, centred down <paramref name="box"/> and aligned across it, cut with an ellipsis where it is
     /// wider than the box.
     /// </summary>
-    public static void Text(SKCanvas canvas, string text, SKRect box, SKFont font, SKColor color,
-        TextAlignment alignment = TextAlignment.Left)
+    public static void Text(
+        SKCanvas canvas,
+        string text,
+        SKRect box,
+        SKFont font,
+        SKColor color,
+        TextAlignment alignment = TextAlignment.Left
+    )
     {
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(font);
@@ -116,9 +122,10 @@ internal static class Drawing
         ArgumentNullException.ThrowIfNull(canvas);
         ArgumentNullException.ThrowIfNull(image);
         float scale = canvas.TotalMatrix.ScaleX * destination.Width / image.Width;
-        SKSamplingOptions sampling = scale > 1.0f
-            ? new SKSamplingOptions(SKCubicResampler.Mitchell)
-            : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        SKSamplingOptions sampling =
+            scale > 1.0f
+                ? new SKSamplingOptions(SKCubicResampler.Mitchell)
+                : new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         using var paint = new SKPaint { IsAntialias = true };
         canvas.DrawImage(image, destination, sampling, paint);
     }

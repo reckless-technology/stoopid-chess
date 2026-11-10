@@ -12,9 +12,9 @@ namespace StoopidChess.Engine;
 public enum NodeType : byte
 {
     None = 0,
-    Exact = 1,          // The score is the true minimax score
-    LowerBound = 2,     // The search failed high: the true score is at least this (beta cutoff)
-    UpperBound = 3,     // The search failed low: the true score is at most this (no move improved alpha)
+    Exact = 1, // The score is the true minimax score
+    LowerBound = 2, // The search failed high: the true score is at least this (beta cutoff)
+    UpperBound = 3, // The search failed low: the true score is at most this (no move improved alpha)
 }
 
 /// <summary>
@@ -24,22 +24,22 @@ public enum NodeType : byte
 [StructLayout(LayoutKind.Sequential, Pack = 8, Size = 16)]
 public readonly struct TranspositionEntry(ulong key, Move bestMove, int score, int depth, NodeType type)
 {
-    private readonly uint move = bestMove.ToBits();
-    private readonly short score = (short)Math.Clamp(score, short.MinValue, short.MaxValue);
-    private readonly byte depth = (byte)Math.Clamp(depth, 0, byte.MaxValue);
-    private readonly NodeType type = type;
+    private readonly uint _move = bestMove.ToBits();
+    private readonly short _score = (short)Math.Clamp(score, short.MinValue, short.MaxValue);
+    private readonly byte _depth = (byte)Math.Clamp(depth, 0, byte.MaxValue);
+    private readonly NodeType _type = type;
 
     public ulong Key { get; } = key;
 
-    public Move BestMove => Move.FromBits(move);
+    public Move BestMove => Move.FromBits(_move);
 
-    public int Score => score;
+    public int Score => _score;
 
-    public int Depth => depth;
+    public int Depth => _depth;
 
-    public NodeType Type => type;
+    public NodeType Type => _type;
 
-    public bool IsEmpty => type == NodeType.None;
+    public bool IsEmpty => _type == NodeType.None;
 }
 
 /// <summary>
@@ -62,13 +62,13 @@ public sealed class TranspositionTable
 
     private const int EntrySize = 16;
 
-    private TranspositionEntry[] entries;   // [2 * index] depth-preferred, [2 * index + 1] always-replace
-    private int shift;
-    private ulong touched;   // Accumulator that keeps the Prefetch read alive; never used
+    private TranspositionEntry[] _entries; // [2 * index] depth-preferred, [2 * index + 1] always-replace
+    private int _shift;
+    private ulong _touched; // Accumulator that keeps the Prefetch read alive; never used
 
     public TranspositionTable(int sizeInMegabytes = DefaultSizeInMegabytes)
     {
-        entries = [];
+        _entries = [];
         Resize(sizeInMegabytes);
     }
 
@@ -77,7 +77,7 @@ public sealed class TranspositionTable
     /// <summary>
     /// Number of index positions; each holds two entries.
     /// </summary>
-    public int Capacity => entries.Length / 2;
+    public int Capacity => _entries.Length / 2;
 
     /// <summary>
     /// Discard all entries and allocate for the new size (rounded down to a power of two of entries).
@@ -89,13 +89,13 @@ public sealed class TranspositionTable
         int bits = (int)Math.Log2(entriesPerTable);
         int capacity = 1 << bits;
         SizeInMegabytes = sizeInMegabytes;
-        shift = 64 - bits;
-        entries = new TranspositionEntry[2L * capacity];
+        _shift = 64 - bits;
+        _entries = new TranspositionEntry[2L * capacity];
     }
 
     public void Clear()
     {
-        Array.Clear(entries);
+        Array.Clear(_entries);
     }
 
     /// <summary>
@@ -104,34 +104,34 @@ public sealed class TranspositionTable
     /// </summary>
     public void Prefetch(ulong key)
     {
-        int index = (int)(key >> shift) << 1;
-        touched ^= entries[index].Key;
+        int index = (int)(key >> _shift) << 1;
+        _touched ^= _entries[index].Key;
     }
 
     public bool TryGet(ulong key, out TranspositionEntry entry)
     {
-        int index = (int)(key >> shift) << 1;
-        entry = entries[index];
+        int index = (int)(key >> _shift) << 1;
+        entry = _entries[index];
         if (Matches(entry, key))
         {
             return true;
         }
-        entry = entries[index + 1];
+        entry = _entries[index + 1];
         return Matches(entry, key);
     }
 
     public void Store(ulong key, Move bestMove, int score, int depth, NodeType type)
     {
-        int index = (int)(key >> shift) << 1;
+        int index = (int)(key >> _shift) << 1;
         var entry = new TranspositionEntry(key, bestMove, score, depth, type);
-        ref TranspositionEntry preferred = ref entries[index];
+        ref TranspositionEntry preferred = ref _entries[index];
         if (preferred.IsEmpty || preferred.Depth <= depth || preferred.Key == key)
         {
             preferred = entry;
         }
         else
         {
-            entries[index + 1] = entry;
+            _entries[index + 1] = entry;
         }
     }
 

@@ -34,10 +34,17 @@ internal static class Plates
         ArgumentNullException.ThrowIfNull(canvas);
         SKRect plate = Reduced(bounds, 1.0f);
         bool isLit = isPointerOver || isHeld || isOn;
-        SKColor fill = isHeld ? Theme.Plate.Brighter(PressedLift) : isLit ? Theme.Plate.Brighter(LitLift) : Theme.Plate;
+        SKColor fill =
+            isHeld ? Theme.Plate.Brighter(PressedLift)
+            : isLit ? Theme.Plate.Brighter(LitLift)
+            : Theme.Plate;
         using var paint = new SKPaint { Color = fill, IsAntialias = true };
         canvas.DrawRoundRect(plate, 4.0f, 4.0f, paint);
-        paint.Color = Theme.AmberDim.WithMultipliedAlpha(isOn ? 1.8f : isLit ? 1.6f : 1.0f);
+        paint.Color = Theme.AmberDim.WithMultipliedAlpha(
+            isOn ? 1.8f
+            : isLit ? 1.6f
+            : 1.0f
+        );
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1.2f;
         canvas.DrawRoundRect(plate, 4.0f, 4.0f, paint);
@@ -81,13 +88,22 @@ internal static class Plates
             canvas.DrawCircle(centre, radius + (0.6f * LampDiameter), paint);
             paint.Color = Theme.LampAmber.WithOpacity(0.45f);
             canvas.DrawCircle(centre, radius + (0.25f * LampDiameter), paint);
-            paint.Shader = SKShader.CreateRadialGradient(centre, radius, [Theme.LampCentre, Theme.LampAmber], SKShaderTileMode.Clamp);
+            paint.Shader = SKShader.CreateRadialGradient(
+                centre,
+                radius,
+                [Theme.LampCentre, Theme.LampAmber],
+                SKShaderTileMode.Clamp
+            );
         }
         else
         {
             var highlight = new SKPoint(centre.X - (0.2f * LampDiameter), centre.Y - (0.2f * LampDiameter));
-            paint.Shader = SKShader.CreateRadialGradient(highlight, LampDiameter,
-                [Theme.LensGlass.Brighter(0.6f), Theme.LensGlass.Darker(0.4f)], SKShaderTileMode.Clamp);
+            paint.Shader = SKShader.CreateRadialGradient(
+                highlight,
+                LampDiameter,
+                [Theme.LensGlass.Brighter(0.6f), Theme.LensGlass.Darker(0.4f)],
+                SKShaderTileMode.Clamp
+            );
         }
         canvas.DrawCircle(centre, radius, paint);
         paint.Shader = null;

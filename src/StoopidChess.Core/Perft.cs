@@ -87,9 +87,13 @@ public static class Perft
             foreach (string field in fields.Skip(1))
             {
                 string[] parts = field.Trim().Split(' ');
-                if (parts.Length != 2 || parts[0].Length < 2 || parts[0][0] != 'D'
+                if (
+                    parts.Length != 2
+                    || parts[0].Length < 2
+                    || parts[0][0] != 'D'
                     || !int.TryParse(parts[0].AsSpan(1), NumberStyles.None, CultureInfo.InvariantCulture, out int depth)
-                    || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out long nodes))
+                    || !long.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out long nodes)
+                )
                 {
                     throw new FormatException($"invalid perft depth field '{field}'");
                 }
@@ -101,7 +105,8 @@ public static class Perft
 
     private static List<PerftPosition> LoadStandardPositions()
     {
-        using Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("perft.epd")
+        using Stream stream =
+            Assembly.GetExecutingAssembly().GetManifestResourceStream("perft.epd")
             ?? throw new InvalidOperationException("perft.epd resource is missing");
         using var reader = new StreamReader(stream);
         var lines = new List<string>();

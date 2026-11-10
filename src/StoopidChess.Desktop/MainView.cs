@@ -40,10 +40,10 @@ internal sealed class MainView : View, IDisposable
         + "Each side must have strictly one king on the board before play is allowed to resume following "
         + "a position edit.";
 
-    private static readonly FileFilter ChessFiles = new("Stoopid Chess games", "chess");
-    private static readonly FileFilter PgnFiles = new("PGN", "pgn");
+    private static readonly FileFilter s_chessFiles = new("Stoopid Chess games", "chess");
+    private static readonly FileFilter s_pgnFiles = new("PGN", "pgn");
 
-    private static readonly TimeControl[] TimeControls =
+    private static readonly TimeControl[] s_timeControls =
     [
         TimeControl.Periods(40, 5),
         TimeControl.Periods(40, 40),
@@ -55,7 +55,7 @@ internal sealed class MainView : View, IDisposable
         TimeControl.OfMinutes(30, 0),
     ];
 
-    private static readonly (string Header, Level Level)[] LevelChoices =
+    private static readonly (string Header, Level Level)[] s_levelChoices =
     [
         ("Beginner", Level.Beginner),
         ("Easy", Level.Easy),
@@ -64,53 +64,61 @@ internal sealed class MainView : View, IDisposable
         ("Best (slow)", Level.Best),
     ];
 
-    private readonly IDesktopPlatform platform;
-    private readonly GameController controller;
-    private readonly SynchronizationContext? uiContext = SynchronizationContext.Current;
-    private readonly List<(MenuItem Item, TimeControl Clock)> timeControlItems = [];
-    private readonly List<(MenuItem Item, Level Level)> levelItems = [];
-    private readonly MenuItem engineMenu = new("Engine");
-    private readonly MenuItem builtInEngineItem;
-    private readonly MenuItem showEngineOutputItem;
-    private readonly List<MenuItem> editMenu;
-    private Square editSquare = Square.None;      // Square the edit menu was opened on
-    private string? shownTitle;
-    private IDesktopWindow? analysisWindow;
+    private readonly IDesktopPlatform _platform;
+    private readonly GameController _controller;
+    private readonly SynchronizationContext? _uiContext = SynchronizationContext.Current;
+    private readonly List<(MenuItem Item, TimeControl Clock)> _timeControlItems = [];
+    private readonly List<(MenuItem Item, Level Level)> _levelItems = [];
+    private readonly MenuItem _engineMenu = new("Engine");
+    private readonly MenuItem _builtInEngineItem;
+    private readonly MenuItem _showEngineOutputItem;
+    private readonly List<MenuItem> _editMenu;
+    private Square _editSquare = Square.None; // Square the edit menu was opened on
+    private string? _shownTitle;
+    private IDesktopWindow? _analysisWindow;
 
     public MainView(IDesktopPlatform platform, GameController controller)
     {
         ArgumentNullException.ThrowIfNull(platform);
         ArgumentNullException.ThrowIfNull(controller);
-        this.platform = platform;
-        this.controller = controller;
-        builtInEngineItem = new MenuItem("Use built-in engine", () => _ = StartEngineSafelyAsync(null));
-        showEngineOutputItem = new MenuItem("Show engine output in move list", () =>
-        {
-            showEngineOutputItem!.IsChecked = !showEngineOutputItem.IsChecked;
-            UpdateMoveList();
-        });
+        this._platform = platform;
+        this._controller = controller;
+        _builtInEngineItem = new MenuItem("Use built-in engine", () => _ = StartEngineSafelyAsync(null));
+        _showEngineOutputItem = new MenuItem(
+            "Show engine output in move list",
+            () =>
+            {
+                _showEngineOutputItem!.IsChecked = !_showEngineOutputItem.IsChecked;
+                UpdateMoveList();
+            }
+        );
         BuildMenus();
-        editMenu = BuildEditMenu();
+        _editMenu = BuildEditMenu();
 
         Board.Controller = controller;
         CaptureBin.Controller = controller;
         Board.MoveDropped += (from, to) => _ = OnMoveDroppedAsync(from, to);
         Board.EditRequested += OpenEditMenu;
-        Board.EditingIncomplete += () => _ = ShowMessageAsync("Editing position",
-            "The position is not legal yet. Each side needs exactly one king, no pawns on the first or "
-            + "last rank, and the side that is not to move may not be in check.");
+        Board.EditingIncomplete += () =>
+            _ = ShowMessageAsync(
+                "Editing position",
+                "The position is not legal yet. Each side needs exactly one king, no pawns on the first or "
+                    + "last rank, and the side that is not to move may not be in check."
+            );
         MoveNowButton.Clicked += controller.MoveNow;
         controller.Changed += (_, _) => Refresh();
-        controller.EngineFailed += (_, message) => _ = ShowMessageAsync("Engine",
-            message + "\n\nChoose an engine from the Engine menu to continue.");
-        controller.EngineIllegalMove += (_, move) => _ = ShowMessageAsync("Engine", $"The engine played an illegal move: {move}");
-        controller.EngineInfo += (_, line) => OnUiThread(() =>
-        {
-            if (Analysis is { } analysis && GameText.InfoLine(line) is { } formatted)
+        controller.EngineFailed += (_, message) =>
+            _ = ShowMessageAsync("Engine", message + "\n\nChoose an engine from the Engine menu to continue.");
+        controller.EngineIllegalMove += (_, move) =>
+            _ = ShowMessageAsync("Engine", $"The engine played an illegal move: {move}");
+        controller.EngineInfo += (_, line) =>
+            OnUiThread(() =>
             {
-                analysis.Append(formatted);
-            }
-        });
+                if (Analysis is { } analysis && GameText.InfoLine(line) is { } formatted)
+                {
+                    analysis.Append(formatted);
+                }
+            });
 
         AddChild(MenuBar);
         AddChild(Board);
@@ -143,7 +151,7 @@ internal sealed class MainView : View, IDisposable
     public AnalysisView? Analysis { get; private set; }
 
     /// <summary>The engine menu's rows, as they stand.</summary>
-    public IReadOnlyList<MenuItem> EngineMenuItems => engineMenu.Items;
+    public IReadOnlyList<MenuItem> EngineMenuItems => _engineMenu.Items;
 
     /// <summary>
     /// Start the built-in engine, as the window opens.
@@ -152,7 +160,7 @@ internal sealed class MainView : View, IDisposable
     {
         try
         {
-            await controller.StartEngineAsync(null);
+            await _controller.StartEngineAsync(null);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -165,7 +173,7 @@ internal sealed class MainView : View, IDisposable
     /// </summary>
     public void Tick(TimeSpan elapsed)
     {
-        controller.Tick(elapsed);
+        _controller.Tick(elapsed);
         UpdateStatusBar();
     }
 
@@ -174,8 +182,8 @@ internal sealed class MainView : View, IDisposable
     /// </summary>
     public void Dispose()
     {
-        analysisWindow?.Close();
-        controller.Dispose();
+        _analysisWindow?.Close();
+        _controller.Dispose();
     }
 
     /// <summary>
@@ -209,69 +217,66 @@ internal sealed class MainView : View, IDisposable
     private void BuildMenus()
     {
         var file = new MenuItem("File");
-        file.Items.AddRange(
-        [
+        file.Items.AddRange([
             new MenuItem("Save game", () => _ = SaveGameAsync()) { Shortcut = Keys(Key.S) },
             new MenuItem("Load game", () => _ = LoadGameAsync()) { Shortcut = Keys(Key.O) },
             MenuItem.Separator(),
             new MenuItem("Import PGN...", () => _ = ImportPgnAsync()),
             new MenuItem("Export PGN...", () => _ = ExportPgnAsync()),
             MenuItem.Separator(),
-            new MenuItem("Exit", platform.Quit) { Shortcut = Keys(Key.Q) },
+            new MenuItem("Exit", _platform.Quit) { Shortcut = Keys(Key.Q) },
         ]);
         var edit = new MenuItem("Edit");
-        edit.Items.AddRange(
-        [
+        edit.Items.AddRange([
             new MenuItem("Copy FEN", CopyFen) { Shortcut = Keys(Key.C) },
             new MenuItem("Paste FEN", () => _ = PasteFenAsync()) { Shortcut = Keys(Key.V) },
         ]);
         var newGame = new MenuItem("New Game");
-        newGame.Items.AddRange(
-        [
-            new MenuItem("White", () => controller.NewGame(Color.White)) { Shortcut = Keys(Key.N) },
-            new MenuItem("Black", () => controller.NewGame(Color.Black)) { Shortcut = Keys(Key.N, KeyModifiers.Primary | KeyModifiers.Shift) },
+        newGame.Items.AddRange([
+            new MenuItem("White", () => _controller.NewGame(Color.White)) { Shortcut = Keys(Key.N) },
+            new MenuItem("Black", () => _controller.NewGame(Color.Black))
+            {
+                Shortcut = Keys(Key.N, KeyModifiers.Primary | KeyModifiers.Shift),
+            },
         ]);
         var timeControl = new MenuItem("Time control");
-        foreach (TimeControl clock in TimeControls)
+        foreach (TimeControl clock in s_timeControls)
         {
-            var item = new MenuItem(clock.ToString(), () => controller.SetTimeControl(clock));
-            timeControlItems.Add((item, clock));
+            var item = new MenuItem(clock.ToString(), () => _controller.SetTimeControl(clock));
+            _timeControlItems.Add((item, clock));
             timeControl.Items.Add(item);
         }
         var level = new MenuItem("Set level");
-        foreach ((string header, Level value) in LevelChoices)
+        foreach ((string header, Level value) in s_levelChoices)
         {
             var item = new MenuItem(header, () => SetLevel(value));
-            levelItems.Add((item, value));
+            _levelItems.Add((item, value));
             level.Items.Add(item);
         }
         var game = new MenuItem("Game");
-        game.Items.AddRange(
-        [
+        game.Items.AddRange([
             newGame,
-            new MenuItem("Undo last move", controller.Undo) { Shortcut = Keys(Key.Z) },
-            new MenuItem("Switch sides", controller.SwitchSides),
+            new MenuItem("Undo last move", _controller.Undo) { Shortcut = Keys(Key.Z) },
+            new MenuItem("Switch sides", _controller.SwitchSides),
             timeControl,
             level,
         ]);
         var view = new MenuItem("View");
-        view.Items.AddRange(
-        [
+        view.Items.AddRange([
             new MenuItem("Flip position", FlipBoard) { Shortcut = Keys(Key.F) },
             new MenuItem("Analysis window", ToggleAnalysis) { Shortcut = Keys(Key.A) },
         ]);
         BuildEngineMenu();
-        MenuBar.Menus.AddRange([file, edit, game, view, engineMenu, new MenuItem("Help", () => _ = ShowHelpAsync())]);
+        MenuBar.Menus.AddRange([file, edit, game, view, _engineMenu, new MenuItem("Help", () => _ = ShowHelpAsync())]);
     }
 
     private void BuildEngineMenu()
     {
-        engineMenu.Items.AddRange(
-        [
-            builtInEngineItem,
+        _engineMenu.Items.AddRange([
+            _builtInEngineItem,
             new MenuItem("Open UCI engine...", () => _ = OpenEngineAsync()),
             MenuItem.Separator(),
-            showEngineOutputItem,
+            _showEngineOutputItem,
         ]);
     }
 
@@ -280,30 +285,34 @@ internal sealed class MainView : View, IDisposable
         MenuItem PieceSubmenu(Color color)
         {
             var submenu = new MenuItem(color.ToString());
-            foreach (Piece type in new[] { Piece.Pawn, Piece.Knight, Piece.Bishop, Piece.Rook, Piece.Queen, Piece.King })
+            foreach (
+                Piece type in new[] { Piece.Pawn, Piece.Knight, Piece.Bishop, Piece.Rook, Piece.Queen, Piece.King }
+            )
             {
-                submenu.Items.Add(new MenuItem(type.ToString(), () => controller.EditSquare(editSquare, (color, type))));
+                submenu.Items.Add(
+                    new MenuItem(type.ToString(), () => _controller.EditSquare(_editSquare, (color, type)))
+                );
             }
             return submenu;
         }
         return
         [
-            new MenuItem("Clear square", () => controller.EditSquare(editSquare, default)),
+            new MenuItem("Clear square", () => _controller.EditSquare(_editSquare, default)),
             PieceSubmenu(Color.White),
             PieceSubmenu(Color.Black),
-            new MenuItem("Clear entire position", controller.ClearBoard),
+            new MenuItem("Clear entire position", _controller.ClearBoard),
             MenuItem.Separator(),
-            new MenuItem("White to move", () => controller.SetSideToMove(Color.White)),
-            new MenuItem("Black to move", () => controller.SetSideToMove(Color.Black)),
+            new MenuItem("White to move", () => _controller.SetSideToMove(Color.White)),
+            new MenuItem("Black to move", () => _controller.SetSideToMove(Color.Black)),
         ];
     }
 
     private void OpenEditMenu(Square square, SKPoint at)
     {
-        editSquare = square;
+        _editSquare = square;
         if (Root is { } root)
         {
-            MenuPopup.Open(root, editMenu, at);
+            MenuPopup.Open(root, _editMenu, at);
         }
     }
 
@@ -313,31 +322,31 @@ internal sealed class MainView : View, IDisposable
 
     private void Refresh()
     {
-        string title = GameText.Title(controller);
-        if (title != shownTitle)
+        string title = GameText.Title(_controller);
+        if (title != _shownTitle)
         {
-            shownTitle = title;
-            platform.SetTitle(title);
+            _shownTitle = title;
+            _platform.SetTitle(title);
         }
-        MoveNowButton.IsEnabled = controller.IsThinking;
+        MoveNowButton.IsEnabled = _controller.IsThinking;
         UpdateMoveList();
         UpdateStatusBar();
-        builtInEngineItem.IsChecked = controller.EnginePath is null;
-        foreach ((MenuItem item, TimeControl clock) in timeControlItems)
+        _builtInEngineItem.IsChecked = _controller.EnginePath is null;
+        foreach ((MenuItem item, TimeControl clock) in _timeControlItems)
         {
-            item.IsChecked = clock == controller.TimeControl;
+            item.IsChecked = clock == _controller.TimeControl;
         }
-        foreach ((MenuItem item, Level level) in levelItems)
+        foreach ((MenuItem item, Level level) in _levelItems)
         {
-            item.IsChecked = level == controller.Level;
+            item.IsChecked = level == _controller.Level;
         }
         Invalidate();
     }
 
     private void UpdateMoveList()
     {
-        MoveList.SetText(GameText.MoveList(controller, showEngineOutputItem.IsChecked));
-        if (!controller.IsEditing)
+        MoveList.SetText(GameText.MoveList(_controller, _showEngineOutputItem.IsChecked));
+        if (!_controller.IsEditing)
         {
             MoveList.ScrollToEnd();
         }
@@ -345,17 +354,25 @@ internal sealed class MainView : View, IDisposable
 
     private void UpdateStatusBar()
     {
-        bool isClockRunning = !controller.IsGameOver && !controller.IsEditing;
+        bool isClockRunning = !_controller.IsGameOver && !_controller.IsEditing;
         StatusBar.Segments =
         [
-            new StatusSegment("You are playing:", GameText.HumanColor(controller)),
-            new StatusSegment("Color to move:", controller.SideToMove.ToString()),
-            new StatusSegment("Difficulty:", GameText.Difficulty(controller)),
-            new StatusSegment("", controller.TimeControl.ToString()),
-            new StatusSegment("White clock:", GameText.Clock(controller.WhiteClock), IsClock: true,
-                IsRunning: isClockRunning && controller.SideToMove == Color.White),
-            new StatusSegment("Black clock:", GameText.Clock(controller.BlackClock), IsClock: true,
-                IsRunning: isClockRunning && controller.SideToMove == Color.Black),
+            new StatusSegment("You are playing:", GameText.HumanColor(_controller)),
+            new StatusSegment("Color to move:", _controller.SideToMove.ToString()),
+            new StatusSegment("Difficulty:", GameText.Difficulty(_controller)),
+            new StatusSegment("", _controller.TimeControl.ToString()),
+            new StatusSegment(
+                "White clock:",
+                GameText.Clock(_controller.WhiteClock),
+                IsClock: true,
+                IsRunning: isClockRunning && _controller.SideToMove == Color.White
+            ),
+            new StatusSegment(
+                "Black clock:",
+                GameText.Clock(_controller.BlackClock),
+                IsClock: true,
+                IsRunning: isClockRunning && _controller.SideToMove == Color.Black
+            ),
         ];
     }
 
@@ -369,21 +386,40 @@ internal sealed class MainView : View, IDisposable
         {
             switch (e.Key)
             {
-                case Key.C: CopyFen(); return true;
-                case Key.V: _ = PasteFenAsync(); return true;
-                case Key.N: controller.NewGame(Color.White); return true;
-                case Key.Z: controller.Undo(); return true;
-                case Key.S: _ = SaveGameAsync(); return true;
-                case Key.O: _ = LoadGameAsync(); return true;
-                case Key.F: FlipBoard(); return true;
-                case Key.A: ToggleAnalysis(); return true;
-                case Key.Q: platform.Quit(); return true;
-                default: return false;
+                case Key.C:
+                    CopyFen();
+                    return true;
+                case Key.V:
+                    _ = PasteFenAsync();
+                    return true;
+                case Key.N:
+                    _controller.NewGame(Color.White);
+                    return true;
+                case Key.Z:
+                    _controller.Undo();
+                    return true;
+                case Key.S:
+                    _ = SaveGameAsync();
+                    return true;
+                case Key.O:
+                    _ = LoadGameAsync();
+                    return true;
+                case Key.F:
+                    FlipBoard();
+                    return true;
+                case Key.A:
+                    ToggleAnalysis();
+                    return true;
+                case Key.Q:
+                    _platform.Quit();
+                    return true;
+                default:
+                    return false;
             }
         }
         if (e.Is(Key.N, KeyModifiers.Primary | KeyModifiers.Shift))
         {
-            controller.NewGame(Color.Black);
+            _controller.NewGame(Color.Black);
             return true;
         }
         if (e.Modifiers == KeyModifiers.Alt && e.Key is >= Key.A and <= Key.Z)
@@ -405,10 +441,10 @@ internal sealed class MainView : View, IDisposable
     /// </summary>
     private async Task OnMoveDroppedAsync(Square from, Square to)
     {
-        IReadOnlyList<Move> candidates = controller.HumanMoveCandidates(from, to);
+        IReadOnlyList<Move> candidates = _controller.HumanMoveCandidates(from, to);
         if (candidates.Count == 0)
         {
-            if (controller.IsHumanTurn)
+            if (_controller.IsHumanTurn)
             {
                 await ShowMessageAsync("Illegal move", "That move is not permitted.");
             }
@@ -417,15 +453,15 @@ internal sealed class MainView : View, IDisposable
         Piece promotion = Piece.None;
         if (candidates.Count > 1)
         {
-            var dialog = new PromotionDialog(controller.HumanColor);
+            var dialog = new PromotionDialog(_controller.HumanColor);
             await ShowDialogAsync(dialog);
             promotion = dialog.Choice;
             if (promotion == Piece.None)
             {
-                return;     // Escape cancels the move: nothing is promoted by default
+                return; // Escape cancels the move: nothing is promoted by default
             }
         }
-        controller.TryHumanMove(from, to, promotion);
+        _controller.TryHumanMove(from, to, promotion);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -434,19 +470,19 @@ internal sealed class MainView : View, IDisposable
 
     private void SetLevel(Level level)
     {
-        controller.Level = level;
+        _controller.Level = level;
         Refresh();
     }
 
     private void FlipBoard()
     {
-        controller.IsBoardFlipped = !controller.IsBoardFlipped;
+        _controller.IsBoardFlipped = !_controller.IsBoardFlipped;
         Board.Invalidate();
     }
 
     private void ToggleAnalysis()
     {
-        if (analysisWindow is { } open)
+        if (_analysisWindow is { } open)
         {
             open.Activate();
             return;
@@ -454,18 +490,24 @@ internal sealed class MainView : View, IDisposable
         var analysis = new AnalysisView();
         var root = new ViewRoot { Content = analysis };
         Analysis = analysis;
-        analysisWindow = platform.OpenWindow("Analysis", 720, 400, root, () =>
-        {
-            analysisWindow = null;
-            Analysis = null;
-        });
+        _analysisWindow = _platform.OpenWindow(
+            "Analysis",
+            720,
+            400,
+            root,
+            () =>
+            {
+                _analysisWindow = null;
+                Analysis = null;
+            }
+        );
     }
 
-    private void CopyFen() => platform.SetClipboardText(controller.CurrentFen);
+    private void CopyFen() => _platform.SetClipboardText(_controller.CurrentFen);
 
     private async Task PasteFenAsync()
     {
-        string? text = platform.GetClipboardText();
+        string? text = _platform.GetClipboardText();
         if (string.IsNullOrWhiteSpace(text))
         {
             return;
@@ -475,7 +517,7 @@ internal sealed class MainView : View, IDisposable
             await ShowMessageAsync("Paste FEN", "The clipboard does not hold a valid FEN position.");
             return;
         }
-        controller.SetPosition(position);
+        _controller.SetPosition(position);
     }
 
     private Task ShowHelpAsync() => ShowMessageAsync($"Stoopid Chess {Program.Version}", HelpText);
@@ -493,13 +535,16 @@ internal sealed class MainView : View, IDisposable
 
     private async Task SaveGameAsync()
     {
-        SavedGame? saved = controller.Save();
+        SavedGame? saved = _controller.Save();
         if (saved is null)
         {
             await ShowMessageAsync("Save game", "Finish editing the position before saving.");
             return;
         }
-        if (await ChooseFileAsync(() => platform.ChooseFileToSaveAsync("Save game", "game.chess", [ChessFiles])) is not { } chosen)
+        if (
+            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Save game", "game.chess", [s_chessFiles]))
+            is not { } chosen
+        )
         {
             return;
         }
@@ -516,7 +561,10 @@ internal sealed class MainView : View, IDisposable
 
     private async Task LoadGameAsync()
     {
-        if (await ChooseFileAsync(() => platform.ChooseFileToOpenAsync("Load game", [ChessFiles, FileFilter.All])) is not { } path)
+        if (
+            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Load game", [s_chessFiles, FileFilter.All]))
+            is not { } path
+        )
         {
             return;
         }
@@ -531,7 +579,7 @@ internal sealed class MainView : View, IDisposable
             await ShowMessageAsync("Load game", $"Unable to load the game:\n{ex.Message}");
             return;
         }
-        if (saved is null || !controller.Load(saved))
+        if (saved is null || !_controller.Load(saved))
         {
             await ShowMessageAsync("Load game", "This file does not contain a game in Stoopid Chess format.");
         }
@@ -539,7 +587,10 @@ internal sealed class MainView : View, IDisposable
 
     private async Task ImportPgnAsync()
     {
-        if (await ChooseFileAsync(() => platform.ChooseFileToOpenAsync("Import PGN", [PgnFiles, FileFilter.All])) is not { } path)
+        if (
+            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Import PGN", [s_pgnFiles, FileFilter.All]))
+            is not { } path
+        )
         {
             return;
         }
@@ -558,29 +609,40 @@ internal sealed class MainView : View, IDisposable
             await ShowMessageAsync("Import PGN", "The file does not hold a readable PGN game.");
             return;
         }
-        controller.Load(new SavedGame
-        {
-            StartFen = game.StartFen,
-            Moves = [.. game.UciMoves],
-            HumanColor = controller.HumanColor,
-            IsBoardFlipped = controller.IsBoardFlipped,
-            Level = controller.Level,
-        });
+        _controller.Load(
+            new SavedGame
+            {
+                StartFen = game.StartFen,
+                Moves = [.. game.UciMoves],
+                HumanColor = _controller.HumanColor,
+                IsBoardFlipped = _controller.IsBoardFlipped,
+                Level = _controller.Level,
+            }
+        );
     }
 
     private async Task ExportPgnAsync()
     {
-        if (controller.IsEditing)
+        if (_controller.IsEditing)
         {
             await ShowMessageAsync("Export PGN", "Finish editing the position before exporting.");
             return;
         }
-        if (await ChooseFileAsync(() => platform.ChooseFileToSaveAsync("Export PGN", "game.pgn", [PgnFiles])) is not { } chosen)
+        if (
+            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Export PGN", "game.pgn", [s_pgnFiles]))
+            is not { } chosen
+        )
         {
             return;
         }
-        (string white, string black) = GameText.PlayerNames(controller);
-        string pgn = Pgn.Write(controller.Game, white, black, GameText.Result(controller), DateOnly.FromDateTime(DateTime.Now));
+        (string white, string black) = GameText.PlayerNames(_controller);
+        string pgn = Pgn.Write(
+            _controller.Game,
+            white,
+            black,
+            GameText.Result(_controller),
+            DateOnly.FromDateTime(DateTime.Now)
+        );
         try
         {
             await File.WriteAllTextAsync(WithExtension(chosen, "pgn"), pgn);
@@ -599,7 +661,7 @@ internal sealed class MainView : View, IDisposable
     {
         try
         {
-            return await controller.StartEngineAsync(path);
+            return await _controller.StartEngineAsync(path);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -613,7 +675,10 @@ internal sealed class MainView : View, IDisposable
     /// </summary>
     private async Task OpenEngineAsync()
     {
-        if (await ChooseFileAsync(() => platform.ChooseFileToOpenAsync("Choose a UCI engine", [FileFilter.All])) is { } path)
+        if (
+            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Choose a UCI engine", [FileFilter.All])) is
+            { } path
+        )
         {
             await StartEngineSafelyAsync(path);
         }
@@ -648,13 +713,13 @@ internal sealed class MainView : View, IDisposable
     /// </summary>
     private void OnUiThread(Action action)
     {
-        if (uiContext is null)
+        if (_uiContext is null)
         {
             action();
         }
         else
         {
-            uiContext.Post(_ => action(), null);
+            _uiContext.Post(_ => action(), null);
         }
     }
 }

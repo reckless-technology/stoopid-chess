@@ -12,22 +12,31 @@ public class DialogFrameTests
 {
     private sealed class TwoFieldDialog : DialogView
     {
-        public TwoFieldDialog(bool hasCancel = true) : base("Two fields")
+        public TwoFieldDialog(bool hasCancel = true)
+            : base("Two fields")
         {
             AddChild(First);
             AddChild(Second);
-            AddButton("OK", () =>
-            {
-                Answer = "ok";
-                Close();
-            }, isDefault: true);
+            AddButton(
+                "OK",
+                () =>
+                {
+                    Answer = "ok";
+                    Close();
+                },
+                isDefault: true
+            );
             if (hasCancel)
             {
-                AddButton("Cancel", () =>
-                {
-                    Answer = "cancel";
-                    Close();
-                }, isCancel: true);
+                AddButton(
+                    "Cancel",
+                    () =>
+                    {
+                        Answer = "cancel";
+                        Close();
+                    },
+                    isCancel: true
+                );
             }
         }
 
@@ -57,14 +66,14 @@ public class DialogFrameTests
         Assert.False(shown.IsCompleted);
         Assert.Equal(new SKPoint(300, 200), new SKPoint(dialog.Card.MidX, dialog.Card.MidY));
         Assert.Equal(Theme.Window, window.ColorAt(dialog.Card.Left + 5, dialog.Card.MidY));
-        Assert.NotEqual(Theme.Window, window.ColorAt(5, 5));                     // The veil darkens the rest
+        Assert.NotEqual(Theme.Window, window.ColorAt(5, 5)); // The veil darkens the rest
         window.Key(Key.Tab);
         Assert.True(dialog.Second.IsFocused);
         window.Key(Key.Tab, KeyModifiers.Shift);
         Assert.True(dialog.First.IsFocused);
-        window.Click(new SKPoint(5, 5));                                         // The veil: nothing happens
+        window.Click(new SKPoint(5, 5)); // The veil: nothing happens
         Assert.False(dialog.IsClosed);
-        window.Key(Key.F, KeyModifiers.Primary);                                 // Modal: no key passes it
+        window.Key(Key.F, KeyModifiers.Primary); // Modal: no key passes it
         Assert.Empty(panel.UnhandledKeys);
         window.Key(Key.Return);
         await shown;

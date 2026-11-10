@@ -13,10 +13,10 @@ namespace StoopidChess.Desktop.Views;
 /// </summary>
 internal sealed class ViewRoot : View
 {
-    private readonly List<View> overlays = [];
-    private View? content;
-    private View? captured;
-    private View? hovered;
+    private readonly List<View> _overlays = [];
+    private View? _content;
+    private View? _captured;
+    private View? _hovered;
 
     /// <summary>The view holding the keyboard, if any.</summary>
     public View? Focused { get; private set; }
@@ -30,19 +30,19 @@ internal sealed class ViewRoot : View
     /// <summary>The window's content, under every overlay.</summary>
     public View? Content
     {
-        get => content;
+        get => _content;
         set
         {
-            if (content is { } old)
+            if (_content is { } old)
             {
                 RemoveChild(old);
             }
-            content = value;
+            _content = value;
             if (value is not null)
             {
                 AddChild(value);
                 value.SetBounds(LocalBounds);
-                foreach (View overlay in overlays)
+                foreach (View overlay in _overlays)
                 {
                     AddChild(overlay); // Back on top of the new content
                 }
@@ -51,7 +51,7 @@ internal sealed class ViewRoot : View
     }
 
     /// <summary>The overlays open, bottom to top.</summary>
-    public IReadOnlyList<View> Overlays => overlays;
+    public IReadOnlyList<View> Overlays => _overlays;
 
     /// <summary>Whether the view holding the keyboard wants typed text.</summary>
     public bool WantsTextInput => Focused?.AcceptsText == true;
@@ -63,8 +63,8 @@ internal sealed class ViewRoot : View
 
     protected override void Layout()
     {
-        content?.SetBounds(LocalBounds);
-        foreach (View overlay in overlays)
+        _content?.SetBounds(LocalBounds);
+        foreach (View overlay in _overlays)
         {
             overlay.SetBounds(LocalBounds);
         }
@@ -76,7 +76,7 @@ internal sealed class ViewRoot : View
     public void ShowOverlay(View overlay)
     {
         ArgumentNullException.ThrowIfNull(overlay);
-        overlays.Add(overlay);
+        _overlays.Add(overlay);
         AddChild(overlay);
         overlay.SetBounds(LocalBounds);
         SetHoveredView(null);
@@ -88,7 +88,7 @@ internal sealed class ViewRoot : View
     public void CloseOverlay(View overlay)
     {
         ArgumentNullException.ThrowIfNull(overlay);
-        if (!overlays.Remove(overlay))
+        if (!_overlays.Remove(overlay))
         {
             return;
         }
@@ -96,11 +96,11 @@ internal sealed class ViewRoot : View
         {
             Focus(null);
         }
-        if (overlay.Contains(captured))
+        if (overlay.Contains(_captured))
         {
-            captured = null;
+            _captured = null;
         }
-        if (overlay.Contains(hovered))
+        if (overlay.Contains(_hovered))
         {
             SetHoveredView(null);
         }
@@ -149,7 +149,7 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void PointerDown(PointerEvent e)
     {
-        if (captured is not null)
+        if (_captured is not null)
         {
             return; // One press at a time: a second button while the first is held is ignored
         }
@@ -166,7 +166,7 @@ internal sealed class ViewRoot : View
         {
             if (view.OnPointerDown(e.At(view.FromRoot(e.Position))))
             {
-                captured = view;
+                _captured = view;
                 break;
             }
         }
@@ -177,7 +177,7 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void PointerMove(PointerEvent e)
     {
-        if (captured is { } holder)
+        if (_captured is { } holder)
         {
             holder.OnPointerMove(e.At(holder.FromRoot(e.Position)));
             return;
@@ -195,11 +195,11 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void PointerUp(PointerEvent e)
     {
-        if (captured is not { } holder)
+        if (_captured is not { } holder)
         {
             return;
         }
-        captured = null;
+        _captured = null;
         holder.OnPointerUp(e.At(holder.FromRoot(e.Position)));
         SetHoveredView(HitTest(e.Position));
     }
@@ -209,7 +209,7 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void PointerLeave()
     {
-        if (captured is null)
+        if (_captured is null)
         {
             SetHoveredView(null);
         }
@@ -236,7 +236,7 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void KeyDown(KeyEvent e)
     {
-        View? top = overlays.Count > 0 ? overlays[^1] : content;
+        View? top = _overlays.Count > 0 ? _overlays[^1] : _content;
         View? start = top is not null && !top.Contains(Focused) ? top : Focused;
         foreach (View view in ChainFrom(start))
         {
@@ -256,7 +256,7 @@ internal sealed class ViewRoot : View
     /// </summary>
     public void TextInput(string text)
     {
-        View? top = overlays.Count > 0 ? overlays[^1] : content;
+        View? top = _overlays.Count > 0 ? _overlays[^1] : _content;
         if (Focused is { } focused && (top?.Contains(focused) ?? false) && focused.IsEnabled)
         {
             focused.OnTextInput(text);
@@ -275,9 +275,7 @@ internal sealed class ViewRoot : View
             return;
         }
         int index = Focused is null ? -1 : candidates.IndexOf(Focused);
-        int next = isBackwards
-            ? (index <= 0 ? candidates.Count - 1 : index - 1)
-            : (index + 1) % candidates.Count;
+        int next = isBackwards ? (index <= 0 ? candidates.Count - 1 : index - 1) : (index + 1) % candidates.Count;
         Focus(candidates[next]);
 
         static void Collect(View view, List<View> into)
@@ -319,12 +317,12 @@ internal sealed class ViewRoot : View
         {
             view = null;
         }
-        if (hovered == view)
+        if (_hovered == view)
         {
             return;
         }
-        hovered?.SetHovered(false);
-        hovered = view;
+        _hovered?.SetHovered(false);
+        _hovered = view;
         view?.SetHovered(true);
     }
 }

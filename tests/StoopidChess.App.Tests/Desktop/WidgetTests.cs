@@ -9,7 +9,8 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 internal sealed class TestPanel : View
 {
-    public T Place<T>(T child, float x, float y, float width, float height) where T : View
+    public T Place<T>(T child, float x, float y, float width, float height)
+        where T : View
     {
         AddChild(child);
         child.SetBounds(SKRect.Create(x, y, width, height));
@@ -51,9 +52,9 @@ public class WidgetTests
         button.Clicked += () => clicks++;
         window.Click(button);
         Assert.Equal(1, clicks);
-        window.Drag(ViewHarness.Centre(button), new SKPoint(250, 150));     // Released away from it
+        window.Drag(ViewHarness.Centre(button), new SKPoint(250, 150)); // Released away from it
         Assert.Equal(1, clicks);
-        window.Click(ViewHarness.Centre(button), PointerButton.Right);         // Not the left button
+        window.Click(ViewHarness.Centre(button), PointerButton.Right); // Not the left button
         Assert.Equal(1, clicks);
         button.IsEnabled = false;
         window.Click(button);
@@ -78,7 +79,7 @@ public class WidgetTests
 
         using SKImage piece = Assets.Image("WhiteQueen.png");
         PlateButton picture = panel.Place(new PlateButton("") { Image = piece, IsOn = true }, 150, 20, 72, 72);
-        Assert.NotEqual(Theme.Plate, window.ColorAt(186, 56));   // The queen's middle, not the plate
+        Assert.NotEqual(Theme.Plate, window.ColorAt(186, 56)); // The queen's middle, not the plate
         picture.IsEnabled = false;
         window.Render();
     }
@@ -89,7 +90,10 @@ public class WidgetTests
         var panel = new TestPanel();
         using var window = new ViewHarness(panel, 300, 200);
         var line = panel.Place(new LabelView("One line"), 10, 10, 200, 20);
-        var wrapped = new LabelView("A message long enough to need three lines in a narrow card.\nAnd another.") { IsWrapped = true };
+        var wrapped = new LabelView("A message long enough to need three lines in a narrow card.\nAnd another.")
+        {
+            IsWrapped = true,
+        };
         float height = wrapped.HeightFor(150);
         Assert.True(height > 3 * Drawing.LineHeight(wrapped.Font));
         panel.Place(wrapped, 10, 40, 150, height);
@@ -107,7 +111,12 @@ public class WidgetTests
         var list = panel.Place(new TextListView(), 10, 10, 200, 150);
         list.SetText("");
         Assert.Empty(list.Lines);
-        list.SetText(string.Join("\r\n", Enumerable.Range(1, 60).Select(i => $"{i,2}. e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5")));
+        list.SetText(
+            string.Join(
+                "\r\n",
+                Enumerable.Range(1, 60).Select(i => $"{i, 2}. e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5")
+            )
+        );
         Assert.Equal(60, list.Lines.Count);
         Assert.True(list.MaximumScrollY > 0);
         Assert.True(list.MaximumScrollX > 0);
@@ -137,7 +146,7 @@ public class WidgetTests
         Assert.True(list.ScrollX < list.MaximumScrollX);
         window.Move(handle);
         window.Move(new SKPoint(390, 290));
-        window.Click(ViewHarness.Centre(list));      // The text itself takes no press
+        window.Click(ViewHarness.Centre(list)); // The text itself takes no press
         window.Click(ViewHarness.Centre(list), PointerButton.Right);
         list.SetBounds(SKRect.Create(10, 10, 390, 280));
         window.Render();
@@ -163,8 +172,10 @@ public class WidgetTests
         Assert.Equal(["unbreakablewordthatiswide"], Drawing.Wrap("unbreakablewordthatiswide", Fonts.Body, 10));
         Assert.Equal(0, Drawing.Measure(Fonts.Body, ""));
         Assert.Throws<FileNotFoundException>(() => Assets.Open("Missing.png"));
-        Assert.Equal("Ctrl+Shift+N".Replace("Ctrl", Shortcut.PrimaryName, StringComparison.Ordinal),
-            Shortcut.Text(Key.N, KeyModifiers.Primary | KeyModifiers.Shift));
+        Assert.Equal(
+            "Ctrl+Shift+N".Replace("Ctrl", Shortcut.PrimaryName, StringComparison.Ordinal),
+            Shortcut.Text(Key.N, KeyModifiers.Primary | KeyModifiers.Shift)
+        );
         Assert.Equal("Alt+F", Shortcut.Text(Key.F, KeyModifiers.Alt));
     }
 
@@ -192,19 +203,19 @@ public class WidgetTests
         Assert.True(second.IsFocused);
         Assert.False(hidden.IsFocused);
         panel.UnhandledKeys.Clear();
-        window.Key(Key.Tab, KeyModifiers.Primary);    // Not a focus move
+        window.Key(Key.Tab, KeyModifiers.Primary); // Not a focus move
         Assert.Single(panel.UnhandledKeys);
 
         window.Press(ViewHarness.Centre(first));
-        window.Press(ViewHarness.Centre(second));    // While the first is held: ignored
+        window.Press(ViewHarness.Centre(second)); // While the first is held: ignored
         Assert.True(first.IsFocused);
         window.Release(ViewHarness.Centre(first));
-        window.Release(ViewHarness.Centre(first));   // Nothing held
+        window.Release(ViewHarness.Centre(first)); // Nothing held
         window.Root.PointerLeave();
-        window.Press(new SKPoint(-5, -5));           // Outside the window
+        window.Press(new SKPoint(-5, -5)); // Outside the window
         window.Type("ignored");
-        window.Root.Content = new TestPanel();       // Content replaced
-        window.Key(Key.Tab);                         // Nothing to focus
+        window.Root.Content = new TestPanel(); // Content replaced
+        window.Key(Key.Tab); // Nothing to focus
         window.Root.Content = null;
         window.Root.Focus(null);
         window.Key(Key.Tab);

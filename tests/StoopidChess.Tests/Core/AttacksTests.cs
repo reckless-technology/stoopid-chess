@@ -12,23 +12,34 @@ public class AttacksTests
         Assert.Equal(Bitboard.Of(Square.Parse("b3")) | Bitboard.Of(Square.Parse("c2")), Attacks.Knight(Square.A1));
         Assert.Equal(3, Attacks.King(Square.H8).Count);
         Assert.Equal(8, Attacks.King(Square.Parse("e4")).Count);
-        Assert.Equal(Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("f5")), Attacks.Pawn(Color.White, Square.Parse("e4")));
-        Assert.Equal(Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("f3")), Attacks.Pawn(Color.Black, Square.Parse("e4")));
-        Assert.Equal(Bitboard.Of(Square.Parse("b2")), Attacks.Pawn(Color.White, Square.A1));   // No wrap around the edge
+        Assert.Equal(
+            Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("f5")),
+            Attacks.Pawn(Color.White, Square.Parse("e4"))
+        );
+        Assert.Equal(
+            Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("f3")),
+            Attacks.Pawn(Color.Black, Square.Parse("e4"))
+        );
+        Assert.Equal(Bitboard.Of(Square.Parse("b2")), Attacks.Pawn(Color.White, Square.A1)); // No wrap around the edge
         Assert.Equal(Bitboard.Of(Square.Parse("g7")), Attacks.Pawn(Color.Black, Square.H8));
-        Assert.Equal(Bitboard.Rank3 & (Bitboard.FileA | Bitboard.OfFile(2) | Bitboard.OfFile(6)), Attacks.Pawns(Color.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH)));
+        Assert.Equal(
+            Bitboard.Rank3 & (Bitboard.FileA | Bitboard.OfFile(2) | Bitboard.OfFile(6)),
+            Attacks.Pawns(Color.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH))
+        );
     }
 
     [Fact]
     public void BetweenAndLineFollowTheGeometry()
     {
-        Square a1 = Square.A1, h8 = Square.H8, e4 = Square.Parse("e4");
+        Square a1 = Square.A1,
+            h8 = Square.H8,
+            e4 = Square.Parse("e4");
         Assert.Equal(6, Attacks.Between(a1, h8).Count);
         Assert.Equal(Attacks.Between(a1, h8), Attacks.Between(h8, a1));
         Assert.True(Attacks.Between(a1, h8).Contains(Square.Parse("d4")));
         Assert.False(Attacks.Between(a1, h8).Contains(e4));
-        Assert.Equal(Bitboard.Empty, Attacks.Between(a1, Square.Parse("b3")));       // Not aligned
-        Assert.Equal(Bitboard.Empty, Attacks.Between(a1, Square.Parse("b1")));       // Adjacent
+        Assert.Equal(Bitboard.Empty, Attacks.Between(a1, Square.Parse("b3"))); // Not aligned
+        Assert.Equal(Bitboard.Empty, Attacks.Between(a1, Square.Parse("b1"))); // Adjacent
         Assert.Equal(Bitboard.Empty, Attacks.Between(e4, e4));
         Assert.Equal(Bitboard.Rank4, Attacks.Line(e4, Square.Parse("a4")));
         Assert.Equal(Bitboard.OfFile(4), Attacks.Line(e4, Square.Parse("e8")));
@@ -43,7 +54,10 @@ public class AttacksTests
         var random = new Random(2026);
         foreach (Square square in Square.All)
         {
-            Assert.Equal(Attacks.BishopAttacksByWalking(Bitboard.Empty, square), Attacks.Bishop(Bitboard.Empty, square));
+            Assert.Equal(
+                Attacks.BishopAttacksByWalking(Bitboard.Empty, square),
+                Attacks.Bishop(Bitboard.Empty, square)
+            );
             Assert.Equal(Attacks.RookAttacksByWalking(Bitboard.Empty, square), Attacks.Rook(Bitboard.Empty, square));
             Assert.Equal(Attacks.BishopAttacksByWalking(Bitboard.Full, square), Attacks.Bishop(Bitboard.Full, square));
             Assert.Equal(Attacks.RookAttacksByWalking(Bitboard.Full, square), Attacks.Rook(Bitboard.Full, square));
@@ -57,7 +71,10 @@ public class AttacksTests
                 }
                 Assert.Equal(Attacks.BishopAttacksByWalking(occupied, square), Attacks.Bishop(occupied, square));
                 Assert.Equal(Attacks.RookAttacksByWalking(occupied, square), Attacks.Rook(occupied, square));
-                Assert.Equal(Attacks.Bishop(occupied, square) | Attacks.Rook(occupied, square), Attacks.Queen(occupied, square));
+                Assert.Equal(
+                    Attacks.Bishop(occupied, square) | Attacks.Rook(occupied, square),
+                    Attacks.Queen(occupied, square)
+                );
             }
         }
     }
@@ -68,10 +85,17 @@ public class AttacksTests
         // Rook on d4 with blockers on d6 and f4: up to and including the blockers, the whole way otherwise
         var d4 = Square.Parse("d4");
         Bitboard occupied = Bitboard.Of(Square.Parse("d6")) | Bitboard.Of(Square.Parse("f4"));
-        Bitboard expected = Bitboard.Of(Square.Parse("d5")) | Bitboard.Of(Square.Parse("d6"))
-            | Bitboard.Of(Square.Parse("e4")) | Bitboard.Of(Square.Parse("f4"))
-            | Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("d2")) | Bitboard.Of(Square.Parse("d1"))
-            | Bitboard.Of(Square.Parse("c4")) | Bitboard.Of(Square.Parse("b4")) | Bitboard.Of(Square.Parse("a4"));
+        Bitboard expected =
+            Bitboard.Of(Square.Parse("d5"))
+            | Bitboard.Of(Square.Parse("d6"))
+            | Bitboard.Of(Square.Parse("e4"))
+            | Bitboard.Of(Square.Parse("f4"))
+            | Bitboard.Of(Square.Parse("d3"))
+            | Bitboard.Of(Square.Parse("d2"))
+            | Bitboard.Of(Square.Parse("d1"))
+            | Bitboard.Of(Square.Parse("c4"))
+            | Bitboard.Of(Square.Parse("b4"))
+            | Bitboard.Of(Square.Parse("a4"));
         Assert.Equal(expected, Attacks.RookAttacksByWalking(occupied, d4));
         Assert.Equal(13, Attacks.BishopAttacksByWalking(Bitboard.Empty, d4).Count);
         Assert.Equal(7, Attacks.BishopAttacksByWalking(Bitboard.Empty, Square.A1).Count);

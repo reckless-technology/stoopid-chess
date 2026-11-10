@@ -13,7 +13,7 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 public class UciEngineClientDeadEngineTests
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(20);
 
     [Fact]
     public void ACommandToAnEngineThatHasStoppedListeningFailsAndDisposingThenReleasesEverything()
@@ -25,11 +25,11 @@ public class UciEngineClientDeadEngineTests
         Assert.True(engine.Client.HasExited);
         Assert.Throws<InvalidOperationException>(() => engine.Client.SetOption("Hash", "16"));
         engine.CloseOutput();
-        engine.Client.Dispose();                     // Threw IOException ("Pipe is broken") flushing that command
+        engine.Client.Dispose(); // Threw IOException ("Pipe is broken") flushing that command
         Assert.True(engine.IsCommandPipeReleased);
         Assert.True(engine.IsReplyPipeReleased);
         Assert.Throws<ObjectDisposedException>(engine.Client.NewGame);
-        engine.Client.Dispose();                     // Idempotent
+        engine.Client.Dispose(); // Idempotent
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class UciEngineClientDeadEngineTests
         using DeafEngine engine = DeafEngine.Silent();
         engine.StopListening();
         engine.CloseOutput();
-        engine.Client.Dispose();                     // "quit" cannot be written; nor may its flush throw
+        engine.Client.Dispose(); // "quit" cannot be written; nor may its flush throw
         Assert.True(engine.IsCommandPipeReleased);
         Assert.True(engine.IsReplyPipeReleased);
     }
@@ -46,12 +46,15 @@ public class UciEngineClientDeadEngineTests
     [Fact]
     public async Task AKilledEngineProcessFailsTheNextCommandAndIsReleasedOnDispose()
     {
-        string executable = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "stoopid-chess.exe" : "stoopid-chess");
+        string executable = Path.Combine(
+            AppContext.BaseDirectory,
+            OperatingSystem.IsWindows() ? "stoopid-chess.exe" : "stoopid-chess"
+        );
         Assert.True(File.Exists(executable), $"no engine executable at {executable}");
         var client = UciEngineClient.StartProcess(executable);
         try
         {
-            await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+            await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
             int id = client.ProcessId ?? throw new InvalidOperationException("an external engine has a process");
 
             // The reader thread held in the first "info" line, so it cannot see the engine die before the next command
@@ -60,25 +63,25 @@ public class UciEngineClientDeadEngineTests
             client.InfoReceived += (_, _) =>
             {
                 readerHeld.Set();
-                holdReader.Wait(Timeout);
+                holdReader.Wait(s_timeout);
             };
             client.SetPosition(Position.StartFen, []);
             Task<string> search = client.GoAsync(SearchLimits.ForDepth(30));
-            Assert.True(readerHeld.Wait(Timeout), "the engine reported nothing");
+            Assert.True(readerHeld.Wait(s_timeout), "the engine reported nothing");
             using (var engine = Process.GetProcessById(id))
             {
                 engine.Kill(entireProcessTree: true);
-                Assert.True(engine.WaitForExit(Timeout));
+                Assert.True(engine.WaitForExit(s_timeout));
             }
             Assert.False(client.HasExited);
             Assert.Throws<InvalidOperationException>(client.NewGame);
             Assert.True(client.HasExited);
             holdReader.Set();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => search.WaitAsync(Timeout));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => search.WaitAsync(s_timeout));
         }
         finally
         {
-            client.Dispose();                        // Threw IOException flushing the unsent "ucinewgame"
+            client.Dispose(); // Threw IOException flushing the unsent "ucinewgame"
         }
         Assert.Throws<ObjectDisposedException>(client.NewGame);
     }

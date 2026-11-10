@@ -38,7 +38,7 @@ static int RunBench(int depth)
 static int RunPerft(int maxMillionNodes)
 {
     long budget = maxMillionNodes * 1_000_000L;
-    Attacks.Initialize();   // Not part of the time measured
+    Attacks.Initialize(); // Not part of the time measured
     var stopwatch = Stopwatch.StartNew();
     long totalNodes = 0;
     int failures = 0;
@@ -61,7 +61,9 @@ static int RunPerft(int maxMillionNodes)
         }
     }
     stopwatch.Stop();
-    Console.WriteLine($"perft: {Perft.StandardPositions.Count} positions, {totalNodes} nodes, {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps, {(long)stopwatch.Elapsed.TotalMilliseconds} ms");
+    Console.WriteLine(
+        $"perft: {Perft.StandardPositions.Count} positions, {totalNodes} nodes, {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps, {(long)stopwatch.Elapsed.TotalMilliseconds} ms"
+    );
     Console.WriteLine(failures == 0 ? "perft PASS" : $"perft FAIL ({failures} mismatches)");
     return failures == 0 ? 0 : 1;
 }
@@ -78,5 +80,7 @@ static int PrintUsage()
 /// </summary>
 static int? ParseArgument(string text)
 {
-    return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) && value > 0 ? value : null;
+    return int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int value) && value > 0
+        ? value
+        : null;
 }

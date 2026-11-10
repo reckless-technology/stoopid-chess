@@ -20,7 +20,7 @@ public static class StaticExchange
     {
         ArgumentNullException.ThrowIfNull(position);
         Square to = move.To;
-        Color side = position.SideToMove.Opponent();          // The side to reply after the capture
+        Color side = position.SideToMove.Opponent(); // The side to reply after the capture
         Bitboard occupied = position.Occupied ^ Bitboard.Of(move.From);
         int gain0 = Value(move.Captured);
         int attackerValue = Value(move.Piece);
@@ -48,10 +48,10 @@ public static class StaticExchange
                 break;
             }
             depth++;
-            gain[depth] = attackerValue - gain[depth - 1];    // Speculative: what this side gains if it captures
+            gain[depth] = attackerValue - gain[depth - 1]; // Speculative: what this side gains if it captures
             if (Math.Max(-gain[depth - 1], gain[depth]) < 0)
             {
-                break;                                         // Neither continuing nor stopping helps the side to move
+                break; // Neither continuing nor stopping helps the side to move
             }
             // Recapture with the least valuable attacker
             Piece type = LeastValuable(position, side, own, out Square from);
@@ -60,14 +60,15 @@ public static class StaticExchange
             // Lifting a piece may uncover a slider behind it
             if (type is Piece.Pawn or Piece.Bishop or Piece.Rook or Piece.Queen)
             {
-                attackers |= (Attacks.Bishop(occupied, to) & diagonalSliders) | (Attacks.Rook(occupied, to) & orthogonalSliders);
+                attackers |=
+                    (Attacks.Bishop(occupied, to) & diagonalSliders) | (Attacks.Rook(occupied, to) & orthogonalSliders);
             }
             attackers &= occupied;
             side = side.Opponent();
         }
         for (; depth > 0; depth--)
         {
-            gain[depth - 1] = -Math.Max(-gain[depth - 1], gain[depth]);    // Each side may decline to continue the exchange
+            gain[depth - 1] = -Math.Max(-gain[depth - 1], gain[depth]); // Each side may decline to continue the exchange
         }
         return gain[0];
     }
@@ -90,14 +91,15 @@ public static class StaticExchange
     /// The evaluator's material values; the king is worth more than any exchange so that it is only
     /// ever the last piece to capture.
     /// </summary>
-    public static int Value(Piece type) => type switch
-    {
-        Piece.Pawn => Evaluator.PawnValue,
-        Piece.Knight => Evaluator.KnightValue,
-        Piece.Bishop => Evaluator.BishopValue,
-        Piece.Rook => Evaluator.RookValue,
-        Piece.Queen => Evaluator.QueenValue,
-        Piece.King => 10 * Evaluator.QueenValue,
-        _ => 0,
-    };
+    public static int Value(Piece type) =>
+        type switch
+        {
+            Piece.Pawn => Evaluator.PawnValue,
+            Piece.Knight => Evaluator.KnightValue,
+            Piece.Bishop => Evaluator.BishopValue,
+            Piece.Rook => Evaluator.RookValue,
+            Piece.Queen => Evaluator.QueenValue,
+            Piece.King => 10 * Evaluator.QueenValue,
+            _ => 0,
+        };
 }

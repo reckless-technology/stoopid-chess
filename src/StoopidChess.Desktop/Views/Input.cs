@@ -31,7 +31,32 @@ internal enum KeyModifiers
 internal enum Key
 {
     Other,
-    A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
     Return,
     Escape,
     Tab,
@@ -50,8 +75,11 @@ internal enum Key
 /// <summary>
 /// A pointer pressed, moved or released, at <paramref name="Position"/> in the coordinates of the view it reaches.
 /// </summary>
-internal readonly record struct PointerEvent(SKPoint Position, PointerButton Button = PointerButton.Left,
-    KeyModifiers Modifiers = KeyModifiers.None)
+internal readonly record struct PointerEvent(
+    SKPoint Position,
+    PointerButton Button = PointerButton.Left,
+    KeyModifiers Modifiers = KeyModifiers.None
+)
 {
     /// <summary>The same event at another position: the one a parent hands its child, in the child's coordinates.</summary>
     public PointerEvent At(SKPoint position) => this with { Position = position };
@@ -61,8 +89,12 @@ internal readonly record struct PointerEvent(SKPoint Position, PointerButton But
 /// A wheel turned at <paramref name="Position"/>: <paramref name="DeltaY"/> notches down (negative up),
 /// <paramref name="DeltaX"/> to the right.
 /// </summary>
-internal readonly record struct WheelEvent(SKPoint Position, float DeltaX, float DeltaY,
-    KeyModifiers Modifiers = KeyModifiers.None);
+internal readonly record struct WheelEvent(
+    SKPoint Position,
+    float DeltaX,
+    float DeltaY,
+    KeyModifiers Modifiers = KeyModifiers.None
+);
 
 /// <summary>
 /// A key pressed, with the modifiers held.

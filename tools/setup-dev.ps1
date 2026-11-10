@@ -14,6 +14,7 @@
       PATH, Microsoft's dotnet-install script puts one in %LOCALAPPDATA%\Microsoft\dotnet, and DOTNET_ROOT and the
       PATH point at it
     - the repo's git hooks (core.hooksPath .githooks) and the VS Code extensions .vscode/extensions.json recommends
+    - CSharpier, at the version .config/dotnet-tools.json pins (dotnet tool restore): the hook and CI run it
     - with -Tuning, what tools\match.cs plays with, under %USERPROFILE%\tools:
       fastchess and the reference pawnstar engine, the release binaries tools\tuning-tools.txt pins by version and
       SHA-256, and the self-play baseline (stoopid-baseline), published from this checkout when there is none. The
@@ -167,6 +168,19 @@ else {
 
 Set-GitHooks
 Install-VSCodeExtensions
+
+# CSharpier, the formatter the pre-commit hook and CI run: the version the local tool manifest pins.
+if (Test-Path '.config/dotnet-tools.json') {
+  $csharpierVersion = & dotnet csharpier --version 2>$null
+  if ($LASTEXITCODE -eq 0) { Write-Ok 'CSharpier' "$csharpierVersion" }
+  elseif ($Check) { Write-Missing 'CSharpier' 'dotnet tool restore' }
+  else {
+    Write-Installing 'CSharpier' 'dotnet tool restore'
+    dotnet tool restore | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "dotnet tool restore exited with $LASTEXITCODE" }
+    Write-Ok 'CSharpier' "$(dotnet csharpier --version)"
+  }
+}
 
 # The match and self-play tools.
 if ($Tuning) {

@@ -23,18 +23,18 @@ internal sealed class StatusBarView : View
     private const float CaptionGap = 6.0f;
     private const float Inset = 10.0f;
 
-    private IReadOnlyList<StatusSegment> segments = [];
+    private IReadOnlyList<StatusSegment> _segments = [];
 
     /// <summary>The readings shown.</summary>
     public IReadOnlyList<StatusSegment> Segments
     {
-        get => segments;
+        get => _segments;
         set
         {
             ArgumentNullException.ThrowIfNull(value);
-            if (!segments.SequenceEqual(value))
+            if (!_segments.SequenceEqual(value))
             {
-                segments = value;
+                _segments = value;
                 Invalidate();
             }
         }
@@ -48,12 +48,12 @@ internal sealed class StatusBarView : View
         canvas.DrawRect(SKRect.Create(0, 0, Width, 1), paint);
         // The clocks at the right end, where a long reading at the left cannot push them out of the window
         float right = Width - Inset;
-        foreach (StatusSegment clock in segments.Where(segment => segment.IsClock).Reverse())
+        foreach (StatusSegment clock in _segments.Where(segment => segment.IsClock).Reverse())
         {
             right = DrawSegment(canvas, clock, right - SegmentWidth(clock), Width) - SegmentWidth(clock) - Gap;
         }
         float x = Inset;
-        foreach (StatusSegment segment in segments.Where(segment => !segment.IsClock))
+        foreach (StatusSegment segment in _segments.Where(segment => !segment.IsClock))
         {
             if (x >= right)
             {
@@ -77,8 +77,13 @@ internal sealed class StatusBarView : View
         float valueStart = x + Drawing.Measure(Fonts.Small, segment.Caption) + CaptionGap;
         if (valueStart < limit)
         {
-            Drawing.Text(canvas, segment.Value, new SKRect(valueStart, 1, limit, Height), ValueFont(segment),
-                segment.IsRunning ? Theme.Amber : Theme.Ink);
+            Drawing.Text(
+                canvas,
+                segment.Value,
+                new SKRect(valueStart, 1, limit, Height),
+                ValueFont(segment),
+                segment.IsRunning ? Theme.Amber : Theme.Ink
+            );
         }
         return x + SegmentWidth(segment);
     }

@@ -21,7 +21,8 @@ internal sealed class FakePlatform : IDesktopPlatform
 
     public bool HasQuit { get; private set; }
 
-    public Task<string?> ChooseFileToOpenAsync(string title, IReadOnlyList<FileFilter> filters) => Answer(title, filters);
+    public Task<string?> ChooseFileToOpenAsync(string title, IReadOnlyList<FileFilter> filters) =>
+        Answer(title, filters);
 
     public Task<string?> ChooseFileToSaveAsync(string title, string suggestedName, IReadOnlyList<FileFilter> filters) =>
         Answer(title, filters);

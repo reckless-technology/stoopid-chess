@@ -18,12 +18,12 @@ internal sealed class BoardView : View
     /// <summary>The frame's width round the squares.</summary>
     public const float Edge = 2.0f;
 
-    private static readonly SKColor HintColor = new(0x14, 0x12, 0x10, 0x60);
-    private static readonly SKColor CaptureHintColor = new(0x14, 0x12, 0x10, 0x78);
+    private static readonly SKColor s_hintColor = new(0x14, 0x12, 0x10, 0x60);
+    private static readonly SKColor s_captureHintColor = new(0x14, 0x12, 0x10, 0x78);
 
-    private Square dragFrom = Square.None;        // Square of the piece being dragged, or None
-    private SKPoint dragPosition;
-    private Bitboard dragTargets;                 // Legal destinations of the dragged piece
+    private Square _dragFrom = Square.None; // Square of the piece being dragged, or None
+    private SKPoint _dragPosition;
+    private Bitboard _dragTargets; // Legal destinations of the dragged piece
 
     /// <summary>The game shown.</summary>
     public GameController? Controller { get; set; }
@@ -38,10 +38,10 @@ internal sealed class BoardView : View
     public event Action? EditingIncomplete;
 
     /// <summary>The square being dragged from; None when no piece is.</summary>
-    public Square DragFrom => dragFrom;
+    public Square DragFrom => _dragFrom;
 
     /// <summary>The legal destinations of the piece being dragged.</summary>
-    public Bitboard DragTargets => dragTargets;
+    public Bitboard DragTargets => _dragTargets;
 
     /// <summary>A square's side, in pixels.</summary>
     public float SquareSize => MathF.Floor((Math.Min(Width, Height) - (2 * Edge)) / 8);
@@ -109,37 +109,37 @@ internal sealed class BoardView : View
         foreach (Square square in Square.All)
         {
             (Color color, Piece type) = controller.PieceAt(square);
-            if (type != Piece.None && square != dragFrom)
+            if (type != Piece.None && square != _dragFrom)
             {
                 Drawing.Image(canvas, PieceImages.Get(color, type), SquareRect(square));
             }
         }
         DrawCoordinates(canvas, size);
-        if (dragFrom == Square.None)
+        if (_dragFrom == Square.None)
         {
             return;
         }
         // Where the dragged piece may go: a dot on an empty square, a ring round a capture
-        foreach (Square target in dragTargets)
+        foreach (Square target in _dragTargets)
         {
             SKPoint centre = SquareCentre(target);
             if (controller.PieceAt(target).Type == Piece.None)
             {
                 paint.Style = SKPaintStyle.Fill;
-                paint.Color = HintColor;
+                paint.Color = s_hintColor;
                 canvas.DrawCircle(centre, size / 7, paint);
             }
             else
             {
                 paint.Style = SKPaintStyle.Stroke;
                 paint.StrokeWidth = Math.Max(3, size / 16);
-                paint.Color = CaptureHintColor;
+                paint.Color = s_captureHintColor;
                 canvas.DrawCircle(centre, (size / 2) - (paint.StrokeWidth / 2) - 1, paint);
             }
         }
-        if (controller.PieceAt(dragFrom) is (Color dragColor, Piece dragType) && dragType != Piece.None)
+        if (controller.PieceAt(_dragFrom) is (Color dragColor, Piece dragType) && dragType != Piece.None)
         {
-            SKRect rect = SKRect.Create(dragPosition.X - (size / 2), dragPosition.Y - (size / 2), size, size);
+            SKRect rect = SKRect.Create(_dragPosition.X - (size / 2), _dragPosition.Y - (size / 2), size, size);
             Drawing.Image(canvas, PieceImages.Get(dragColor, dragType), rect);
         }
     }
@@ -156,9 +156,13 @@ internal sealed class BoardView : View
     private static void DrawCheck(SKCanvas canvas, SKRect square)
     {
         using var paint = new SKPaint { IsAntialias = true };
-        paint.Shader = SKShader.CreateRadialGradient(new SKPoint(square.MidX, square.MidY), square.Width * 0.62f,
+        paint.Shader = SKShader.CreateRadialGradient(
+            new SKPoint(square.MidX, square.MidY),
+            square.Width * 0.62f,
             [Theme.Minus.WithOpacity(0.95f), Theme.Minus.WithOpacity(0.55f), Theme.Minus.WithOpacity(0)],
-            [0, 0.55f, 1], SKShaderTileMode.Clamp);
+            [0, 0.55f, 1],
+            SKShaderTileMode.Clamp
+        );
         canvas.DrawRect(square, paint);
     }
 
@@ -175,16 +179,27 @@ internal sealed class BoardView : View
             int file = IsFlipped ? 7 - x : x;
             Square square = Square.At(file, IsFlipped ? 7 : 0);
             SKRect rect = SquareRect(square);
-            Drawing.Text(canvas, ((char)('a' + file)).ToString(), new SKRect(rect.Left, rect.Bottom - lineHeight, rect.Right - 3, rect.Bottom),
-                font, square.IsLight ? Theme.DarkSquare : Theme.LightSquare, TextAlignment.Right);
+            Drawing.Text(
+                canvas,
+                ((char)('a' + file)).ToString(),
+                new SKRect(rect.Left, rect.Bottom - lineHeight, rect.Right - 3, rect.Bottom),
+                font,
+                square.IsLight ? Theme.DarkSquare : Theme.LightSquare,
+                TextAlignment.Right
+            );
         }
         for (int y = 0; y < 8; y++)
         {
             int rank = IsFlipped ? y : 7 - y;
             Square square = Square.At(IsFlipped ? 7 : 0, rank);
             SKRect rect = SquareRect(square);
-            Drawing.Text(canvas, ((char)('1' + rank)).ToString(), new SKRect(rect.Left + 3, rect.Top, rect.Right, rect.Top + lineHeight),
-                font, square.IsLight ? Theme.DarkSquare : Theme.LightSquare);
+            Drawing.Text(
+                canvas,
+                ((char)('1' + rank)).ToString(),
+                new SKRect(rect.Left + 3, rect.Top, rect.Right, rect.Top + lineHeight),
+                font,
+                square.IsLight ? Theme.DarkSquare : Theme.LightSquare
+            );
         }
     }
 
@@ -213,18 +228,22 @@ internal sealed class BoardView : View
             return false;
         }
         Square square = SquareAt(e.Position);
-        if (square == Square.None || !controller.IsHumanTurn || !controller.Game.Position.Pieces(controller.HumanColor).Contains(square))
+        if (
+            square == Square.None
+            || !controller.IsHumanTurn
+            || !controller.Game.Position.Pieces(controller.HumanColor).Contains(square)
+        )
         {
             return false;
         }
-        dragFrom = square;
-        dragPosition = e.Position;
-        dragTargets = Bitboard.Empty;
+        _dragFrom = square;
+        _dragPosition = e.Position;
+        _dragTargets = Bitboard.Empty;
         foreach (Move move in controller.Game.Position.GenerateLegalMoves())
         {
             if (move.From == square)
             {
-                dragTargets |= Bitboard.Of(move.To);
+                _dragTargets |= Bitboard.Of(move.To);
             }
         }
         Invalidate();
@@ -233,9 +252,9 @@ internal sealed class BoardView : View
 
     public override void OnPointerMove(PointerEvent e)
     {
-        if (dragFrom != Square.None)
+        if (_dragFrom != Square.None)
         {
-            dragPosition = e.Position;
+            _dragPosition = e.Position;
             Invalidate();
         }
     }
@@ -247,20 +266,24 @@ internal sealed class BoardView : View
     /// </summary>
     public override void OnPointerUp(PointerEvent e)
     {
-        if (e.Button == PointerButton.Left && dragFrom != Square.None)
+        if (e.Button == PointerButton.Left && _dragFrom != Square.None)
         {
-            Square from = dragFrom;
+            Square from = _dragFrom;
             Square to = SquareAt(e.Position);
-            dragFrom = Square.None;
-            dragTargets = Bitboard.Empty;
+            _dragFrom = Square.None;
+            _dragTargets = Bitboard.Empty;
             Invalidate();
-            if (to != Square.None && to != from)     // Dropped off the board: the move is cancelled
+            if (to != Square.None && to != from) // Dropped off the board: the move is cancelled
             {
                 MoveDropped?.Invoke(from, to);
             }
         }
-        else if (e.Button == PointerButton.Right && Controller is { } controller
-                 && !controller.IsThinking && !controller.IsEngineTurn)
+        else if (
+            e.Button == PointerButton.Right
+            && Controller is { } controller
+            && !controller.IsThinking
+            && !controller.IsEngineTurn
+        )
         {
             Square square = SquareAt(e.Position);
             if (square != Square.None)

@@ -73,47 +73,48 @@ public sealed class Searcher
     private const int NodesBetweenTimeChecks = 2048;
     private const int NullMoveMinimumDepth = 2;
     private const int NullMoveReduction = 3;
-    private const int ScoreDropMargin = 30;          // A fall in the root score by this much earns the move more time
+    private const int ScoreDropMargin = 30; // A fall in the root score by this much earns the move more time
     private const int ScoreDropMinimumDepth = 4;
-    private const int MoveChangeMinimumDepth = 6;     // A new best move from this depth on earns more time too
+    private const int MoveChangeMinimumDepth = 6; // A new best move from this depth on earns more time too
     private const int InternalIterativeReductionMinimumDepth = 4;
     private const int ReverseFutilityMaxDepth = 7;
-    private const int ReverseFutilityMargin = 60;      // Per ply of remaining depth
+    private const int ReverseFutilityMargin = 60; // Per ply of remaining depth
     private const int RazoringMaxDepth = 3;
-    private const int RazoringMargin = 250;            // Per ply of remaining depth
+    private const int RazoringMargin = 250; // Per ply of remaining depth
     private const int LateMovePruningMaxDepth = 4;
-    private const int LateMovePruningBase = 5;         // Quiet moves after the (base + depth^2)th are skipped
+    private const int LateMovePruningBase = 5; // Quiet moves after the (base + depth^2)th are skipped
     private const int LmrMinimumDepth = 3;
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
     private const int AspirationWindow = 20;
-    private const int HistoryCap = 69_999;           // Quiet history orders below the killers and the countermove (70,000)
+    private const int HistoryCap = 69_999; // Quiet history orders below the killers and the countermove (70,000)
 
-    private readonly TranspositionTable table;
-    private readonly Evaluator evaluator = new();
-    private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
+    private readonly TranspositionTable _table;
+    private readonly Evaluator _evaluator = new();
+    private readonly MoveList[] _moveLists = new MoveList[MaxPly + 1]; // One per ply, reused by every node at that ply
+
     // The history tables are flat arrays with hand-rolled indexing (HistoryIndex and the others
     // below): multi-dimensional array accesses go through a runtime helper on some shapes, which
     // showed in the profile.
-    private readonly Killers[] killers = new Killers[MaxPly + 1];   // The two most recent quiet cutoff moves at each ply
-    private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
-    private readonly Move[] counterMoves = new Move[7 * Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
-    private readonly int[] continuationHistory = new int[7 * Square.Count * 7 * Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
-    private readonly int[] history = new int[2 * Square.Count * Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
-    private readonly Stopwatch stopwatch = new();
+    private readonly Killers[] _killers = new Killers[MaxPly + 1]; // The two most recent quiet cutoff moves at each ply
+    private readonly Move[] _counterAtPly = new Move[MaxPly + 1]; // The countermove ordered at each ply, exempt from reductions like the killers
+    private readonly Move[] _counterMoves = new Move[7 * Square.Count]; // [piece, to] of the opponent's last move: the quiet reply that last refuted it
+    private readonly int[] _continuationHistory = new int[7 * Square.Count * 7 * Square.Count]; // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
+    private readonly int[] _history = new int[2 * Square.Count * Square.Count]; // [color, from, to]: how often a quiet move caused a cutoff
+    private readonly Stopwatch _stopwatch = new();
 
-    private Position position = Position.Start();
-    private long nodes;   // Searched in this search: main search and quiescence nodes alike
-    private CancellationToken cancellation;
-    private TimeSpan? timeBudget;
-    private TimeSpan? timeCap;
-    private long? nodeLimit;
-    private bool stopped;
+    private Position _position = Position.Start();
+    private long _nodes; // Searched in this search: main search and quiescence nodes alike
+    private CancellationToken _cancellation;
+    private TimeSpan? _timeBudget;
+    private TimeSpan? _timeCap;
+    private long? _nodeLimit;
+    private bool _stopped;
 
     public Searcher(TranspositionTable table)
     {
         ArgumentNullException.ThrowIfNull(table);
-        this.table = table;
+        this._table = table;
     }
 
     public static bool IsMateScore(int score) => Math.Abs(score) >= MateThreshold;
@@ -135,30 +136,35 @@ public sealed class Searcher
     /// <param name="limits">When to stop.</param>
     /// <param name="onProgress">Called after each completed depth.</param>
     /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
-    public SearchResult Search(Position root, SearchLimits limits, Action<SearchResult>? onProgress = null, CancellationToken cancellationToken = default)
+    public SearchResult Search(
+        Position root,
+        SearchLimits limits,
+        Action<SearchResult>? onProgress = null,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(root);
         ArgumentNullException.ThrowIfNull(limits);
 
-        position = root.Clone();
-        nodes = 0;
-        cancellation = cancellationToken;
-        (TimeSpan Budget, TimeSpan Cap)? allocation = limits.TimeAllocation(position.SideToMove);
-        timeBudget = allocation?.Budget;
-        timeCap = allocation?.Cap;
+        _position = root.Clone();
+        _nodes = 0;
+        _cancellation = cancellationToken;
+        (TimeSpan Budget, TimeSpan Cap)? allocation = limits.TimeAllocation(_position.SideToMove);
+        _timeBudget = allocation?.Budget;
+        _timeCap = allocation?.Cap;
         bool extended = false;
-        nodeLimit = limits.Infinite ? null : limits.Nodes;
-        stopped = false;
-        Array.Clear(killers);
-        Array.Clear(counterMoves);
-        Array.Clear(history);
-        Array.Clear(continuationHistory);
-        stopwatch.Restart();
+        _nodeLimit = limits.Infinite ? null : limits.Nodes;
+        _stopped = false;
+        Array.Clear(_killers);
+        Array.Clear(_counterMoves);
+        Array.Clear(_history);
+        Array.Clear(_continuationHistory);
+        _stopwatch.Restart();
 
-        MoveList rootMoves = position.GenerateLegalMoves();
+        MoveList rootMoves = _position.GenerateLegalMoves();
         if (rootMoves.Count == 0)
         {
-            return new SearchResult(0, position.IsInCheck ? -MateScore : DrawScore, 0, stopwatch.Elapsed, []);
+            return new SearchResult(0, _position.IsInCheck ? -MateScore : DrawScore, 0, _stopwatch.Elapsed, []);
         }
 
         int maxDepth = limits.Infinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
@@ -171,7 +177,7 @@ public sealed class Searcher
         for (int depth = 1; depth <= maxDepth; depth++)
         {
             (int score, Move move) = SearchWithAspiration(ref rootMoves, depth, bestScore, completedDepth);
-            if (stopped)
+            if (_stopped)
             {
                 // The iteration was cut short so its score cannot be trusted and the previous
                 // iteration's move is kept, unless there is none: then the best of the root moves
@@ -182,40 +188,52 @@ public sealed class Searcher
                 }
                 break;
             }
-            if (timeBudget is not null && timeCap is not null && !extended
-                && ((completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin) || (completedDepth >= MoveChangeMinimumDepth && move != bestMove)))
+            if (
+                _timeBudget is not null
+                && _timeCap is not null
+                && !extended
+                && (
+                    (completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin)
+                    || (completedDepth >= MoveChangeMinimumDepth && move != bestMove)
+                )
+            )
             {
                 // C. Time management: the score fell or the best move changed, so give this move half
                 // as much time again, within the clock, to sort it out
                 extended = true;
-                TimeSpan longer = timeBudget.Value * 1.5;
-                timeBudget = longer < timeCap.Value ? longer : timeCap.Value;
+                TimeSpan longer = _timeBudget.Value * 1.5;
+                _timeBudget = longer < _timeCap.Value ? longer : _timeCap.Value;
             }
             bestMove = move;
             bestScore = score;
             completedDepth = depth;
             principalVariation = ExtractPrincipalVariation(bestMove, depth);
-            onProgress?.Invoke(new SearchResult(depth, score, nodes, stopwatch.Elapsed, principalVariation));
+            onProgress?.Invoke(new SearchResult(depth, score, _nodes, _stopwatch.Elapsed, principalVariation));
 
             if (IsMateScore(score) && MateScore - Math.Abs(score) <= depth && !limits.Infinite && limits.Depth is null)
             {
-                break;  // A forced mate within the searched depth is proven; deeper search cannot improve on it
+                break; // A forced mate within the searched depth is proven; deeper search cannot improve on it
             }
-            if (timeBudget is not null && stopwatch.Elapsed > timeBudget.Value / 2)
+            if (_timeBudget is not null && _stopwatch.Elapsed > _timeBudget.Value / 2)
             {
-                break;  // The next iteration would take longer than the time left
+                break; // The next iteration would take longer than the time left
             }
         }
 
-        stopwatch.Stop();
-        return new SearchResult(completedDepth, bestScore, nodes, stopwatch.Elapsed, principalVariation);
+        _stopwatch.Stop();
+        return new SearchResult(completedDepth, bestScore, _nodes, _stopwatch.Elapsed, principalVariation);
     }
 
     /// <summary>
     /// B. Aspiration windows: once a few iterations have settled the score, search the next one in a
     /// narrow window around it, which cuts off far more, and widen and repeat if the score escapes.
     /// </summary>
-    private (int Score, Move BestMove) SearchWithAspiration(ref MoveList rootMoves, int depth, int previousScore, int completedDepth)
+    private (int Score, Move BestMove) SearchWithAspiration(
+        ref MoveList rootMoves,
+        int depth,
+        int previousScore,
+        int completedDepth
+    )
     {
         if (completedDepth < AspirationMinimumDepth || IsMateScore(previousScore))
         {
@@ -227,7 +245,7 @@ public sealed class Searcher
         while (true)
         {
             (int score, Move bestMove) = SearchRoot(ref rootMoves, depth, alpha, beta);
-            if (stopped || (score > alpha && score < beta))
+            if (_stopped || (score > alpha && score < beta))
             {
                 return (score, bestMove);
             }
@@ -260,12 +278,12 @@ public sealed class Searcher
         bool first = true;
         foreach (Move move in rootMoves)
         {
-            position.MakeMove(move);
-            table.Prefetch(position.Key);
+            _position.MakeMove(move);
+            _table.Prefetch(_position.Key);
             int score = SearchChild(alpha, beta, depth - 1, 1, first);
-            position.UnmakeMove();
+            _position.UnmakeMove();
             first = false;
-            if (stopped)
+            if (_stopped)
             {
                 return (alpha, bestMove);
             }
@@ -275,12 +293,15 @@ public sealed class Searcher
                 bestMove = move;
                 if (alpha >= beta)
                 {
-                    break;      // Fail high: the caller widens the window and searches again
+                    break; // Fail high: the caller widens the window and searches again
                 }
             }
         }
-        NodeType type = alpha >= beta ? NodeType.LowerBound : alpha <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(position.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
+        NodeType type =
+            alpha >= beta ? NodeType.LowerBound
+            : alpha <= originalAlpha ? NodeType.UpperBound
+            : NodeType.Exact;
+        _table.Store(_position.Key, bestMove, ScoreToTable(alpha, 0), depth, type);
         return (alpha, bestMove);
     }
 
@@ -296,11 +317,11 @@ public sealed class Searcher
             return -AlphaBeta(-beta, -alpha, depth, ply);
         }
         int score = -AlphaBeta(-alpha - 1, -alpha, depth - reduction, ply);
-        if (reduction > 0 && score > alpha && !stopped)
+        if (reduction > 0 && score > alpha && !_stopped)
         {
             score = -AlphaBeta(-alpha - 1, -alpha, depth, ply);
         }
-        if (score > alpha && score < beta && !stopped)
+        if (score > alpha && score < beta && !_stopped)
         {
             score = -AlphaBeta(-beta, -alpha, depth, ply);
         }
@@ -310,16 +331,16 @@ public sealed class Searcher
     private int AlphaBeta(int alpha, int beta, int depth, int ply)
     {
         Debug.Assert(alpha < beta, "alpha must be below beta");
-        nodes++;
+        _nodes++;
         CheckLimits();
-        if (stopped)
+        if (_stopped)
         {
             return alpha;
         }
 
         // 1. Draws by repetition (once is enough inside the search: a line that repeats can repeat
         // again) and by insufficient material
-        if (position.RepetitionCount() >= 1 || position.IsInsufficientMaterial())
+        if (_position.RepetitionCount() >= 1 || _position.IsInsufficientMaterial())
         {
             return DrawScore;
         }
@@ -336,9 +357,9 @@ public sealed class Searcher
             return alpha;
         }
 
-        bool inCheck = position.IsInCheck;
+        bool inCheck = _position.IsInCheck;
         // 3. The fifty-move rule: a draw, unless the move that reached the hundredth half-move mated
-        if (position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
+        if (_position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
@@ -349,7 +370,7 @@ public sealed class Searcher
         }
         if (depth <= 0)
         {
-            depth = 1;      // In check at the horizon: search every reply rather than stand pat in quiescence
+            depth = 1; // In check at the horizon: search every reply rather than stand pat in quiescence
         }
 
         // 5. Transposition table cutoff
@@ -370,8 +391,13 @@ public sealed class Searcher
 
         // 7. Reverse futility pruning: in a non-PV node at low depth, a static evaluation so far above
         // beta that a few plies of play cannot bring it back down is taken as a fail-high at once.
-        if (depth <= ReverseFutilityMaxDepth && !inCheck && !pvNode && beta < MateThreshold
-            && staticEval - (ReverseFutilityMargin * depth) >= beta)
+        if (
+            depth <= ReverseFutilityMaxDepth
+            && !inCheck
+            && !pvNode
+            && beta < MateThreshold
+            && staticEval - (ReverseFutilityMargin * depth) >= beta
+        )
         {
             return staticEval;
         }
@@ -379,11 +405,16 @@ public sealed class Searcher
         // 8. Razoring: in a non-PV node at low depth, a static evaluation so far below alpha that quiet
         // play cannot recover is checked against the quiescence search, and when the captures agree
         // that alpha is out of reach the node is cut to the quiescence score.
-        if (depth <= RazoringMaxDepth && !inCheck && !pvNode && alpha > -MateThreshold
-            && staticEval + (RazoringMargin * depth) <= alpha)
+        if (
+            depth <= RazoringMaxDepth
+            && !inCheck
+            && !pvNode
+            && alpha > -MateThreshold
+            && staticEval + (RazoringMargin * depth) <= alpha
+        )
         {
             int razorScore = Quiescence(alpha, alpha + 1, ply);
-            if (stopped)
+            if (_stopped)
             {
                 return alpha;
             }
@@ -396,21 +427,27 @@ public sealed class Searcher
         // 9. Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
         // real move will almost certainly do so too, so the node is a fail-high. Skipped in check,
         // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
-        if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !position.LastMoveWasNull
-            && position.HasNonPawnMaterial(position.SideToMove) && staticEval >= beta)
+        if (
+            depth >= NullMoveMinimumDepth
+            && !inCheck
+            && beta < MateThreshold
+            && !_position.LastMoveWasNull
+            && _position.HasNonPawnMaterial(_position.SideToMove)
+            && staticEval >= beta
+        )
         {
             int reduction = NullMoveReduction + (depth / 4);
-            position.MakeNullMove();
-            table.Prefetch(position.Key);
+            _position.MakeNullMove();
+            _table.Prefetch(_position.Key);
             int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
-            position.UnmakeMove();
-            if (stopped)
+            _position.UnmakeMove();
+            if (_stopped)
             {
                 return alpha;
             }
             if (nullScore >= beta)
             {
-                return nullScore >= MateThreshold ? beta : nullScore;   // A mate found after a null move is not trusted
+                return nullScore >= MateThreshold ? beta : nullScore; // A mate found after a null move is not trusted
             }
         }
 
@@ -427,11 +464,11 @@ public sealed class Searcher
         if (!tableMove.IsNone)
         {
             moveNumber = 1;
-            position.MakeMove(tableMove);
-            table.Prefetch(position.Key);
+            _position.MakeMove(tableMove);
+            _table.Prefetch(_position.Key);
             int tableMoveScore = SearchChild(alpha, beta, depth - 1, ply + 1, first: true);
-            position.UnmakeMove();
-            if (stopped)
+            _position.UnmakeMove();
+            if (_stopped)
             {
                 return alpha;
             }
@@ -440,15 +477,15 @@ public sealed class Searcher
             if (tableMoveScore >= beta)
             {
                 RecordCutoff(tableMove, ply, depth);
-                table.Store(position.Key, tableMove, ScoreToTable(tableMoveScore, ply), depth, NodeType.LowerBound);
+                _table.Store(_position.Key, tableMove, ScoreToTable(tableMoveScore, ply), depth, NodeType.LowerBound);
                 return tableMoveScore;
             }
             alpha = Math.Max(alpha, tableMoveScore);
         }
 
-        ref MoveList moves = ref moveLists[ply];
+        ref MoveList moves = ref _moveLists[ply];
         moves.Clear();
-        position.GenerateLegalMoves(ref moves);
+        _position.GenerateLegalMoves(ref moves);
         if (moves.Count == 0)
         {
             return inCheck ? -MateScore + ply : DrawScore;
@@ -460,26 +497,37 @@ public sealed class Searcher
         {
             if (move == tableMove)
             {
-                continue;       // Already searched, before anything was generated
+                continue; // Already searched, before anything was generated
             }
             moveNumber++;
             // 12. Late move pruning: at low depth in a non-PV node, quiet moves ordered this late are
             // so unlikely to beat the moves already searched that they are skipped altogether
-            if (depth <= LateMovePruningMaxDepth && !pvNode && !inCheck && moveNumber > LateMovePruningBase + (depth * depth) && IsReducible(move, ply))
+            if (
+                depth <= LateMovePruningMaxDepth
+                && !pvNode
+                && !inCheck
+                && moveNumber > LateMovePruningBase + (depth * depth)
+                && IsReducible(move, ply)
+            )
             {
                 continue;
             }
-            position.MakeMove(move);
-            table.Prefetch(position.Key);
+            _position.MakeMove(move);
+            _table.Prefetch(_position.Key);
             // 13. Late move reductions: quiet moves ordered this far down are searched shallower first
-            int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !position.IsInCheck
-                ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
-                : 0;
-            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction);   // 14. PVS
-            position.UnmakeMove();
-            if (stopped)
+            int reduction =
+                depth >= LmrMinimumDepth
+                && moveNumber > LmrFullDepthMoves
+                && !inCheck
+                && IsReducible(move, ply)
+                && !_position.IsInCheck
+                    ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
+                    : 0;
+            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction); // 14. PVS
+            _position.UnmakeMove();
+            if (_stopped)
             {
-                return alpha;   // Do not store results from an incomplete search
+                return alpha; // Do not store results from an incomplete search
             }
             if (score > bestScore)
             {
@@ -491,7 +539,7 @@ public sealed class Searcher
                 // 15. A cutoff: the move refutes the opponent's last move, so remember it; 16. the
                 // score is a lower bound
                 RecordCutoff(move, ply, depth);
-                table.Store(position.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
+                _table.Store(_position.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
@@ -499,7 +547,7 @@ public sealed class Searcher
 
         // 16. No cutoff: an exact score if some move raised alpha, otherwise only an upper bound
         NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
-        table.Store(position.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
+        _table.Store(_position.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
         return bestScore;
     }
 
@@ -511,9 +559,9 @@ public sealed class Searcher
     /// </summary>
     private int Quiescence(int alpha, int beta, int ply)
     {
-        nodes++;
+        _nodes++;
         CheckLimits();
-        if (stopped)
+        if (_stopped)
         {
             return alpha;
         }
@@ -522,13 +570,13 @@ public sealed class Searcher
             return Evaluate();
         }
 
-        bool inCheck = position.IsInCheck;
+        bool inCheck = _position.IsInCheck;
         // The fifty-move rule, as in the main search
-        if (position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
+        if (_position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
-        if (!inCheck && (position.RepetitionCount() >= 1 || position.IsInsufficientMaterial()))
+        if (!inCheck && (_position.RepetitionCount() >= 1 || _position.IsInsufficientMaterial()))
         {
             return DrawScore;
         }
@@ -553,11 +601,11 @@ public sealed class Searcher
             alpha = Math.Max(alpha, bestScore);
         }
 
-        ref MoveList moves = ref moveLists[ply];
+        ref MoveList moves = ref _moveLists[ply];
         moves.Clear();
         if (inCheck)
         {
-            position.GenerateLegalMoves(ref moves);
+            _position.GenerateLegalMoves(ref moves);
             if (moves.Count == 0)
             {
                 return -MateScore + ply;
@@ -565,22 +613,22 @@ public sealed class Searcher
         }
         else
         {
-            position.GenerateLegalCaptures(ref moves);
+            _position.GenerateLegalCaptures(ref moves);
         }
         OrderMoves(ref moves, ply, tableMove);
 
         foreach (Move move in moves)
         {
             // A capture that the exchange evaluation says loses material is not worth searching
-            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(position, move) < 0)
+            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(_position, move) < 0)
             {
                 continue;
             }
-            position.MakeMove(move);
-            table.Prefetch(position.Key);
+            _position.MakeMove(move);
+            _table.Prefetch(_position.Key);
             int score = -Quiescence(-beta, -alpha, ply + 1);
-            position.UnmakeMove();
-            if (stopped)
+            _position.UnmakeMove();
+            if (_stopped)
             {
                 return alpha;
             }
@@ -591,13 +639,19 @@ public sealed class Searcher
             }
             if (score >= beta)
             {
-                table.Store(position.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
+                _table.Store(_position.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
                 return score;
             }
             alpha = Math.Max(alpha, score);
         }
 
-        table.Store(position.Key, bestMove, ScoreToTable(bestScore, ply), 0, bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact);
+        _table.Store(
+            _position.Key,
+            bestMove,
+            ScoreToTable(bestScore, ply),
+            0,
+            bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact
+        );
         return bestScore;
     }
 
@@ -609,7 +663,7 @@ public sealed class Searcher
     {
         tableMove = Move.None;
         score = 0;
-        if (!table.TryGet(position.Key, out TranspositionEntry entry))
+        if (!_table.TryGet(_position.Key, out TranspositionEntry entry))
         {
             return false;
         }
@@ -630,12 +684,12 @@ public sealed class Searcher
         return cutoff;
     }
 
-    private int Evaluate() => evaluator.Evaluate(position);
+    private int Evaluate() => _evaluator.Evaluate(_position);
 
     /// <summary>
     /// The static evaluation of a position by this searcher's evaluator, for the UCI "eval" command.
     /// </summary>
-    public int Evaluate(Position position) => evaluator.Evaluate(position);
+    public int Evaluate(Position position) => _evaluator.Evaluate(position);
 
     /// <summary>
     /// Does the side to move have a legal move? Generated into the ply's move list, which the node
@@ -643,9 +697,9 @@ public sealed class Searcher
     /// </summary>
     private bool HasLegalMove(int ply)
     {
-        ref MoveList moves = ref moveLists[ply];
+        ref MoveList moves = ref _moveLists[ply];
         moves.Clear();
-        position.GenerateLegalMoves(ref moves);
+        _position.GenerateLegalMoves(ref moves);
         return moves.Count > 0;
     }
 
@@ -654,30 +708,35 @@ public sealed class Searcher
     /// </summary>
     public void NewGame()
     {
-        evaluator.Clear();
+        _evaluator.Clear();
     }
 
     private void CheckLimits()
     {
-        if (stopped)
+        if (_stopped)
         {
             return;
         }
-        if (nodeLimit is not null && nodes >= nodeLimit.Value)
+        if (_nodeLimit is not null && _nodes >= _nodeLimit.Value)
         {
-            stopped = true;
+            _stopped = true;
             return;
         }
-        if (nodes % NodesBetweenTimeChecks == 0
-            && (cancellation.IsCancellationRequested || (timeBudget is not null && stopwatch.Elapsed >= timeBudget.Value)))
+        if (
+            _nodes % NodesBetweenTimeChecks == 0
+            && (
+                _cancellation.IsCancellationRequested
+                || (_timeBudget is not null && _stopwatch.Elapsed >= _timeBudget.Value)
+            )
+        )
         {
-            stopped = true;
+            _stopped = true;
         }
     }
 
     private Move GetTableMove()
     {
-        return table.TryGet(position.Key, out TranspositionEntry entry) ? entry.BestMove : Move.None;
+        return _table.TryGet(_position.Key, out TranspositionEntry entry) ? entry.BestMove : Move.None;
     }
 
     /// <summary>
@@ -695,9 +754,9 @@ public sealed class Searcher
         {
             return;
         }
-        Move previous = position.LastMove is { IsNone: false } last ? last : Move.None;
-        Move counter = previous.IsNone ? Move.None : counterMoves[CounterIndex(previous)];
-        counterAtPly[ply] = counter;
+        Move previous = _position.LastMove is { IsNone: false } last ? last : Move.None;
+        Move counter = previous.IsNone ? Move.None : _counterMoves[CounterIndex(previous)];
+        _counterAtPly[ply] = counter;
         Span<int> scores = stackalloc int[count];
         for (int i = 0; i < count; i++)
         {
@@ -739,11 +798,11 @@ public sealed class Searcher
         {
             return score;
         }
-        if (move == killers[ply].First)
+        if (move == _killers[ply].First)
         {
             return 90_000;
         }
-        if (move == killers[ply].Second)
+        if (move == _killers[ply].Second)
         {
             return 80_000;
         }
@@ -751,10 +810,10 @@ public sealed class Searcher
         {
             return 70_000;
         }
-        int quiet = history[HistoryIndex(position.SideToMove, move)];
+        int quiet = _history[HistoryIndex(_position.SideToMove, move)];
         if (!previous.IsNone)
         {
-            quiet += continuationHistory[ContinuationIndex(previous, move)];
+            quiet += _continuationHistory[ContinuationIndex(previous, move)];
         }
         return Math.Min(quiet, HistoryCap);
     }
@@ -764,7 +823,11 @@ public sealed class Searcher
     /// </summary>
     private bool IsReducible(Move move, int ply)
     {
-        return !move.IsCapture && !move.IsPromotion && move != killers[ply].First && move != killers[ply].Second && move != counterAtPly[ply];
+        return !move.IsCapture
+            && !move.IsPromotion
+            && move != _killers[ply].First
+            && move != _killers[ply].Second
+            && move != _counterAtPly[ply];
     }
 
     /// <summary>
@@ -773,7 +836,7 @@ public sealed class Searcher
     /// </summary>
     private void RecordHistory(Move move, int depth)
     {
-        ref int entry = ref history[HistoryIndex(position.SideToMove, move)];
+        ref int entry = ref _history[HistoryIndex(_position.SideToMove, move)];
         entry = Math.Min(entry + (depth * depth), HistoryCap);
     }
 
@@ -789,24 +852,25 @@ public sealed class Searcher
         }
         RecordKiller(ply, move);
         RecordHistory(move, depth);
-        if (position.LastMove is { IsNone: false } previous)
+        if (_position.LastMove is { IsNone: false } previous)
         {
-            counterMoves[CounterIndex(previous)] = move;
-            ref int continuation = ref continuationHistory[ContinuationIndex(previous, move)];
+            _counterMoves[CounterIndex(previous)] = move;
+            ref int continuation = ref _continuationHistory[ContinuationIndex(previous, move)];
             continuation = Math.Min(continuation + (depth * depth), HistoryCap);
         }
     }
 
     private void RecordKiller(int ply, Move move)
     {
-        if (killers[ply].First != move)
+        if (_killers[ply].First != move)
         {
-            killers[ply] = new Killers(move, killers[ply].First);
+            _killers[ply] = new Killers(move, _killers[ply].First);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int HistoryIndex(Color color, Move move) => ((((int)color * Square.Count) + move.From) * Square.Count) + move.To;
+    private static int HistoryIndex(Color color, Move move) =>
+        ((((int)color * Square.Count) + move.From) * Square.Count) + move.To;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int CounterIndex(Move previous) => ((int)previous.Piece * Square.Count) + previous.To;
@@ -815,34 +879,37 @@ public sealed class Searcher
     private static int ContinuationIndex(Move previous, Move move) =>
         (((((int)previous.Piece * Square.Count) + previous.To) * 7 + (int)move.Piece) * Square.Count) + move.To;
 
-    private static int PieceValue(Piece type) => type switch
-    {
-        Piece.Pawn => 1,
-        Piece.Knight => 3,
-        Piece.Bishop => 3,
-        Piece.Rook => 5,
-        Piece.Queen => 9,
-        Piece.King => 20,
-        _ => 0,
-    };
+    private static int PieceValue(Piece type) =>
+        type switch
+        {
+            Piece.Pawn => 1,
+            Piece.Knight => 3,
+            Piece.Bishop => 3,
+            Piece.Rook => 5,
+            Piece.Queen => 9,
+            Piece.King => 20,
+            _ => 0,
+        };
 
     /// <summary>
     /// Mate scores are stored relative to the node rather than the root, so that an entry found from
     /// a different root still gives the right distance to mate.
     /// </summary>
-    internal static int ScoreToTable(int score, int ply) => score switch
-    {
-        >= MateThreshold => score + ply,
-        <= -MateThreshold => score - ply,
-        _ => score,
-    };
+    internal static int ScoreToTable(int score, int ply) =>
+        score switch
+        {
+            >= MateThreshold => score + ply,
+            <= -MateThreshold => score - ply,
+            _ => score,
+        };
 
-    internal static int ScoreFromTable(int score, int ply) => score switch
-    {
-        >= MateThreshold => score - ply,
-        <= -MateThreshold => score + ply,
-        _ => score,
-    };
+    internal static int ScoreFromTable(int score, int ply) =>
+        score switch
+        {
+            >= MateThreshold => score - ply,
+            <= -MateThreshold => score + ply,
+            _ => score,
+        };
 
     /// <summary>
     /// Follow the table's best moves from the root to reconstruct the expected line of play.
@@ -850,21 +917,25 @@ public sealed class Searcher
     private List<Move> ExtractPrincipalVariation(Move bestMove, int maxLength)
     {
         var line = new List<Move> { bestMove };
-        position.MakeMove(bestMove);
-        while (line.Count < maxLength && position.RepetitionCount() == 0
-            && table.TryGet(position.Key, out TranspositionEntry entry) && !entry.BestMove.IsNone)
+        _position.MakeMove(bestMove);
+        while (
+            line.Count < maxLength
+            && _position.RepetitionCount() == 0
+            && _table.TryGet(_position.Key, out TranspositionEntry entry)
+            && !entry.BestMove.IsNone
+        )
         {
             Move move = entry.BestMove;
-            if (!position.GenerateLegalMoves().Contains(move))
+            if (!_position.GenerateLegalMoves().Contains(move))
             {
                 break;
             }
             line.Add(move);
-            position.MakeMove(move);
+            _position.MakeMove(move);
         }
         for (int i = 0; i < line.Count; i++)
         {
-            position.UnmakeMove();
+            _position.UnmakeMove();
         }
         return line;
     }

@@ -38,7 +38,7 @@ public static class Bench
     {
         var table = new TranspositionTable(TableSizeInMegabytes);
         var searcher = new Searcher(table);
-        Attacks.Initialize();   // Not part of the time measured
+        Attacks.Initialize(); // Not part of the time measured
         var stopwatch = Stopwatch.StartNew();
         long totalNodes = 0;
         for (int i = 0; i < Positions.Count; i++)
@@ -46,10 +46,20 @@ public static class Bench
             table.Clear();
             SearchResult result = searcher.Search(Position.FromFen(Positions[i]), SearchLimits.ForDepth(depth));
             totalNodes += result.Nodes;
-            log?.WriteLine(string.Create(CultureInfo.InvariantCulture, $"position {i + 1,2}: bestmove {result.BestMove,-5} score {result.Score,6} nodes {result.Nodes,10}"));
+            log?.WriteLine(
+                string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"position {i + 1, 2}: bestmove {result.BestMove, -5} score {result.Score, 6} nodes {result.Nodes, 10}"
+                )
+            );
         }
         stopwatch.Stop();
-        log?.WriteLine(string.Create(CultureInfo.InvariantCulture, $"bench depth {depth}: {totalNodes} nodes {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps {(long)stopwatch.Elapsed.TotalMilliseconds} ms"));
+        log?.WriteLine(
+            string.Create(
+                CultureInfo.InvariantCulture,
+                $"bench depth {depth}: {totalNodes} nodes {SearchResult.Rate(totalNodes, stopwatch.Elapsed)} nps {(long)stopwatch.Elapsed.TotalMilliseconds} ms"
+            )
+        );
         return (totalNodes, stopwatch.Elapsed);
     }
 }

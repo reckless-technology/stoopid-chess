@@ -14,31 +14,34 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 internal sealed class DeafEngine : IDisposable
 {
-    private readonly AnonymousPipeServerStream toEngine = new(PipeDirection.Out, HandleInheritability.None);
-    private readonly AnonymousPipeServerStream fromEngine = new(PipeDirection.Out, HandleInheritability.None);
-    private readonly AnonymousPipeClientStream engineInput;
-    private readonly AnonymousPipeClientStream engineOutput;
-    private readonly ManualResetEventSlim deaf = new();
-    private readonly SafePipeHandle commandPipe;
-    private readonly SafePipeHandle replyPipe;
+    private readonly AnonymousPipeServerStream _toEngine = new(PipeDirection.Out, HandleInheritability.None);
+    private readonly AnonymousPipeServerStream _fromEngine = new(PipeDirection.Out, HandleInheritability.None);
+    private readonly AnonymousPipeClientStream _engineInput;
+    private readonly AnonymousPipeClientStream _engineOutput;
+    private readonly ManualResetEventSlim _deaf = new();
+    private readonly SafePipeHandle _commandPipe;
+    private readonly SafePipeHandle _replyPipe;
 
     private DeafEngine()
     {
-        engineInput = new AnonymousPipeClientStream(PipeDirection.In, toEngine.ClientSafePipeHandle);
-        engineOutput = new AnonymousPipeClientStream(PipeDirection.In, fromEngine.ClientSafePipeHandle);
-        commandPipe = toEngine.SafePipeHandle;
-        replyPipe = engineOutput.SafePipeHandle;
-        Client = UciEngineClient.Connect(new StreamReader(engineOutput), new StreamWriter(toEngine) { AutoFlush = true });
+        _engineInput = new AnonymousPipeClientStream(PipeDirection.In, _toEngine.ClientSafePipeHandle);
+        _engineOutput = new AnonymousPipeClientStream(PipeDirection.In, _fromEngine.ClientSafePipeHandle);
+        _commandPipe = _toEngine.SafePipeHandle;
+        _replyPipe = _engineOutput.SafePipeHandle;
+        Client = UciEngineClient.Connect(
+            new StreamReader(_engineOutput),
+            new StreamWriter(_toEngine) { AutoFlush = true }
+        );
     }
 
     /// <summary>The client connected to the engine.</summary>
     public UciEngineClient Client { get; }
 
     /// <summary>Whether the client's end of its command pipe has been released.</summary>
-    public bool IsCommandPipeReleased => commandPipe.IsClosed;
+    public bool IsCommandPipeReleased => _commandPipe.IsClosed;
 
     /// <summary>Whether the client's end of its reply pipe has been released.</summary>
-    public bool IsReplyPipeReleased => replyPipe.IsClosed;
+    public bool IsReplyPipeReleased => _replyPipe.IsClosed;
 
     /// <summary>
     /// An engine that does nothing until the test makes it stop listening and close its output.
@@ -54,8 +57,8 @@ internal sealed class DeafEngine : IDisposable
         var engine = new DeafEngine();
         var thread = new Thread(() =>
         {
-            var reader = new StreamReader(engine.engineInput);
-            var writer = new StreamWriter(engine.fromEngine) { AutoFlush = true };
+            var reader = new StreamReader(engine._engineInput);
+            var writer = new StreamWriter(engine._fromEngine) { AutoFlush = true };
             try
             {
                 while (reader.ReadLine() is string command)
@@ -87,29 +90,30 @@ internal sealed class DeafEngine : IDisposable
     /// <summary>
     /// Wait until the engine has stopped listening.
     /// </summary>
-    public void WaitUntilDeaf(TimeSpan timeout) => Assert.True(deaf.Wait(timeout), "the engine never stopped listening");
+    public void WaitUntilDeaf(TimeSpan timeout) =>
+        Assert.True(_deaf.Wait(timeout), "the engine never stopped listening");
 
     /// <summary>
     /// The engine stops reading its input: the read end of the command pipe closes, and the client's next write fails.
     /// </summary>
     public void StopListening()
     {
-        engineInput.Dispose();
-        deaf.Set();
+        _engineInput.Dispose();
+        _deaf.Set();
     }
 
     /// <summary>
     /// The engine's output closes: the client's reader sees the end.
     /// </summary>
-    public void CloseOutput() => fromEngine.Dispose();
+    public void CloseOutput() => _fromEngine.Dispose();
 
     public void Dispose()
     {
-        engineInput.Dispose();
-        fromEngine.Dispose();
+        _engineInput.Dispose();
+        _fromEngine.Dispose();
         Client.Dispose();
-        toEngine.Dispose();
-        engineOutput.Dispose();
-        deaf.Dispose();
+        _toEngine.Dispose();
+        _engineOutput.Dispose();
+        _deaf.Dispose();
     }
 }

@@ -23,7 +23,8 @@ public sealed record TimeControl(TimeSpan Base, TimeSpan Increment, int? MovesPe
     /// <summary>
     /// The classic repeating control: the given number of moves in the given minutes, again and again.
     /// </summary>
-    public static TimeControl Periods(int moves, int minutes) => new(TimeSpan.FromMinutes(minutes), TimeSpan.Zero, moves);
+    public static TimeControl Periods(int moves, int minutes) =>
+        new(TimeSpan.FromMinutes(minutes), TimeSpan.Zero, moves);
 
     /// <summary>
     /// The customary short forms: "40/5" is forty moves in five minutes, "5+3" is five minutes with a three second

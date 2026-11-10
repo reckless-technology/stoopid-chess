@@ -24,5 +24,8 @@ internal static class Program
     /// The version the build stamped (Directory.Build.targets: MAJOR.MINOR.BUILD from the git tags).
     /// </summary>
     internal static string Version =>
-        typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
+        typeof(Program)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion.Split('+')[0]
+        ?? "0.0.0";
 }

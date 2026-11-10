@@ -28,7 +28,9 @@ internal sealed class ViewHarness : IDisposable
         if (Bitmap.Width != (int)Root.Width || Bitmap.Height != (int)Root.Height)
         {
             Bitmap.Dispose();
-            Bitmap = new SKBitmap(new SKImageInfo((int)Root.Width, (int)Root.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
+            Bitmap = new SKBitmap(
+                new SKImageInfo((int)Root.Width, (int)Root.Height, SKColorType.Bgra8888, SKAlphaType.Premul)
+            );
         }
         using var canvas = new SKCanvas(Bitmap);
         Root.Render(canvas);
@@ -39,12 +41,16 @@ internal sealed class ViewHarness : IDisposable
     /// <summary>The colour at a point, once the window is drawn.</summary>
     public SKColor ColorAt(float x, float y) => Render().GetPixel((int)x, (int)y);
 
-    public void Press(SKPoint at, PointerButton button = PointerButton.Left, KeyModifiers modifiers = KeyModifiers.None) =>
-        Root.PointerDown(new PointerEvent(at, button, modifiers));
+    public void Press(
+        SKPoint at,
+        PointerButton button = PointerButton.Left,
+        KeyModifiers modifiers = KeyModifiers.None
+    ) => Root.PointerDown(new PointerEvent(at, button, modifiers));
 
     public void Move(SKPoint to) => Root.PointerMove(new PointerEvent(to));
 
-    public void Release(SKPoint at, PointerButton button = PointerButton.Left) => Root.PointerUp(new PointerEvent(at, button));
+    public void Release(SKPoint at, PointerButton button = PointerButton.Left) =>
+        Root.PointerUp(new PointerEvent(at, button));
 
     /// <summary>A press and release at one point, the window drawn between them.</summary>
     public void Click(SKPoint at, PointerButton button = PointerButton.Left, KeyModifiers modifiers = KeyModifiers.None)

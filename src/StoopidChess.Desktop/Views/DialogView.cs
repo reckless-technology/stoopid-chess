@@ -20,8 +20,8 @@ internal abstract class DialogView : View
     private const float ButtonGap = 8.0f;
     private const float MinimumButtonWidth = 92.0f;
 
-    private readonly List<PlateButton> buttons = [];
-    private readonly TaskCompletionSource closed = new();
+    private readonly List<PlateButton> _buttons = [];
+    private readonly TaskCompletionSource _closed = new();
 
     protected DialogView(string title) => Title = title;
 
@@ -38,10 +38,10 @@ internal abstract class DialogView : View
     public PlateButton? CancelButton { get; private set; }
 
     /// <summary>The buttons, left to right.</summary>
-    public IReadOnlyList<PlateButton> Buttons => buttons;
+    public IReadOnlyList<PlateButton> Buttons => _buttons;
 
     /// <summary>Whether the dialog has closed.</summary>
-    public bool IsClosed => closed.Task.IsCompleted;
+    public bool IsClosed => _closed.Task.IsCompleted;
 
     /// <summary>
     /// Open the dialog over <paramref name="root"/>, the keyboard on its first field; complete once it has closed.
@@ -51,7 +51,7 @@ internal abstract class DialogView : View
         ArgumentNullException.ThrowIfNull(root);
         root.ShowOverlay(this);
         root.Focus(FirstFocusable(this));
-        return closed.Task;
+        return _closed.Task;
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ internal abstract class DialogView : View
     public void Close()
     {
         Root?.CloseOverlay(this);
-        closed.TrySetResult();
+        _closed.TrySetResult();
     }
 
     /// <summary>The content's size: the card is this and its margins, the title and the buttons.</summary>
@@ -76,7 +76,7 @@ internal abstract class DialogView : View
     {
         var button = new PlateButton(text);
         button.Clicked += clicked;
-        buttons.Add(button);
+        _buttons.Add(button);
         AddChild(button);
         if (isDefault)
         {
@@ -92,13 +92,17 @@ internal abstract class DialogView : View
     protected override void Layout()
     {
         SKSize content = ContentSize;
-        float buttonsWidth = buttons.Sum(ButtonWidth) + (ButtonGap * Math.Max(0, buttons.Count - 1));
-        float width = Math.Max(Math.Max(content.Width, buttonsWidth), Drawing.Measure(Fonts.Title, Title)) + (2 * Padding);
-        float height = TitleHeight + Padding + content.Height + (buttons.Count > 0 ? Padding + ButtonHeight : 0) + Padding;
+        float buttonsWidth = _buttons.Sum(ButtonWidth) + (ButtonGap * Math.Max(0, _buttons.Count - 1));
+        float width =
+            Math.Max(Math.Max(content.Width, buttonsWidth), Drawing.Measure(Fonts.Title, Title)) + (2 * Padding);
+        float height =
+            TitleHeight + Padding + content.Height + (_buttons.Count > 0 ? Padding + ButtonHeight : 0) + Padding;
         Card = SKRect.Create(MathF.Round((Width - width) / 2), MathF.Round((Height - height) / 2), width, height);
-        LayoutContent(SKRect.Create(Card.Left + Padding, Card.Top + TitleHeight + Padding, width - (2 * Padding), content.Height));
+        LayoutContent(
+            SKRect.Create(Card.Left + Padding, Card.Top + TitleHeight + Padding, width - (2 * Padding), content.Height)
+        );
         float x = Card.Right - Padding - buttonsWidth;
-        foreach (PlateButton button in buttons)
+        foreach (PlateButton button in _buttons)
         {
             float buttonWidth = ButtonWidth(button);
             button.SetBounds(SKRect.Create(x, Card.Bottom - Padding - ButtonHeight, buttonWidth, ButtonHeight));
@@ -116,10 +120,19 @@ internal abstract class DialogView : View
         paint.StrokeWidth = 1;
         paint.Color = Theme.Rule.Brighter(0.1f);
         canvas.DrawRoundRect(Plates.Reduced(Card, 0.5f), 6, 6, paint);
-        Drawing.Text(canvas, Title, SKRect.Create(Card.Left + Padding, Card.Top, Card.Width - (2 * Padding), TitleHeight + 6), Fonts.Title, Theme.Ink);
+        Drawing.Text(
+            canvas,
+            Title,
+            SKRect.Create(Card.Left + Padding, Card.Top, Card.Width - (2 * Padding), TitleHeight + 6),
+            Fonts.Title,
+            Theme.Ink
+        );
         paint.Style = SKPaintStyle.Fill;
         paint.Color = Theme.Rule;
-        canvas.DrawRect(SKRect.Create(Card.Left + Padding, Card.Top + TitleHeight + 6, Card.Width - (2 * Padding), 1), paint);
+        canvas.DrawRect(
+            SKRect.Create(Card.Left + Padding, Card.Top + TitleHeight + 6, Card.Width - (2 * Padding), 1),
+            paint
+        );
     }
 
     public override bool OnPointerDown(PointerEvent e) => true; // Modal: the veil takes every press

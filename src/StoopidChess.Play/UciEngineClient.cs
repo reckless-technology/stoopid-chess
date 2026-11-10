@@ -22,28 +22,28 @@ namespace StoopidChess.Play;
 /// </summary>
 public sealed class UciEngineClient : IDisposable
 {
-    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan s_shutdownTimeout = TimeSpan.FromSeconds(3);
 
-    private readonly TextReader reader;
-    private readonly TextWriter writer;
-    private readonly Process? process;
-    private readonly Action? shutdown;
-    private readonly Thread readerThread;
-    private readonly Lock sync = new();
-    private TaskCompletionSource<string>? uciOk;      // Completed by "uciok"
-    private TaskCompletionSource<string>? readyOk;    // Completed by "readyok"
-    private TaskCompletionSource<string>? bestMove;   // Completed by "bestmove <move>"
-    private volatile bool exited;
-    private bool disposed;
+    private readonly TextReader _reader;
+    private readonly TextWriter _writer;
+    private readonly Process? _process;
+    private readonly Action? _shutdown;
+    private readonly Thread _readerThread;
+    private readonly Lock _sync = new();
+    private TaskCompletionSource<string>? _uciOk; // Completed by "uciok"
+    private TaskCompletionSource<string>? _readyOk; // Completed by "readyok"
+    private TaskCompletionSource<string>? _bestMove; // Completed by "bestmove <move>"
+    private volatile bool _exited;
+    private bool _disposed;
 
     private UciEngineClient(TextReader reader, TextWriter writer, Process? process, Action? shutdown)
     {
-        this.reader = reader;
-        this.writer = writer;
-        this.process = process;
-        this.shutdown = shutdown;
-        readerThread = new Thread(ReadLoop) { IsBackground = true, Name = "UCI engine reader" };
-        readerThread.Start();
+        this._reader = reader;
+        this._writer = writer;
+        this._process = process;
+        this._shutdown = shutdown;
+        _readerThread = new Thread(ReadLoop) { IsBackground = true, Name = "UCI engine reader" };
+        _readerThread.Start();
     }
 
     /// <summary>
@@ -57,12 +57,12 @@ public sealed class UciEngineClient : IDisposable
     /// True once the engine has closed its output: it has quit, crashed or been disposed. Commands
     /// sent after that throw <see cref="InvalidOperationException"/>.
     /// </summary>
-    public bool HasExited => exited;
+    public bool HasExited => _exited;
 
     /// <summary>
     /// The external engine's process id; null for an engine in this process.
     /// </summary>
-    internal int? ProcessId => process?.Id;
+    internal int? ProcessId => _process?.Id;
 
     /// <summary>
     /// Raised on the reader thread for every "info" line the engine sends.
@@ -82,7 +82,8 @@ public sealed class UciEngineClient : IDisposable
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(fileName)),
         };
-        Process process = Process.Start(startInfo) ?? throw new InvalidOperationException($"could not start '{fileName}'");
+        Process process =
+            Process.Start(startInfo) ?? throw new InvalidOperationException($"could not start '{fileName}'");
         process.StandardInput.AutoFlush = true;
         return new UciEngineClient(process.StandardOutput, process.StandardInput, process, null);
     }
@@ -99,12 +100,16 @@ public sealed class UciEngineClient : IDisposable
 
         var engineThread = new Thread(() =>
         {
-            using var session = new UciSession(new StreamReader(engineInput), new StreamWriter(fromEngine) { AutoFlush = true });
+            using var session = new UciSession(
+                new StreamReader(engineInput),
+                new StreamWriter(fromEngine) { AutoFlush = true }
+            );
             try
             {
                 session.Run();
             }
-            catch (Exception ex) when (ex is IOException or ObjectDisposedException or InvalidOperationException or AggregateException)
+            catch (Exception ex)
+                when (ex is IOException or ObjectDisposedException or InvalidOperationException or AggregateException)
             {
                 // The pipe closed or the session failed; closing our ends tells the client the engine has gone
             }
@@ -124,7 +129,8 @@ public sealed class UciEngineClient : IDisposable
             new StreamReader(engineOutput),
             new StreamWriter(toEngine) { AutoFlush = true },
             process: null,
-            shutdown: () => engineThread.Join(ShutdownTimeout));
+            shutdown: () => engineThread.Join(s_shutdownTimeout)
+        );
     }
 
     /// <summary>
@@ -138,12 +144,14 @@ public sealed class UciEngineClient : IDisposable
     /// <summary>
     /// Send "uci" and wait for "uciok".
     /// </summary>
-    public Task InitialiseAsync(CancellationToken cancellationToken = default) => SendAndAwaitAsync("uci", ref uciOk, cancellationToken);
+    public Task InitialiseAsync(CancellationToken cancellationToken = default) =>
+        SendAndAwaitAsync("uci", ref _uciOk, cancellationToken);
 
     /// <summary>
     /// Send "isready" and wait for "readyok".
     /// </summary>
-    public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default) => SendAndAwaitAsync("isready", ref readyOk, cancellationToken);
+    public Task WaitUntilReadyAsync(CancellationToken cancellationToken = default) =>
+        SendAndAwaitAsync("isready", ref _readyOk, cancellationToken);
 
     public void NewGame() => Send("ucinewgame");
 
@@ -167,14 +175,14 @@ public sealed class UciEngineClient : IDisposable
     public Task<string> GoAsync(SearchLimits limits, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(limits);
-        lock (sync)
+        lock (_sync)
         {
-            if (bestMove is { Task.IsCompleted: false })
+            if (_bestMove is { Task.IsCompleted: false })
             {
                 throw new InvalidOperationException("a search is already in progress");
             }
         }
-        Task<string> reply = SendAndAwaitAsync("go " + FormatGo(limits), ref bestMove, CancellationToken.None);
+        Task<string> reply = SendAndAwaitAsync("go " + FormatGo(limits), ref _bestMove, CancellationToken.None);
         if (cancellationToken.CanBeCanceled)
         {
             CancellationTokenRegistration registration = cancellationToken.Register(() =>
@@ -231,10 +239,14 @@ public sealed class UciEngineClient : IDisposable
     /// <summary>
     /// Send a command whose reply the reader thread delivers through <paramref name="pending"/>.
     /// </summary>
-    private Task<string> SendAndAwaitAsync(string command, ref TaskCompletionSource<string>? pending, CancellationToken cancellationToken)
+    private Task<string> SendAndAwaitAsync(
+        string command,
+        ref TaskCompletionSource<string>? pending,
+        CancellationToken cancellationToken
+    )
     {
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (sync)
+        lock (_sync)
         {
             pending = completion;
         }
@@ -244,22 +256,22 @@ public sealed class UciEngineClient : IDisposable
 
     private void Send(string command)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        if (exited)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_exited)
         {
             throw new InvalidOperationException("the engine has exited");
         }
         try
         {
-            lock (writer)
+            lock (_writer)
             {
-                writer.WriteLine(command);
-                writer.Flush();
+                _writer.WriteLine(command);
+                _writer.Flush();
             }
         }
         catch (IOException ex)
         {
-            exited = true;
+            _exited = true;
             throw new InvalidOperationException("the engine has exited", ex);
         }
     }
@@ -268,7 +280,7 @@ public sealed class UciEngineClient : IDisposable
     {
         try
         {
-            while (reader.ReadLine() is string line)
+            while (_reader.ReadLine() is string line)
             {
                 Dispatch(line);
             }
@@ -277,16 +289,14 @@ public sealed class UciEngineClient : IDisposable
         {
             // The engine has gone away; fall through and fail anything still waiting
         }
-        catch (ObjectDisposedException)
-        {
-        }
-        exited = true;
+        catch (ObjectDisposedException) { }
+        _exited = true;
         var gone = new InvalidOperationException("the engine has exited");
-        lock (sync)
+        lock (_sync)
         {
-            uciOk?.TrySetException(gone);
-            readyOk?.TrySetException(gone);
-            bestMove?.TrySetException(gone);
+            _uciOk?.TrySetException(gone);
+            _readyOk?.TrySetException(gone);
+            _bestMove?.TrySetException(gone);
         }
     }
 
@@ -300,13 +310,13 @@ public sealed class UciEngineClient : IDisposable
         switch (tokens[0])
         {
             case "uciok":
-                Complete(uciOk, "");
+                Complete(_uciOk, "");
                 break;
             case "readyok":
-                Complete(readyOk, "");
+                Complete(_readyOk, "");
                 break;
             case "bestmove":
-                Complete(bestMove, tokens.ElementAtOrDefault(1) ?? "0000");
+                Complete(_bestMove, tokens.ElementAtOrDefault(1) ?? "0000");
                 break;
             case "id" when tokens.Length > 2 && tokens[1] == "name":
                 Name = string.Join(' ', tokens, 2, tokens.Length - 2);
@@ -333,7 +343,7 @@ public sealed class UciEngineClient : IDisposable
 
     private void Complete(TaskCompletionSource<string>? pending, string result)
     {
-        lock (sync)
+        lock (_sync)
         {
             pending?.TrySetResult(result);
         }
@@ -345,7 +355,7 @@ public sealed class UciEngineClient : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
@@ -357,25 +367,25 @@ public sealed class UciEngineClient : IDisposable
         {
             // Already gone
         }
-        disposed = true;
-        if (process is not null && !process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds))
+        _disposed = true;
+        if (_process is not null && !_process.WaitForExit((int)s_shutdownTimeout.TotalMilliseconds))
         {
             try
             {
-                process.Kill(entireProcessTree: true);
+                _process.Kill(entireProcessTree: true);
             }
             catch (InvalidOperationException)
             {
                 // It exited after all
             }
         }
-        shutdown?.Invoke();
-        readerThread.Join(ShutdownTimeout);
+        _shutdown?.Invoke();
+        _readerThread.Join(s_shutdownTimeout);
         try
         {
-            writer.Dispose();
+            _writer.Dispose();
         }
-        catch (IOException) when (exited)
+        catch (IOException) when (_exited)
         {
             // A command the engine died before taking is still buffered (a write to a dead engine fails with the
             // command left in the writer, or in the stream under it), and closing the writer tries to send it again.
@@ -383,8 +393,8 @@ public sealed class UciEngineClient : IDisposable
         }
         finally
         {
-            reader.Dispose();
-            process?.Dispose();
+            _reader.Dispose();
+            _process?.Dispose();
         }
     }
 }

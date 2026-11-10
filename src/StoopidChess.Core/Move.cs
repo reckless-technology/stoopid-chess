@@ -29,7 +29,7 @@ public readonly record struct Move
     private const uint SquareMask = 0x3F;
     private const uint ThreeBits = 0x7;
 
-    private readonly uint bits;
+    private readonly uint _bits;
 
     /// <param name="from">Source square.</param>
     /// <param name="to">Destination square. For castling this is the king's destination.</param>
@@ -37,34 +37,42 @@ public readonly record struct Move
     /// <param name="captured">The captured piece type, or <see cref="Piece.None"/>. A pawn for en passant.</param>
     /// <param name="kind">Special-move classification.</param>
     /// <param name="promotion">The piece a pawn promotes to, or <see cref="Piece.None"/>.</param>
-    public Move(Square from, Square to, Piece piece, Piece captured = Piece.None, MoveKind kind = MoveKind.Normal, Piece promotion = Piece.None)
+    public Move(
+        Square from,
+        Square to,
+        Piece piece,
+        Piece captured = Piece.None,
+        MoveKind kind = MoveKind.Normal,
+        Piece promotion = Piece.None
+    )
     {
-        bits = ((uint)from.Index & SquareMask)
-             | (((uint)to.Index & SquareMask) << ToShift)
-             | (((uint)piece & ThreeBits) << PieceShift)
-             | (((uint)captured & ThreeBits) << CapturedShift)
-             | (((uint)kind & ThreeBits) << KindShift)
-             | (((uint)promotion & ThreeBits) << PromotionShift);
+        _bits =
+            ((uint)from.Index & SquareMask)
+            | (((uint)to.Index & SquareMask) << ToShift)
+            | (((uint)piece & ThreeBits) << PieceShift)
+            | (((uint)captured & ThreeBits) << CapturedShift)
+            | (((uint)kind & ThreeBits) << KindShift)
+            | (((uint)promotion & ThreeBits) << PromotionShift);
     }
 
     private Move(uint bits)
     {
-        this.bits = bits;
+        this._bits = bits;
     }
 
     public static readonly Move None;
 
-    public Square From => Square.Unchecked((int)(bits & SquareMask));
+    public Square From => Square.Unchecked((int)(_bits & SquareMask));
 
-    public Square To => Square.Unchecked((int)((bits >> ToShift) & SquareMask));
+    public Square To => Square.Unchecked((int)((_bits >> ToShift) & SquareMask));
 
-    public Piece Piece => (Piece)((bits >> PieceShift) & ThreeBits);
+    public Piece Piece => (Piece)((_bits >> PieceShift) & ThreeBits);
 
-    public Piece Captured => (Piece)((bits >> CapturedShift) & ThreeBits);
+    public Piece Captured => (Piece)((_bits >> CapturedShift) & ThreeBits);
 
-    public MoveKind Kind => (MoveKind)((bits >> KindShift) & ThreeBits);
+    public MoveKind Kind => (MoveKind)((_bits >> KindShift) & ThreeBits);
 
-    public Piece Promotion => (Piece)((bits >> PromotionShift) & ThreeBits);
+    public Piece Promotion => (Piece)((_bits >> PromotionShift) & ThreeBits);
 
     public bool IsNone => Piece == Piece.None;
 
@@ -75,7 +83,7 @@ public readonly record struct Move
     /// <summary>
     /// The packed representation, for storing moves compactly.
     /// </summary>
-    public uint ToBits() => bits;
+    public uint ToBits() => _bits;
 
     public static Move FromBits(uint bits) => new(bits);
 
@@ -96,8 +104,12 @@ public readonly record struct Move
     /// </summary>
     public static (Square From, Square To, Piece Promotion)? ParseUci(string? text)
     {
-        if (text is null || text.Length is not (4 or 5)
-            || Square.TryParse(text.AsSpan(0, 2)) is not Square from || Square.TryParse(text.AsSpan(2, 2)) is not Square to)
+        if (
+            text is null
+            || text.Length is not (4 or 5)
+            || Square.TryParse(text.AsSpan(0, 2)) is not Square from
+            || Square.TryParse(text.AsSpan(2, 2)) is not Square to
+        )
         {
             return null;
         }

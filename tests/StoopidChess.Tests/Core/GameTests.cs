@@ -101,7 +101,9 @@ public class GameTests
         Assert.False(game.TryMakeMove("e2e5"));
         Assert.False(game.TryMakeMove("e7e5"));
         Assert.False(game.TryMakeMove("nonsense"));
-        Assert.Throws<ArgumentException>(() => game.MakeMove(new Move(Square.Parse("e2"), Square.Parse("e5"), Piece.Pawn)));
+        Assert.Throws<ArgumentException>(() =>
+            game.MakeMove(new Move(Square.Parse("e2"), Square.Parse("e5"), Piece.Pawn))
+        );
         Assert.Empty(game.Moves);
         Assert.True(game.TryMakeMove("e2e4"));
         Assert.Single(game.Moves);

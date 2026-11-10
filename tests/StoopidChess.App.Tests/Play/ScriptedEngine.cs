@@ -15,7 +15,11 @@ internal static class ScriptedEngine
     /// Start the engine. With <paramref name="dieAfterHandshake"/> it dies straight after its "uciok":
     /// it starts, then is gone before its first command.
     /// </summary>
-    public static UciEngineClient Start(string name, Func<string, IEnumerable<string>?> script, bool dieAfterHandshake = false)
+    public static UciEngineClient Start(
+        string name,
+        Func<string, IEnumerable<string>?> script,
+        bool dieAfterHandshake = false
+    )
     {
         var toEngine = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);
         var fromEngine = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);

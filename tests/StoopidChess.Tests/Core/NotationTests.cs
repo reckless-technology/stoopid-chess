@@ -45,7 +45,14 @@ public class NotationTests
         {
             foreach (Piece promotion in new[] { Piece.None, Piece.Queen, Piece.Knight })
             {
-                var move = new Move(from, Square.H8 - from + Square.A1, Piece.Pawn, Piece.Rook, MoveKind.Promotion, promotion);
+                var move = new Move(
+                    from,
+                    Square.H8 - from + Square.A1,
+                    Piece.Pawn,
+                    Piece.Rook,
+                    MoveKind.Promotion,
+                    promotion
+                );
                 var unpacked = Move.FromBits(move.ToBits());
                 Assert.Equal(move, unpacked);
                 Assert.Equal(from, unpacked.From);

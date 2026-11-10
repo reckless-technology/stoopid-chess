@@ -73,10 +73,15 @@ public class PlaySettingsTests
     [Fact]
     public void AnOldEngineMatchSaveLoadsWithTheHumanAsWhite()
     {
-        SavedGame? saved = LoadSaved(ValidGame.Replace("\"HumanColor\": \"White\"", "\"HumanColor\": \"None\"", StringComparison.Ordinal));
+        SavedGame? saved = LoadSaved(
+            ValidGame.Replace("\"HumanColor\": \"White\"", "\"HumanColor\": \"None\"", StringComparison.Ordinal)
+        );
         Assert.NotNull(saved);
         Assert.Equal(Color.White, saved.HumanColor);
-        Assert.Equal(Color.Black, LoadSaved(ValidGame.Replace("\"White\"", "\"Black\"", StringComparison.Ordinal))!.HumanColor);
+        Assert.Equal(
+            Color.Black,
+            LoadSaved(ValidGame.Replace("\"White\"", "\"Black\"", StringComparison.Ordinal))!.HumanColor
+        );
     }
 
     [Fact]

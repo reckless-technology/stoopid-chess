@@ -17,46 +17,46 @@ public struct MoveList
     /// </summary>
     public const int Capacity = 256;
 
-    private Buffer moves;
-    private int count;
+    private Buffer _moves;
+    private int _count;
 
-    public readonly int Count => count;
+    public readonly int Count => _count;
 
     public readonly Move this[int index]
     {
         get
         {
-            if ((uint)index >= (uint)count)
+            if ((uint)index >= (uint)_count)
             {
                 throw new ArgumentOutOfRangeException(nameof(index));
             }
-            return moves[index];
+            return _moves[index];
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(Move move)
     {
-        Debug.Assert(count < Capacity, "move list is full");
-        moves[count++] = move;
+        Debug.Assert(_count < Capacity, "move list is full");
+        _moves[_count++] = move;
     }
 
-    public void Clear() => count = 0;
+    public void Clear() => _count = 0;
 
     /// <summary>
     /// The moves as a span over the list's own storage, for ordering them in place.
     /// </summary>
     [UnscopedRef]
-    public Span<Move> AsSpan() => ((Span<Move>)moves)[..count];
+    public Span<Move> AsSpan() => ((Span<Move>)_moves)[.._count];
 
     [UnscopedRef]
     public Span<Move>.Enumerator GetEnumerator() => AsSpan().GetEnumerator();
 
     public readonly bool Contains(Move move)
     {
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < _count; i++)
         {
-            if (moves[i] == move)
+            if (_moves[i] == move)
             {
                 return true;
             }
@@ -66,10 +66,10 @@ public struct MoveList
 
     public readonly Move[] ToArray()
     {
-        var array = new Move[count];
-        for (int i = 0; i < count; i++)
+        var array = new Move[_count];
+        for (int i = 0; i < _count; i++)
         {
-            array[i] = moves[i];
+            array[i] = _moves[i];
         }
         return array;
     }
@@ -77,6 +77,6 @@ public struct MoveList
     [InlineArray(Capacity)]
     private struct Buffer
     {
-        private Move first;
+        private Move _first;
     }
 }

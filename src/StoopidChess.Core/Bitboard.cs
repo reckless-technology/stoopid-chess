@@ -17,11 +17,11 @@ public readonly record struct Bitboard
     private const ulong FileAMask = 0x0101010101010101UL;
     private const ulong FileHMask = FileAMask << 7;
 
-    private readonly ulong bits;
+    private readonly ulong _bits;
 
     public Bitboard(ulong bits)
     {
-        this.bits = bits;
+        this._bits = bits;
     }
 
     /// <summary>
@@ -67,34 +67,34 @@ public readonly record struct Bitboard
     /// <summary>
     /// The raw bits, for hashing and table lookups.
     /// </summary>
-    public ulong Value => bits;
+    public ulong Value => _bits;
 
-    public bool IsEmpty => bits == 0;
+    public bool IsEmpty => _bits == 0;
 
-    public bool IsNotEmpty => bits != 0;
+    public bool IsNotEmpty => _bits != 0;
 
     /// <summary>
     /// True if the set has exactly one square.
     /// </summary>
-    public bool IsSingle => bits != 0 && (bits & (bits - 1)) == 0;
+    public bool IsSingle => _bits != 0 && (_bits & (_bits - 1)) == 0;
 
     /// <summary>
     /// Number of squares in the set.
     /// </summary>
-    public int Count => BitOperations.PopCount(bits);
+    public int Count => BitOperations.PopCount(_bits);
 
     /// <summary>
     /// The lowest square in the set (<see cref="Square.None"/> for the empty set).
     /// </summary>
-    public Square First => Square.Unchecked(BitOperations.TrailingZeroCount(bits));
+    public Square First => Square.Unchecked(BitOperations.TrailingZeroCount(_bits));
 
     /// <summary>
     /// The highest square in the set (an invalid square for the empty set).
     /// </summary>
-    public Square Last => Square.Unchecked(63 - BitOperations.LeadingZeroCount(bits));
+    public Square Last => Square.Unchecked(63 - BitOperations.LeadingZeroCount(_bits));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Contains(Square square) => (bits & (1UL << square.Index)) != 0;
+    public bool Contains(Square square) => (_bits & (1UL << square.Index)) != 0;
 
     /// <summary>
     /// Remove and return the lowest square in the set. The loop
@@ -104,44 +104,44 @@ public readonly record struct Bitboard
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Square PopFirst(ref Bitboard set)
     {
-        ulong bits = set.bits;
+        ulong bits = set._bits;
         set = new Bitboard(bits & (bits - 1));
         return Square.Unchecked(BitOperations.TrailingZeroCount(bits));
     }
 
-    public static Bitboard operator &(Bitboard left, Bitboard right) => new(left.bits & right.bits);
+    public static Bitboard operator &(Bitboard left, Bitboard right) => new(left._bits & right._bits);
 
-    public static Bitboard operator |(Bitboard left, Bitboard right) => new(left.bits | right.bits);
+    public static Bitboard operator |(Bitboard left, Bitboard right) => new(left._bits | right._bits);
 
-    public static Bitboard operator ^(Bitboard left, Bitboard right) => new(left.bits ^ right.bits);
+    public static Bitboard operator ^(Bitboard left, Bitboard right) => new(left._bits ^ right._bits);
 
-    public static Bitboard operator ~(Bitboard set) => new(~set.bits);
+    public static Bitboard operator ~(Bitboard set) => new(~set._bits);
 
-    public static explicit operator ulong(Bitboard set) => set.bits;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard North() => new(bits << 8);
+    public static explicit operator ulong(Bitboard set) => set._bits;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard South() => new(bits >> 8);
+    public Bitboard North() => new(_bits << 8);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard East() => new((bits & ~FileHMask) << 1);
+    public Bitboard South() => new(_bits >> 8);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard West() => new((bits & ~FileAMask) >> 1);
+    public Bitboard East() => new((_bits & ~FileHMask) << 1);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard NorthEast() => new((bits & ~FileHMask) << 9);
+    public Bitboard West() => new((_bits & ~FileAMask) >> 1);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard NorthWest() => new((bits & ~FileAMask) << 7);
+    public Bitboard NorthEast() => new((_bits & ~FileHMask) << 9);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard SouthEast() => new((bits & ~FileHMask) >> 7);
+    public Bitboard NorthWest() => new((_bits & ~FileAMask) << 7);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bitboard SouthWest() => new((bits & ~FileAMask) >> 9);
+    public Bitboard SouthEast() => new((_bits & ~FileHMask) >> 7);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bitboard SouthWest() => new((_bits & ~FileAMask) >> 9);
 
     /// <summary>
     /// The set shifted one rank towards the color's opponent: north for white, south for black.
@@ -149,35 +149,35 @@ public readonly record struct Bitboard
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bitboard Forward(Color color) => color == Color.White ? North() : South();
 
-    public Enumerator GetEnumerator() => new(bits);
+    public Enumerator GetEnumerator() => new(_bits);
 
-    public override string ToString() => $"0x{bits:X16}";
+    public override string ToString() => $"0x{_bits:X16}";
 
     /// <summary>
     /// Yields the squares of a set from the lowest up, clearing one bit per step.
     /// </summary>
     public struct Enumerator
     {
-        private ulong remaining;
-        private Square current;
+        private ulong _remaining;
+        private Square _current;
 
         internal Enumerator(ulong bits)
         {
-            remaining = bits;
-            current = Square.None;
+            _remaining = bits;
+            _current = Square.None;
         }
 
-        public readonly Square Current => current;
+        public readonly Square Current => _current;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
-            if (remaining == 0)
+            if (_remaining == 0)
             {
                 return false;
             }
-            current = Square.Unchecked(BitOperations.TrailingZeroCount(remaining));
-            remaining &= remaining - 1;
+            _current = Square.Unchecked(BitOperations.TrailingZeroCount(_remaining));
+            _remaining &= _remaining - 1;
             return true;
         }
     }

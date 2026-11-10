@@ -43,12 +43,12 @@ public class EvaluatorTests
     [Fact]
     public void EndgameFollowsTheSimplifiedEvaluationRule()
     {
-        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1")));               // Queen alone
-        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/2NQK3 w - - 0 1")));              // Queen and one minor
-        Assert.False(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/1BNQK3 w - - 0 1")));            // Queen and two minors
-        Assert.False(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/2RQK3 w - - 0 1")));             // Queen and a rook
-        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/RNBK3R w - - 0 1")));             // No queens at all
-        Assert.False(Evaluator.IsEndgame(Position.FromFen("3qk3/8/8/8/8/8/8/1BNQK3 w - - 0 1")));          // One side over the limit is enough
+        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/3QK3 w - - 0 1"))); // Queen alone
+        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/2NQK3 w - - 0 1"))); // Queen and one minor
+        Assert.False(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/1BNQK3 w - - 0 1"))); // Queen and two minors
+        Assert.False(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/2RQK3 w - - 0 1"))); // Queen and a rook
+        Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/RNBK3R w - - 0 1"))); // No queens at all
+        Assert.False(Evaluator.IsEndgame(Position.FromFen("3qk3/8/8/8/8/8/8/1BNQK3 w - - 0 1"))); // One side over the limit is enough
     }
 
     [Fact]
@@ -113,7 +113,12 @@ public class EvaluatorTests
             }
         }
         string castling = position.CastlingRights.ToFenString();
-        string flippedCastling = castling == "-" ? "-" : new string([.. castling.Select(c => char.IsUpper(c) ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c))]);
+        string flippedCastling =
+            castling == "-"
+                ? "-"
+                : new string([
+                    .. castling.Select(c => char.IsUpper(c) ? char.ToLowerInvariant(c) : char.ToUpperInvariant(c)),
+                ]);
         string side = position.SideToMove == Color.White ? "b" : "w";
         return Position.FromFen($"{fen} {side} {flippedCastling} - 0 1");
     }
@@ -149,6 +154,6 @@ public class EvaluatorTests
             }
         }
         string side = position.SideToMove == Color.White ? "w" : "b";
-        return Position.FromFen($"{fen} {side} - - 0 1");   // Castling rights cannot be mirrored and the evaluation ignores them
+        return Position.FromFen($"{fen} {side} - - 0 1"); // Castling rights cannot be mirrored and the evaluation ignores them
     }
 }

@@ -6,7 +6,13 @@ namespace StoopidChess.Tests.Engine;
 
 public class TranspositionTableTests
 {
-    private static readonly Move SomeMove = new(Square.E1, Square.G1, Piece.King, Piece.None, MoveKind.CastleKingSide);
+    private static readonly Move s_someMove = new(
+        Square.E1,
+        Square.G1,
+        Piece.King,
+        Piece.None,
+        MoveKind.CastleKingSide
+    );
 
     [Fact]
     public void EntriesAreSixteenBytes()
@@ -19,9 +25,9 @@ public class TranspositionTableTests
     public void StoresAndRetrievesByKey()
     {
         var table = new TranspositionTable(1);
-        table.Store(0x1234, SomeMove, 42, 5, NodeType.Exact);
+        table.Store(0x1234, s_someMove, 42, 5, NodeType.Exact);
         Assert.True(table.TryGet(0x1234, out TranspositionEntry entry));
-        Assert.Equal(SomeMove, entry.BestMove);
+        Assert.Equal(s_someMove, entry.BestMove);
         Assert.Equal(42, entry.Score);
         Assert.Equal(5, entry.Depth);
         Assert.Equal(NodeType.Exact, entry.Type);
@@ -33,10 +39,13 @@ public class TranspositionTableTests
     [Fact]
     public void ClampsScoreAndDepthToTheEntryRange()
     {
-        var entry = new TranspositionEntry(1, SomeMove, Searcher.MateScore + 1000, 300, NodeType.LowerBound);
+        var entry = new TranspositionEntry(1, s_someMove, Searcher.MateScore + 1000, 300, NodeType.LowerBound);
         Assert.Equal(short.MaxValue, entry.Score);
         Assert.Equal(byte.MaxValue, entry.Depth);
-        Assert.Equal(-Searcher.MateScore, new TranspositionEntry(1, SomeMove, -Searcher.MateScore, 0, NodeType.Exact).Score);
+        Assert.Equal(
+            -Searcher.MateScore,
+            new TranspositionEntry(1, s_someMove, -Searcher.MateScore, 0, NodeType.Exact).Score
+        );
     }
 
     [Fact]
@@ -49,9 +58,9 @@ public class TranspositionTableTests
         ulong key2 = key1 | 1;
         ulong key3 = key1 | 2;
         Assert.True(bits <= 16);
-        table.Store(key1, SomeMove, 10, 8, NodeType.Exact);
-        table.Store(key2, SomeMove, 20, 3, NodeType.LowerBound);
-        table.Store(key3, SomeMove, 30, 2, NodeType.UpperBound);
+        table.Store(key1, s_someMove, 10, 8, NodeType.Exact);
+        table.Store(key2, s_someMove, 20, 3, NodeType.LowerBound);
+        table.Store(key3, s_someMove, 30, 2, NodeType.UpperBound);
         Assert.True(table.TryGet(key1, out TranspositionEntry deep));
         Assert.Equal(8, deep.Depth);
         Assert.False(table.TryGet(key2, out _), "shallow entry displaced by a more recent shallow one");
@@ -63,7 +72,7 @@ public class TranspositionTableTests
     public void ClearRemovesEverything()
     {
         var table = new TranspositionTable(1);
-        table.Store(1, SomeMove, 3, 4, NodeType.Exact);
+        table.Store(1, s_someMove, 3, 4, NodeType.Exact);
         table.Clear();
         Assert.False(table.TryGet(1, out _));
     }

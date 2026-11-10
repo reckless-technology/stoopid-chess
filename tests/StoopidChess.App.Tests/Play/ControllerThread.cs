@@ -13,11 +13,9 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 internal sealed class ControllerThread : SynchronizationContext
 {
-    private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> queue = [];
+    private readonly BlockingCollection<(SendOrPostCallback Callback, object? State)> _queue = [];
 
-    private ControllerThread()
-    {
-    }
+    private ControllerThread() { }
 
     /// <summary>
     /// Run <paramref name="test"/> on a new thread of its own context; complete when it has, with its outcome.
@@ -39,8 +37,8 @@ internal sealed class ControllerThread : SynchronizationContext
             {
                 task = Task.FromException(ex);
             }
-            task.ContinueWith(_ => context.queue.CompleteAdding(), TaskScheduler.Default);
-            foreach ((SendOrPostCallback callback, object? state) in context.queue.GetConsumingEnumerable())
+            task.ContinueWith(_ => context._queue.CompleteAdding(), TaskScheduler.Default);
+            foreach ((SendOrPostCallback callback, object? state) in context._queue.GetConsumingEnumerable())
             {
                 try
                 {
@@ -80,7 +78,7 @@ internal sealed class ControllerThread : SynchronizationContext
     {
         try
         {
-            queue.Add((d, state));
+            _queue.Add((d, state));
         }
         catch (InvalidOperationException)
         {

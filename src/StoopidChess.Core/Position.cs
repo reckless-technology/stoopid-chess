@@ -32,16 +32,14 @@ public sealed partial class Position
     private const int Colors = 2;
     private const int PieceTypes = 7;
 
-    private readonly Bitboard[] byType = new Bitboard[PieceTypes];
-    private readonly Bitboard[] byColor = new Bitboard[Colors];
-    private readonly Piece[] squares = new Piece[Square.Count];
-    private readonly List<UndoInfo> history = new(256);
-    private Bitboard occupied;
-    private Bitboard checkers;
+    private readonly Bitboard[] _byType = new Bitboard[PieceTypes];
+    private readonly Bitboard[] _byColor = new Bitboard[Colors];
+    private readonly Piece[] _squares = new Piece[Square.Count];
+    private readonly List<UndoInfo> _history = new(256);
+    private Bitboard _occupied;
+    private Bitboard _checkers;
 
-    internal Position()
-    {
-    }
+    internal Position() { }
 
     public static Position Start() => Fen.Parse(StartFen);
 
@@ -74,14 +72,14 @@ public sealed partial class Position
     /// </summary>
     public ulong PawnKey { get; private set; }
 
-    public int PieceCount => occupied.Count;
+    public int PieceCount => _occupied.Count;
 
     /// <summary>
     /// Number of moves made on this board since it was created (and not unmade).
     /// </summary>
-    public int Ply => history.Count;
+    public int Ply => _history.Count;
 
-    public Move? LastMove => history.Count == 0 ? null : history[^1].Move;
+    public Move? LastMove => _history.Count == 0 ? null : _history[^1].Move;
 
     /// <summary>
     /// The piece on a square as its color and type. An empty square's type is
@@ -95,7 +93,7 @@ public sealed partial class Position
             {
                 throw new ArgumentOutOfRangeException(nameof(square));
             }
-            return (ColorAt(square), squares[square]);
+            return (ColorAt(square), _squares[square]);
         }
     }
 
@@ -104,22 +102,22 @@ public sealed partial class Position
     /// <summary>
     /// All occupied squares.
     /// </summary>
-    public Bitboard Occupied => occupied;
+    public Bitboard Occupied => _occupied;
 
     /// <summary>
     /// The squares occupied by pieces of the color.
     /// </summary>
-    public Bitboard Pieces(Color color) => byColor[(int)color];
+    public Bitboard Pieces(Color color) => _byColor[(int)color];
 
     /// <summary>
     /// The squares occupied by pieces of the type, of both colors.
     /// </summary>
-    public Bitboard Pieces(Piece type) => byType[(int)type];
+    public Bitboard Pieces(Piece type) => _byType[(int)type];
 
     /// <summary>
     /// The squares occupied by pieces of the given color and type.
     /// </summary>
-    public Bitboard Pieces(Color color, Piece type) => byType[(int)type] & byColor[(int)color];
+    public Bitboard Pieces(Color color, Piece type) => _byType[(int)type] & _byColor[(int)color];
 
     public int Count(Color color, Piece type) => Pieces(color, type).Count;
 
@@ -127,7 +125,7 @@ public sealed partial class Position
     /// The type of the piece on a square, without the validity check of the indexer; for the move
     /// generator, which only ever asks about squares it has already checked are on the board.
     /// </summary>
-    internal Piece At(Square square) => squares[square];
+    internal Piece At(Square square) => _squares[square];
 
     /// <summary>
     /// True when each side has exactly one king, which every rule of chess assumes. FEN parsing
@@ -140,7 +138,8 @@ public sealed partial class Position
     /// on the first or last rank, and the side that has just moved must not have left its king in
     /// check (which also rules out adjacent kings).
     /// </summary>
-    public bool IsValid => HasValidKings && !HasPawnsOnBackRanks && !IsAttacked(KingSquare(SideToMove.Opponent()), SideToMove);
+    public bool IsValid =>
+        HasValidKings && !HasPawnsOnBackRanks && !IsAttacked(KingSquare(SideToMove.Opponent()), SideToMove);
 
     /// <summary>
     /// A pawn on its own first rank or on the promotion rank cannot exist in a real game, and pawn
@@ -152,7 +151,9 @@ public sealed partial class Position
     public Square KingSquare(Color color)
     {
         Bitboard kings = Pieces(color, Piece.King);
-        return kings.IsSingle ? kings.First : throw new InvalidOperationException($"{color} does not have exactly one king");
+        return kings.IsSingle
+            ? kings.First
+            : throw new InvalidOperationException($"{color} does not have exactly one king");
     }
 
     /// <summary>
@@ -160,7 +161,7 @@ public sealed partial class Position
     /// whenever the position changes (at the end of every move, and by FEN parsing), and
     /// restored from the undo record when a move is unmade.
     /// </summary>
-    public Bitboard Checkers => checkers;
+    public Bitboard Checkers => _checkers;
 
     /// <summary>
     /// Is the side to move in check?
@@ -177,26 +178,27 @@ public sealed partial class Position
     /// </summary>
     public Bitboard AttackersTo(Square square, Bitboard occupied)
     {
-        return ((Attacks.Pawn(Color.Black, square) & byType[(int)Piece.Pawn] & byColor[(int)Color.White])
-            | (Attacks.Pawn(Color.White, square) & byType[(int)Piece.Pawn] & byColor[(int)Color.Black])
-            | (Attacks.Knight(square) & byType[(int)Piece.Knight])
-            | (Attacks.King(square) & byType[(int)Piece.King])
-            | (Attacks.Bishop(occupied, square) & (byType[(int)Piece.Bishop] | byType[(int)Piece.Queen]))
-            | (Attacks.Rook(occupied, square) & (byType[(int)Piece.Rook] | byType[(int)Piece.Queen])))
-            & occupied;
+        return (
+                (Attacks.Pawn(Color.Black, square) & _byType[(int)Piece.Pawn] & _byColor[(int)Color.White])
+                | (Attacks.Pawn(Color.White, square) & _byType[(int)Piece.Pawn] & _byColor[(int)Color.Black])
+                | (Attacks.Knight(square) & _byType[(int)Piece.Knight])
+                | (Attacks.King(square) & _byType[(int)Piece.King])
+                | (Attacks.Bishop(occupied, square) & (_byType[(int)Piece.Bishop] | _byType[(int)Piece.Queen]))
+                | (Attacks.Rook(occupied, square) & (_byType[(int)Piece.Rook] | _byType[(int)Piece.Queen]))
+            ) & occupied;
     }
 
     /// <summary>
     /// Is the square attacked by any piece of the given color?
     /// </summary>
-    public bool IsAttacked(Square square, Color by) => (AttackersTo(square, occupied) & byColor[(int)by]).IsNotEmpty;
+    public bool IsAttacked(Square square, Color by) => (AttackersTo(square, _occupied) & _byColor[(int)by]).IsNotEmpty;
 
     /// <summary>
     /// Work out <see cref="Checkers"/> for the side to move.
     /// </summary>
     internal void UpdateCheckers()
     {
-        checkers = AttackersTo(KingSquare(SideToMove), occupied) & byColor[(int)SideToMove.Opponent()];
+        _checkers = AttackersTo(KingSquare(SideToMove), _occupied) & _byColor[(int)SideToMove.Opponent()];
     }
 
     public string ToFen() => Fen.Write(this);
@@ -207,12 +209,12 @@ public sealed partial class Position
     public Position Clone()
     {
         Position copy = new();
-        Array.Copy(byType, copy.byType, byType.Length);
-        Array.Copy(byColor, copy.byColor, byColor.Length);
-        Array.Copy(squares, copy.squares, squares.Length);
-        copy.history.AddRange(history);
-        copy.occupied = occupied;
-        copy.checkers = checkers;
+        Array.Copy(_byType, copy._byType, _byType.Length);
+        Array.Copy(_byColor, copy._byColor, _byColor.Length);
+        Array.Copy(_squares, copy._squares, _squares.Length);
+        copy._history.AddRange(_history);
+        copy._occupied = _occupied;
+        copy._checkers = _checkers;
         copy.SideToMove = SideToMove;
         copy.CastlingRights = CastlingRights;
         copy.EnPassantSquare = EnPassantSquare;
@@ -233,10 +235,10 @@ public sealed partial class Position
         // A pawn move or capture makes every earlier position unrepeatable, so only look back as
         // far as the half-move clock allows. Identical positions have the same side to move, so
         // they can only be an even number of plies apart.
-        int oldest = history.Count - Math.Clamp(HalfMoveClock, 0, history.Count);
-        for (int i = history.Count - 2; i >= oldest; i -= 2)
+        int oldest = _history.Count - Math.Clamp(HalfMoveClock, 0, _history.Count);
+        for (int i = _history.Count - 2; i >= oldest; i -= 2)
         {
-            if (history[i].Key == Key)
+            if (_history[i].Key == Key)
             {
                 count++;
             }
@@ -255,11 +257,13 @@ public sealed partial class Position
             case 2:
                 return true;
             case 3:
-                return (byType[(int)Piece.Bishop] | byType[(int)Piece.Knight]).IsNotEmpty;
+                return (_byType[(int)Piece.Bishop] | _byType[(int)Piece.Knight]).IsNotEmpty;
             case 4:
                 Bitboard white = Pieces(Color.White, Piece.Bishop);
                 Bitboard black = Pieces(Color.Black, Piece.Bishop);
-                return white.IsNotEmpty && black.IsNotEmpty && (white & Bitboard.LightSquares).IsNotEmpty == (black & Bitboard.LightSquares).IsNotEmpty;
+                return white.IsNotEmpty
+                    && black.IsNotEmpty
+                    && (white & Bitboard.LightSquares).IsNotEmpty == (black & Bitboard.LightSquares).IsNotEmpty;
             default:
                 return false;
         }
@@ -271,7 +275,7 @@ public sealed partial class Position
     /// </summary>
     public bool HasNonPawnMaterial(Color color)
     {
-        return (byColor[(int)color] & ~(byType[(int)Piece.Pawn] | byType[(int)Piece.King])).IsNotEmpty;
+        return (_byColor[(int)color] & ~(_byType[(int)Piece.Pawn] | _byType[(int)Piece.King])).IsNotEmpty;
     }
 
     /// <summary>
@@ -297,41 +301,41 @@ public sealed partial class Position
     /// <summary>
     /// The color of the piece on a valid square; white for an empty one.
     /// </summary>
-    private Color ColorAt(Square square) => byColor[(int)Color.Black].Contains(square) ? Color.Black : Color.White;
+    private Color ColorAt(Square square) => _byColor[(int)Color.Black].Contains(square) ? Color.Black : Color.White;
 
     internal void PutPiece(Square square, Color color, Piece type)
     {
-        Debug.Assert(squares[square] == Piece.None, "square must be empty");
+        Debug.Assert(_squares[square] == Piece.None, "square must be empty");
         Debug.Assert(type != Piece.None, "cannot put an empty piece");
         var bit = Bitboard.Of(square);
-        byType[(int)type] |= bit;
-        byColor[(int)color] |= bit;
-        occupied |= bit;
-        squares[square] = type;
+        _byType[(int)type] |= bit;
+        _byColor[(int)color] |= bit;
+        _occupied |= bit;
+        _squares[square] = type;
         ToggleKeys(color, type, square);
     }
 
     internal void RemovePiece(Square square, Color color, Piece type)
     {
-        Debug.Assert(squares[square] == type && byColor[(int)color].Contains(square), "the piece is not there");
+        Debug.Assert(_squares[square] == type && _byColor[(int)color].Contains(square), "the piece is not there");
         var bit = Bitboard.Of(square);
-        byType[(int)type] &= ~bit;
-        byColor[(int)color] &= ~bit;
-        occupied &= ~bit;
-        squares[square] = Piece.None;
+        _byType[(int)type] &= ~bit;
+        _byColor[(int)color] &= ~bit;
+        _occupied &= ~bit;
+        _squares[square] = Piece.None;
         ToggleKeys(color, type, square);
     }
 
     private void MovePiece(Square from, Square to, Color color, Piece type)
     {
-        Debug.Assert(squares[from] == type && byColor[(int)color].Contains(from), "the piece is not there");
-        Debug.Assert(squares[to] == Piece.None, "destination square must be empty");
+        Debug.Assert(_squares[from] == type && _byColor[(int)color].Contains(from), "the piece is not there");
+        Debug.Assert(_squares[to] == Piece.None, "destination square must be empty");
         Bitboard fromTo = Bitboard.Of(from) | Bitboard.Of(to);
-        byType[(int)type] ^= fromTo;
-        byColor[(int)color] ^= fromTo;
-        occupied ^= fromTo;
-        squares[from] = Piece.None;
-        squares[to] = type;
+        _byType[(int)type] ^= fromTo;
+        _byColor[(int)color] ^= fromTo;
+        _occupied ^= fromTo;
+        _squares[from] = Piece.None;
+        _squares[to] = type;
         ulong key = Zobrist.Piece(color, type, from) ^ Zobrist.Piece(color, type, to);
         Key ^= key;
         if (type == Piece.Pawn)
@@ -395,19 +399,21 @@ public sealed partial class Position
     /// repetition detection needs. (A capture that a pin would forbid still records the square, so
     /// keys match in nearly every case the rules call identical, not quite all.)
     /// </summary>
-    internal bool IsAttackedByPawn(Square square, Color by) => (Attacks.Pawn(by.Opponent(), square) & Pieces(by, Piece.Pawn)).IsNotEmpty;
+    internal bool IsAttackedByPawn(Square square, Color by) =>
+        (Attacks.Pawn(by.Opponent(), square) & Pieces(by, Piece.Pawn)).IsNotEmpty;
 
     /// <summary>
     /// Recompute the keys from scratch. Used by tests to verify the incremental updates.
     /// </summary>
     internal (ulong Key, ulong PawnKey) ComputeKeys()
     {
-        ulong key = 0, pawn = 0;
+        ulong key = 0,
+            pawn = 0;
         foreach (Color color in ColorExtensions.Sides)
         {
-            foreach (Square square in byColor[(int)color])
+            foreach (Square square in _byColor[(int)color])
             {
-                Piece type = squares[square];
+                Piece type = _squares[square];
                 key ^= Zobrist.Piece(color, type, square);
                 if (type == Piece.Pawn)
                 {
@@ -431,20 +437,20 @@ public sealed partial class Position
         Bitboard all = Bitboard.Empty;
         foreach (Square square in Square.All)
         {
-            Piece type = squares[square];
+            Piece type = _squares[square];
             var bit = Bitboard.Of(square);
-            bool white = byColor[(int)Color.White].Contains(square);
-            bool black = byColor[(int)Color.Black].Contains(square);
+            bool white = _byColor[(int)Color.White].Contains(square);
+            bool black = _byColor[(int)Color.Black].Contains(square);
             if (type == Piece.None)
             {
-                if ((occupied & bit).IsNotEmpty || white || black)
+                if ((_occupied & bit).IsNotEmpty || white || black)
                 {
                     return false;
                 }
                 continue;
             }
             all |= bit;
-            if ((byType[(int)type] & bit).IsEmpty || white == black)
+            if ((_byType[(int)type] & bit).IsEmpty || white == black)
             {
                 return false;
             }
@@ -452,10 +458,13 @@ public sealed partial class Position
         Bitboard typeUnion = Bitboard.Empty;
         for (int type = 1; type < PieceTypes; type++)
         {
-            typeUnion |= byType[type];
+            typeUnion |= _byType[type];
         }
-        return all == occupied && typeUnion == occupied && (byColor[(int)Color.White] | byColor[(int)Color.Black]) == occupied
-            && (byColor[(int)Color.White] & byColor[(int)Color.Black]).IsEmpty && byType[(int)Piece.None].IsEmpty;
+        return all == _occupied
+            && typeUnion == _occupied
+            && (_byColor[(int)Color.White] | _byColor[(int)Color.Black]) == _occupied
+            && (_byColor[(int)Color.White] & _byColor[(int)Color.Black]).IsEmpty
+            && _byType[(int)Piece.None].IsEmpty;
     }
 
     // Making and unmaking moves. The search walks the game tree on this one position: it makes a
@@ -475,9 +484,12 @@ public sealed partial class Position
     public void MakeMove(Move move)
     {
         Debug.Assert(!move.IsNone, "cannot make the null move");
-        Debug.Assert(squares[move.From] == move.Piece && byColor[(int)SideToMove].Contains(move.From), "moving piece mismatch");
+        Debug.Assert(
+            _squares[move.From] == move.Piece && _byColor[(int)SideToMove].Contains(move.From),
+            "moving piece mismatch"
+        );
 
-        history.Add(new UndoInfo(move, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey, checkers));
+        _history.Add(new UndoInfo(move, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey, _checkers));
 
         Color us = SideToMove;
         Color them = us.Opponent();
@@ -533,7 +545,8 @@ public sealed partial class Position
 
         // Moving the king or a rook off its home square, or capturing a rook on its home square,
         // forfeits the corresponding castling rights.
-        CastlingRights lost = CastlingRightsExtensions.LostBySquare(move.From) | CastlingRightsExtensions.LostBySquare(move.To);
+        CastlingRights lost =
+            CastlingRightsExtensions.LostBySquare(move.From) | CastlingRightsExtensions.LostBySquare(move.To);
         if ((CastlingRights & lost) != CastlingRights.None)
         {
             ApplyCastlingRights(CastlingRights & ~lost);
@@ -556,7 +569,7 @@ public sealed partial class Position
     /// </summary>
     public void MakeNullMove()
     {
-        history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey, checkers));
+        _history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey, _checkers));
         SetEnPassantSquare(Square.None);
         HalfMoveClock = 0;
         SwitchSideToMove(SideToMove.Opponent());
@@ -566,19 +579,19 @@ public sealed partial class Position
     /// <summary>
     /// True if the last move made was a null move.
     /// </summary>
-    public bool LastMoveWasNull => history.Count != 0 && history[^1].Move.IsNone;
+    public bool LastMoveWasNull => _history.Count != 0 && _history[^1].Move.IsNone;
 
     /// <summary>
     /// Unmake the most recently made move (or null move).
     /// </summary>
     public void UnmakeMove()
     {
-        if (history.Count == 0)
+        if (_history.Count == 0)
         {
             throw new InvalidOperationException("no move to unmake");
         }
-        UndoInfo undo = history[^1];
-        history.RemoveAt(history.Count - 1);
+        UndoInfo undo = _history[^1];
+        _history.RemoveAt(_history.Count - 1);
         Move move = undo.Move;
 
         Color them = SideToMove;
@@ -643,20 +656,21 @@ public sealed partial class Position
         HalfMoveClock = undo.HalfMoveClock;
         Key = undo.Key;
         PawnKey = undo.PawnKey;
-        checkers = undo.Checkers;
+        _checkers = undo.Checkers;
     }
 
     /// <summary>
     /// Where the rook of a castling move starts and ends: h1 to f1 and a1 to d1 for white, h8 to f8
     /// and a8 to d8 for black.
     /// </summary>
-    private static (Square From, Square To) CastlingRookSquares(Move move) => (move.Kind, move.From == Square.E1) switch
-    {
-        (MoveKind.CastleKingSide, true) => (Square.H1, Square.F1),
-        (MoveKind.CastleQueenSide, true) => (Square.A1, Square.D1),
-        (MoveKind.CastleKingSide, false) => (Square.H8, Square.F8),
-        _ => (Square.A8, Square.D8),
-    };
+    private static (Square From, Square To) CastlingRookSquares(Move move) =>
+        (move.Kind, move.From == Square.E1) switch
+        {
+            (MoveKind.CastleKingSide, true) => (Square.H1, Square.F1),
+            (MoveKind.CastleQueenSide, true) => (Square.A1, Square.D1),
+            (MoveKind.CastleKingSide, false) => (Square.H8, Square.F8),
+            _ => (Square.A8, Square.D8),
+        };
 
     /// <summary>
     /// The square of the pawn captured by an en passant move: the destination file on the source rank.
@@ -676,5 +690,6 @@ public sealed partial class Position
         int HalfMoveClock,
         ulong Key,
         ulong PawnKey,
-        Bitboard Checkers);
+        Bitboard Checkers
+    );
 }

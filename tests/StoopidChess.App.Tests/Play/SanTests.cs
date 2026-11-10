@@ -27,7 +27,7 @@ public class SanTests
         foreach (Move move in position.GenerateLegalMoves())
         {
             string san = San.Format(position, move);
-            Assert.Equal(fen, position.ToFen());    // Formatting must leave the position untouched
+            Assert.Equal(fen, position.ToFen()); // Formatting must leave the position untouched
             Assert.Equal(move, San.Parse(position, san));
         }
     }
@@ -66,7 +66,7 @@ public class SanTests
         var position = Position.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
         Assert.Equal("b7b8q", San.Parse(position, "b8Q")?.ToUci());
         Assert.Equal("b7b8n", San.Parse(position, "b8=N!?")?.ToUci());
-        Assert.Null(San.Parse(position, "b8"));         // A promotion must name its piece
+        Assert.Null(San.Parse(position, "b8")); // A promotion must name its piece
         Assert.Null(San.Parse(position, "Zb8"));
         Assert.Null(San.Parse(position, ""));
     }

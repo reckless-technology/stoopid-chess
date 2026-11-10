@@ -16,17 +16,15 @@ public enum GameStatus
 /// </summary>
 public sealed class Game
 {
-    private readonly List<Move> moves = [];
-    private Move[]? legalMoves;
-    private (ulong Key, int Ply) legalMovesFor;
+    private readonly List<Move> _moves = [];
+    private Move[]? _legalMoves;
+    private (ulong Key, int Ply) _legalMovesFor;
 
     /// <summary>
     /// A game from the standard starting position.
     /// </summary>
     public Game()
-        : this(Position.Start())
-    {
-    }
+        : this(Position.Start()) { }
 
     /// <summary>
     /// A game starting from the given position, which must be legal (see
@@ -39,11 +37,17 @@ public sealed class Game
         ArgumentNullException.ThrowIfNull(position);
         if (!position.IsValid)
         {
-            throw new ArgumentException("the position is not legal: each side needs one king and the side not to move may not be in check", nameof(position));
+            throw new ArgumentException(
+                "the position is not legal: each side needs one king and the side not to move may not be in check",
+                nameof(position)
+            );
         }
         if (position.Ply != 0)
         {
-            throw new ArgumentException("the position already has moves made on it; a game starts from a fresh position", nameof(position));
+            throw new ArgumentException(
+                "the position already has moves made on it; a game starts from a fresh position",
+                nameof(position)
+            );
         }
         Position = position;
         StartFen = position.ToFen();
@@ -64,7 +68,7 @@ public sealed class Game
 
     public int StartMoveNumber { get; }
 
-    public IReadOnlyList<Move> Moves => moves;
+    public IReadOnlyList<Move> Moves => _moves;
 
     /// <summary>
     /// The legal moves in the current position. Cached, and recomputed if a move turns out to have
@@ -75,12 +79,12 @@ public sealed class Game
         get
         {
             (ulong, int) current = (Position.Key, Position.Ply);
-            if (legalMoves is null || legalMovesFor != current)
+            if (_legalMoves is null || _legalMovesFor != current)
             {
-                legalMoves = [.. Position.GenerateLegalMoves()];
-                legalMovesFor = current;
+                _legalMoves = [.. Position.GenerateLegalMoves()];
+                _legalMovesFor = current;
             }
-            return legalMoves;
+            return _legalMoves;
         }
     }
 
@@ -117,12 +121,13 @@ public sealed class Game
     /// <summary>
     /// The moves in UCI notation, e.g. for a "position fen ... moves ..." command.
     /// </summary>
-    public IEnumerable<string> UciMoves => moves.Select(move => move.ToUci());
+    public IEnumerable<string> UciMoves => _moves.Select(move => move.ToUci());
 
     /// <summary>
     /// The legal moves from one square to another. There is more than one only for a promotion.
     /// </summary>
-    public IEnumerable<Move> LegalMovesBetween(Square from, Square to) => LegalMoves.Where(move => move.From == from && move.To == to);
+    public IEnumerable<Move> LegalMovesBetween(Square from, Square to) =>
+        LegalMoves.Where(move => move.From == from && move.To == to);
 
     /// <summary>
     /// Find the legal move between two squares, promoting to the given piece if it is a promotion.
@@ -158,8 +163,8 @@ public sealed class Game
             throw new ArgumentException($"{move} is not a legal move in {Position.ToFen()}", nameof(move));
         }
         Position.MakeMove(move);
-        moves.Add(move);
-        legalMoves = null;
+        _moves.Add(move);
+        _legalMoves = null;
     }
 
     /// <summary>
@@ -181,13 +186,13 @@ public sealed class Game
     /// </summary>
     public bool UndoMove()
     {
-        if (moves.Count == 0)
+        if (_moves.Count == 0)
         {
             return false;
         }
         Position.UnmakeMove();
-        moves.RemoveAt(moves.Count - 1);
-        legalMoves = null;
+        _moves.RemoveAt(_moves.Count - 1);
+        _legalMoves = null;
         return true;
     }
 
@@ -198,7 +203,7 @@ public sealed class Game
     {
         var captured = new List<Piece>();
         Color mover = StartSideToMove;
-        foreach (Move move in moves)
+        foreach (Move move in _moves)
         {
             if (move.IsCapture && mover.Opponent() == color)
             {

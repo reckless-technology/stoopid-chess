@@ -12,6 +12,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Layout by CSharpier (the version .config/dotnet-tools.json pins), style and naming rules by dotnet format. The same
+  # two checks as the pre-commit hook.
+  format:
+    name: format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore tools
+        run: dotnet tool restore
+      - name: CSharpier
+        run: dotnet csharpier check .
+      - name: Style and naming rules
+        run: dotnet format style StoopidChess.slnx --verify-no-changes
+
   # The engine and the GUI (SkiaSharp in an SDL3 window) are cross-platform. Every job runs on a GitHub-hosted
   # runner (free for a public repository), its image pinned by version rather than -latest, and starts from a fresh
   # machine: setup-dotnet installs the SDK in its default place each run. Every job

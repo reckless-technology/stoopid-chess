@@ -16,34 +16,34 @@ namespace StoopidChess.Desktop.Sdl;
 internal sealed unsafe class SdlHost : IDisposable
 {
     /// <summary>How often the clocks tick.</summary>
-    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan s_tickInterval = TimeSpan.FromMilliseconds(100);
 
     /// <summary>How long "--smoke" keeps the GUI running once its main window has opened.</summary>
-    private static readonly TimeSpan SmokeRunTime = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan s_smokeRunTime = TimeSpan.FromSeconds(10);
 
-    private static SdlHost? current;       // The one host, for SDL's event watch, which takes no managed state
+    private static SdlHost? s_current; // The one host, for SDL's event watch, which takes no managed state
 
-    private readonly List<SdlWindow> windows = [];
-    private readonly Dictionary<SdlWindow, Action> closedHandlers = [];
-    private readonly Stopwatch clock = Stopwatch.StartNew();
-    private readonly int mainThread = Environment.CurrentManagedThreadId;
-    private readonly uint wakeEvent;
-    private readonly UiSynchronizationContext context;
-    private bool isQuitting;
+    private readonly List<SdlWindow> _windows = [];
+    private readonly Dictionary<SdlWindow, Action> _closedHandlers = [];
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly int _mainThread = Environment.CurrentManagedThreadId;
+    private readonly uint _wakeEvent;
+    private readonly UiSynchronizationContext _context;
+    private bool _isQuitting;
 
     private SdlHost()
     {
-        wakeEvent = SDL3.SDL_RegisterEvents(1);
-        context = new UiSynchronizationContext(Wake);
-        SynchronizationContext.SetSynchronizationContext(context);
-        current = this;
+        _wakeEvent = SDL3.SDL_RegisterEvents(1);
+        _context = new UiSynchronizationContext(Wake);
+        SynchronizationContext.SetSynchronizationContext(_context);
+        s_current = this;
     }
 
     /// <summary>The main window.</summary>
     public SdlWindow? MainWindow { get; private set; }
 
     /// <summary>The UI thread's context.</summary>
-    public UiSynchronizationContext Context => context;
+    public UiSynchronizationContext Context => _context;
 
     /// <summary>
     /// Run the GUI until it is closed; with <paramref name="isSmokeTest"/>, say when the main window has opened and
@@ -76,7 +76,7 @@ internal sealed unsafe class SdlHost : IDisposable
         using var mainView = new MainView(platform, new GameController());
         root.Content = mainView;
         MainWindow = new SdlWindow("Stoopid Chess", MainView.DefaultSize, MainView.MinimumSize, root);
-        windows.Add(MainWindow);
+        _windows.Add(MainWindow);
         platform.FlushTitle();
         SDL3.SDL_AddEventWatch(&WatchEvent, IntPtr.Zero);
         MainWindow.Show();
@@ -86,35 +86,39 @@ internal sealed unsafe class SdlHost : IDisposable
         if (isSmokeTest)
         {
             Console.WriteLine($"Stoopid Chess {Program.Version}: the main window is open");
-            smokeEnd = clock.Elapsed + SmokeRunTime;
+            smokeEnd = _clock.Elapsed + s_smokeRunTime;
         }
-        TimeSpan lastTick = clock.Elapsed;
+        TimeSpan lastTick = _clock.Elapsed;
         SDL_Event e;
-        while (!isQuitting)
+        while (!_isQuitting)
         {
-            TimeSpan untilTick = lastTick + TickInterval - clock.Elapsed;
-            int timeout = context.HasPending ? 0 : Math.Clamp((int)untilTick.TotalMilliseconds, 0, (int)TickInterval.TotalMilliseconds);
+            TimeSpan untilTick = lastTick + s_tickInterval - _clock.Elapsed;
+            int timeout = _context.HasPending
+                ? 0
+                : Math.Clamp((int)untilTick.TotalMilliseconds, 0, (int)s_tickInterval.TotalMilliseconds);
             if (SDL3.SDL_WaitEventTimeout(&e, timeout))
             {
                 Dispatch(e);
-                while (!isQuitting && SDL3.SDL_PollEvent(&e))
+                while (!_isQuitting && SDL3.SDL_PollEvent(&e))
                 {
                     Dispatch(e);
                 }
             }
-            context.RunPending();
-            TimeSpan now = clock.Elapsed;
-            if (now - lastTick >= TickInterval)
+            _context.RunPending();
+            TimeSpan now = _clock.Elapsed;
+            if (now - lastTick >= s_tickInterval)
             {
                 mainView.Tick(now - lastTick);
                 lastTick = now;
             }
             if (now >= smokeEnd)
             {
-                Console.WriteLine($"Stoopid Chess {Program.Version}: ran for {SmokeRunTime.TotalSeconds:0} seconds; quitting");
-                isQuitting = true;
+                Console.WriteLine(
+                    $"Stoopid Chess {Program.Version}: ran for {s_smokeRunTime.TotalSeconds:0} seconds; quitting"
+                );
+                _isQuitting = true;
             }
-            foreach (SdlWindow window in windows.ToArray())
+            foreach (SdlWindow window in _windows.ToArray())
             {
                 window.Render();
                 window.UpdateTextInput();
@@ -125,7 +129,7 @@ internal sealed unsafe class SdlHost : IDisposable
     }
 
     /// <summary>Close the application at the loop's next turn.</summary>
-    public void Quit() => isQuitting = true;
+    public void Quit() => _isQuitting = true;
 
     /// <summary>
     /// Open another window showing <paramref name="root"/>; <paramref name="closed"/> runs once it is closed.
@@ -133,8 +137,8 @@ internal sealed unsafe class SdlHost : IDisposable
     public SdlWindow OpenWindow(string title, int width, int height, ViewRoot root, Action closed)
     {
         var window = new SdlWindow(title, new SkiaSharp.SKSizeI(width, height), new SkiaSharp.SKSizeI(320, 200), root);
-        windows.Add(window);
-        closedHandlers[window] = closed;
+        _windows.Add(window);
+        _closedHandlers[window] = closed;
         window.Show();
         window.Render(isForced: true);
         return window;
@@ -145,12 +149,12 @@ internal sealed unsafe class SdlHost : IDisposable
     /// </summary>
     public void CloseWindow(SdlWindow window)
     {
-        if (!windows.Remove(window))
+        if (!_windows.Remove(window))
         {
             return;
         }
         window.Dispose();
-        if (closedHandlers.Remove(window, out Action? closed))
+        if (_closedHandlers.Remove(window, out Action? closed))
         {
             closed();
         }
@@ -159,25 +163,25 @@ internal sealed unsafe class SdlHost : IDisposable
     private void Wake()
     {
         SDL_Event wake = default;
-        wake.type = wakeEvent;
+        wake.type = _wakeEvent;
         SDL3.SDL_PushEvent(&wake);
     }
 
-    private SdlWindow? WindowOf(SDL_WindowID id) => windows.Find(window => window.Id == id);
+    private SdlWindow? WindowOf(SDL_WindowID id) => _windows.Find(window => window.Id == id);
 
     private void Dispatch(SDL_Event e)
     {
         switch ((SDL_EventType)e.type)
         {
             case SDL_EventType.SDL_EVENT_QUIT:
-                isQuitting = true;
+                _isQuitting = true;
                 break;
             case SDL_EventType.SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                 if (WindowOf(e.window.windowID) is { } closing)
                 {
                     if (closing == MainWindow)
                     {
-                        isQuitting = true;
+                        _isQuitting = true;
                     }
                     else
                     {
@@ -194,14 +198,24 @@ internal sealed unsafe class SdlHost : IDisposable
             case SDL_EventType.SDL_EVENT_MOUSE_MOTION:
                 if (WindowOf(e.motion.windowID) is { } moved)
                 {
-                    moved.Root.PointerMove(new PointerEvent(moved.ToLogical(e.motion.x, e.motion.y), PointerButton.Left, Modifiers(SDL3.SDL_GetModState())));
+                    moved.Root.PointerMove(
+                        new PointerEvent(
+                            moved.ToLogical(e.motion.x, e.motion.y),
+                            PointerButton.Left,
+                            Modifiers(SDL3.SDL_GetModState())
+                        )
+                    );
                 }
                 break;
             case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
             case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_UP:
                 if (WindowOf(e.button.windowID) is { } pressed && Button(e.button.button) is { } button)
                 {
-                    var pointer = new PointerEvent(pressed.ToLogical(e.button.x, e.button.y), button, Modifiers(SDL3.SDL_GetModState()));
+                    var pointer = new PointerEvent(
+                        pressed.ToLogical(e.button.x, e.button.y),
+                        button,
+                        Modifiers(SDL3.SDL_GetModState())
+                    );
                     if (e.button.down)
                     {
                         pressed.Root.PointerDown(pointer);
@@ -216,8 +230,14 @@ internal sealed unsafe class SdlHost : IDisposable
                 if (WindowOf(e.wheel.windowID) is { } wheeled)
                 {
                     float flip = e.wheel.direction == SDL_MouseWheelDirection.SDL_MOUSEWHEEL_FLIPPED ? -1 : 1;
-                    wheeled.Root.Wheel(new WheelEvent(wheeled.ToLogical(e.wheel.mouse_x, e.wheel.mouse_y),
-                        flip * e.wheel.x, -flip * e.wheel.y, Modifiers(SDL3.SDL_GetModState())));
+                    wheeled.Root.Wheel(
+                        new WheelEvent(
+                            wheeled.ToLogical(e.wheel.mouse_x, e.wheel.mouse_y),
+                            flip * e.wheel.x,
+                            -flip * e.wheel.y,
+                            Modifiers(SDL3.SDL_GetModState())
+                        )
+                    );
                 }
                 break;
             case SDL_EventType.SDL_EVENT_KEY_DOWN:
@@ -237,13 +257,14 @@ internal sealed unsafe class SdlHost : IDisposable
         }
     }
 
-    private static PointerButton? Button(byte button) => (SDLButton)button switch
-    {
-        SDLButton.SDL_BUTTON_LEFT => PointerButton.Left,
-        SDLButton.SDL_BUTTON_RIGHT => PointerButton.Right,
-        SDLButton.SDL_BUTTON_MIDDLE => PointerButton.Middle,
-        _ => null,
-    };
+    private static PointerButton? Button(byte button) =>
+        (SDLButton)button switch
+        {
+            SDLButton.SDL_BUTTON_LEFT => PointerButton.Left,
+            SDLButton.SDL_BUTTON_RIGHT => PointerButton.Right,
+            SDLButton.SDL_BUTTON_MIDDLE => PointerButton.Middle,
+            _ => null,
+        };
 
     /// <summary>
     /// The modifiers held, Primary being Cmd on macOS and Ctrl elsewhere.
@@ -274,9 +295,12 @@ internal sealed unsafe class SdlHost : IDisposable
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static SDLBool WatchEvent(IntPtr userdata, SDL_Event* e)
     {
-        if (current is { } host && Environment.CurrentManagedThreadId == host.mainThread
+        if (
+            s_current is { } host
+            && Environment.CurrentManagedThreadId == host._mainThread
             && (SDL_EventType)e->type is SDL_EventType.SDL_EVENT_WINDOW_EXPOSED
-            && host.WindowOf(e->window.windowID) is { } window)
+            && host.WindowOf(e->window.windowID) is { } window
+        )
         {
             window.Render(isForced: true);
         }
@@ -285,12 +309,12 @@ internal sealed unsafe class SdlHost : IDisposable
 
     public void Dispose()
     {
-        foreach (SdlWindow window in windows.ToArray())
+        foreach (SdlWindow window in _windows.ToArray())
         {
             window.Dispose();
         }
-        windows.Clear();
+        _windows.Clear();
         SynchronizationContext.SetSynchronizationContext(null);
-        current = null;
+        s_current = null;
     }
 }

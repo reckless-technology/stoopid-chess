@@ -10,9 +10,9 @@ namespace StoopidChess.Desktop.Views;
 /// </summary>
 internal abstract class View
 {
-    private readonly List<View> children = [];
-    private bool isVisible = true;
-    private bool isEnabled = true;
+    private readonly List<View> _children = [];
+    private bool _isVisible = true;
+    private bool _isEnabled = true;
 
     /// <summary>The view this one is a child of; null for a root, or for a view not yet placed.</summary>
     public View? Parent { get; private set; }
@@ -30,17 +30,17 @@ internal abstract class View
     public SKRect LocalBounds => SKRect.Create(Width, Height);
 
     /// <summary>The views inside this one, drawn in order (the last on top).</summary>
-    public IReadOnlyList<View> Children => children;
+    public IReadOnlyList<View> Children => _children;
 
     /// <summary>Whether the view is drawn and can be pointed at.</summary>
     public bool IsVisible
     {
-        get => isVisible;
+        get => _isVisible;
         set
         {
-            if (isVisible != value)
+            if (_isVisible != value)
             {
-                isVisible = value;
+                _isVisible = value;
                 Invalidate();
             }
         }
@@ -49,12 +49,12 @@ internal abstract class View
     /// <summary>Whether the view takes input; a disabled view draws itself dimmed.</summary>
     public bool IsEnabled
     {
-        get => isEnabled;
+        get => _isEnabled;
         set
         {
-            if (isEnabled != value)
+            if (_isEnabled != value)
             {
-                isEnabled = value;
+                _isEnabled = value;
                 Invalidate();
             }
         }
@@ -94,7 +94,7 @@ internal abstract class View
         ArgumentNullException.ThrowIfNull(child);
         child.Parent?.RemoveChild(child);
         child.Parent = this;
-        children.Add(child);
+        _children.Add(child);
         Invalidate();
     }
 
@@ -104,7 +104,7 @@ internal abstract class View
     public void RemoveChild(View child)
     {
         ArgumentNullException.ThrowIfNull(child);
-        if (children.Remove(child))
+        if (_children.Remove(child))
         {
             Invalidate();
             child.Parent = null;
@@ -176,7 +176,7 @@ internal abstract class View
             return;
         }
         Draw(canvas);
-        foreach (View child in children)
+        foreach (View child in _children)
         {
             if (!child.IsVisible)
             {
@@ -203,9 +203,9 @@ internal abstract class View
         {
             return null;
         }
-        for (int i = children.Count - 1; i >= 0; i--)
+        for (int i = _children.Count - 1; i >= 0; i--)
         {
-            View child = children[i];
+            View child = _children[i];
             if (child.HitTest(new SKPoint(point.X - child.Bounds.Left, point.Y - child.Bounds.Top)) is { } hit)
             {
                 return hit;
@@ -218,27 +218,19 @@ internal abstract class View
     protected virtual bool ClipsChildren => true;
 
     /// <summary>Lay out the children for the view's new size.</summary>
-    protected virtual void Layout()
-    {
-    }
+    protected virtual void Layout() { }
 
     /// <summary>Draw the view itself, under its children.</summary>
-    protected virtual void Draw(SKCanvas canvas)
-    {
-    }
+    protected virtual void Draw(SKCanvas canvas) { }
 
     /// <summary>A press on the view. Return true to take it, and with it the pointer's moves and its release.</summary>
     public virtual bool OnPointerDown(PointerEvent e) => false;
 
     /// <summary>The pointer moved: over the view, or anywhere while the view holds a press it took.</summary>
-    public virtual void OnPointerMove(PointerEvent e)
-    {
-    }
+    public virtual void OnPointerMove(PointerEvent e) { }
 
     /// <summary>The press the view took was released.</summary>
-    public virtual void OnPointerUp(PointerEvent e)
-    {
-    }
+    public virtual void OnPointerUp(PointerEvent e) { }
 
     /// <summary>The wheel turned over the view. Return true to take it; otherwise it goes to the parent.</summary>
     public virtual bool OnWheel(WheelEvent e) => false;
@@ -247,9 +239,7 @@ internal abstract class View
     public virtual bool OnKeyDown(KeyEvent e) => false;
 
     /// <summary>Text typed while the view holds the keyboard.</summary>
-    public virtual void OnTextInput(string text)
-    {
-    }
+    public virtual void OnTextInput(string text) { }
 
     /// <summary>The view took or gave up the keyboard.</summary>
     public virtual void OnFocusChanged(bool isFocused) => Invalidate();

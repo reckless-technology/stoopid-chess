@@ -13,10 +13,10 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 internal sealed class InstantEngine
 {
-    private readonly BlockingCollection<string> lines = [];
-    private readonly object sync = new();     // A monitor, not a Lock: the waits below need Monitor.Wait
-    private int sent;           // Lines put on the wire
-    private int dispatched;     // Lines the client's reader thread has finished handling
+    private readonly BlockingCollection<string> _lines = [];
+    private readonly object _sync = new(); // A monitor, not a Lock: the waits below need Monitor.Wait
+    private int _sent; // Lines put on the wire
+    private int _dispatched; // Lines the client's reader thread has finished handling
 
     private InstantEngine(string name, Func<string, IEnumerable<string>> script)
     {
@@ -33,20 +33,20 @@ internal sealed class InstantEngine
     public void Send(params IEnumerable<string> reply)
     {
         int target;
-        lock (sync)
+        lock (_sync)
         {
             foreach (string line in reply)
             {
-                lines.Add(line);
-                sent++;
+                _lines.Add(line);
+                _sent++;
             }
-            target = sent;
+            target = _sent;
         }
-        lock (sync)
+        lock (_sync)
         {
-            while (dispatched < target)
+            while (_dispatched < target)
             {
-                Assert.True(Monitor.Wait(sync, TimeSpan.FromSeconds(30)), "the client never read the reply");
+                Assert.True(Monitor.Wait(_sync, TimeSpan.FromSeconds(30)), "the client never read the reply");
             }
         }
     }
@@ -57,27 +57,28 @@ internal sealed class InstantEngine
     /// </summary>
     private sealed class Reader(InstantEngine engine) : TextReader
     {
-        private bool started;
+        private bool _started;
 
         public override string? ReadLine()
         {
-            lock (engine.sync)
+            lock (engine._sync)
             {
-                if (started)
+                if (_started)
                 {
-                    engine.dispatched++;
-                    Monitor.PulseAll(engine.sync);
+                    engine._dispatched++;
+                    Monitor.PulseAll(engine._sync);
                 }
-                started = true;
+                _started = true;
             }
-            return engine.lines.TryTake(out string? line, Timeout.Infinite) ? line : null;
+            return engine._lines.TryTake(out string? line, Timeout.Infinite) ? line : null;
         }
     }
 
     /// <summary>
     /// The client's side of the engine's input: each command is answered before WriteLine returns.
     /// </summary>
-    private sealed class Writer(InstantEngine engine, string name, Func<string, IEnumerable<string>> script) : TextWriter
+    private sealed class Writer(InstantEngine engine, string name, Func<string, IEnumerable<string>> script)
+        : TextWriter
     {
         public override Encoding Encoding => Encoding.UTF8;
 
@@ -88,15 +89,17 @@ internal sealed class InstantEngine
             string command = value ?? "";
             if (command == "quit")
             {
-                engine.lines.CompleteAdding();
+                engine._lines.CompleteAdding();
                 return;
             }
-            engine.Send(command switch
-            {
-                "uci" => [$"id name {name}", "id author Test", "uciok"],
-                "isready" => ["readyok"],
-                _ => script(command),
-            });
+            engine.Send(
+                command switch
+                {
+                    "uci" => [$"id name {name}", "id author Test", "uciok"],
+                    "isready" => ["readyok"],
+                    _ => script(command),
+                }
+            );
         }
     }
 }

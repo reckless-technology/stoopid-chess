@@ -17,19 +17,19 @@ internal sealed class TextListView : View
 
     private const float Inset = 6.0f;
 
-    private IReadOnlyList<string> lines = [];
-    private float contentWidth;
-    private bool isDraggingVertical;
-    private bool isDraggingHorizontal;
-    private float dragFrom;
-    private float scrollAtDragStart;
-    private SKPoint pointer = new(-1, -1);
+    private IReadOnlyList<string> _lines = [];
+    private float _contentWidth;
+    private bool _isDraggingVertical;
+    private bool _isDraggingHorizontal;
+    private float _dragFrom;
+    private float _scrollAtDragStart;
+    private SKPoint _pointer = new(-1, -1);
 
     /// <summary>The font.</summary>
     public SKFont Font { get; init; } = Fonts.Mono;
 
     /// <summary>The lines shown.</summary>
-    public IReadOnlyList<string> Lines => lines;
+    public IReadOnlyList<string> Lines => _lines;
 
     /// <summary>How far down the lines are scrolled, in pixels.</summary>
     public float ScrollY { get; private set; }
@@ -41,15 +41,15 @@ internal sealed class TextListView : View
     public float MaximumScrollY => Math.Max(0, ContentHeight - ViewportHeight);
 
     /// <summary>The furthest across the lines scroll.</summary>
-    public float MaximumScrollX => Math.Max(0, contentWidth + (2 * Inset) - ViewportWidth);
+    public float MaximumScrollX => Math.Max(0, _contentWidth + (2 * Inset) - ViewportWidth);
 
     private float LineHeight => Drawing.LineHeight(Font);
 
-    private float ContentHeight => (lines.Count * LineHeight) + (2 * Inset);
+    private float ContentHeight => (_lines.Count * LineHeight) + (2 * Inset);
 
-    private bool HasVerticalBar => ContentHeight > Height - (contentWidth + (2 * Inset) > Width ? BarThickness : 0);
+    private bool HasVerticalBar => ContentHeight > Height - (_contentWidth + (2 * Inset) > Width ? BarThickness : 0);
 
-    private bool HasHorizontalBar => contentWidth + (2 * Inset) > Width - (ContentHeight > Height ? BarThickness : 0);
+    private bool HasHorizontalBar => _contentWidth + (2 * Inset) > Width - (ContentHeight > Height ? BarThickness : 0);
 
     private float ViewportWidth => Width - (HasVerticalBar ? BarThickness : 0);
 
@@ -70,8 +70,8 @@ internal sealed class TextListView : View
     public void SetLines(IReadOnlyList<string> newLines)
     {
         ArgumentNullException.ThrowIfNull(newLines);
-        lines = newLines;
-        contentWidth = lines.Count == 0 ? 0 : lines.Max(line => Drawing.Measure(Font, line));
+        _lines = newLines;
+        _contentWidth = _lines.Count == 0 ? 0 : _lines.Max(line => Drawing.Measure(Font, line));
         ScrollTo(ScrollX, ScrollY);
     }
 
@@ -100,7 +100,7 @@ internal sealed class TextListView : View
         canvas.ClipRect(SKRect.Create(ViewportWidth, ViewportHeight));
         float lineHeight = LineHeight;
         int first = Math.Max(0, (int)((ScrollY - Inset) / lineHeight));
-        for (int i = first; i < lines.Count; i++)
+        for (int i = first; i < _lines.Count; i++)
         {
             float y = Inset + (i * lineHeight) - ScrollY;
             if (y > ViewportHeight)
@@ -108,16 +108,16 @@ internal sealed class TextListView : View
                 break;
             }
             float x = Inset - ScrollX;
-            Drawing.Text(canvas, lines[i], new SKRect(x, y, x + contentWidth + 1, y + lineHeight), Font, Theme.Ink);
+            Drawing.Text(canvas, _lines[i], new SKRect(x, y, x + _contentWidth + 1, y + lineHeight), Font, Theme.Ink);
         }
         canvas.Restore();
         if (HasVerticalBar)
         {
-            DrawThumb(canvas, paint, VerticalThumb(), isDraggingVertical);
+            DrawThumb(canvas, paint, VerticalThumb(), _isDraggingVertical);
         }
         if (HasHorizontalBar)
         {
-            DrawThumb(canvas, paint, HorizontalThumb(), isDraggingHorizontal);
+            DrawThumb(canvas, paint, HorizontalThumb(), _isDraggingHorizontal);
         }
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1;
@@ -148,9 +148,9 @@ internal sealed class TextListView : View
                 ScrollTo(ScrollX, ScrollY + (Math.Sign(e.Position.Y - thumb.MidY) * ViewportHeight));
                 return true;
             }
-            isDraggingVertical = true;
-            dragFrom = e.Position.Y;
-            scrollAtDragStart = ScrollY;
+            _isDraggingVertical = true;
+            _dragFrom = e.Position.Y;
+            _scrollAtDragStart = ScrollY;
             return true;
         }
         if (HasHorizontalBar && e.Position.Y >= ViewportHeight && e.Position.X < ViewportWidth)
@@ -161,9 +161,9 @@ internal sealed class TextListView : View
                 ScrollTo(ScrollX + (Math.Sign(e.Position.X - thumb.MidX) * ViewportWidth), ScrollY);
                 return true;
             }
-            isDraggingHorizontal = true;
-            dragFrom = e.Position.X;
-            scrollAtDragStart = ScrollX;
+            _isDraggingHorizontal = true;
+            _dragFrom = e.Position.X;
+            _scrollAtDragStart = ScrollX;
             return true;
         }
         return false;
@@ -171,16 +171,16 @@ internal sealed class TextListView : View
 
     public override void OnPointerMove(PointerEvent e)
     {
-        pointer = e.Position;
-        if (isDraggingVertical)
+        _pointer = e.Position;
+        if (_isDraggingVertical)
         {
             float travel = ViewportHeight - VerticalThumb().Height;
-            ScrollTo(ScrollX, scrollAtDragStart + ((e.Position.Y - dragFrom) * MaximumScrollY / Math.Max(1, travel)));
+            ScrollTo(ScrollX, _scrollAtDragStart + ((e.Position.Y - _dragFrom) * MaximumScrollY / Math.Max(1, travel)));
         }
-        else if (isDraggingHorizontal)
+        else if (_isDraggingHorizontal)
         {
             float travel = ViewportWidth - HorizontalThumb().Width;
-            ScrollTo(scrollAtDragStart + ((e.Position.X - dragFrom) * MaximumScrollX / Math.Max(1, travel)), ScrollY);
+            ScrollTo(_scrollAtDragStart + ((e.Position.X - _dragFrom) * MaximumScrollX / Math.Max(1, travel)), ScrollY);
         }
         else
         {
@@ -190,8 +190,8 @@ internal sealed class TextListView : View
 
     public override void OnPointerUp(PointerEvent e)
     {
-        isDraggingVertical = false;
-        isDraggingHorizontal = false;
+        _isDraggingVertical = false;
+        _isDraggingHorizontal = false;
         Invalidate();
     }
 
@@ -199,7 +199,7 @@ internal sealed class TextListView : View
     {
         if (!isHovered)
         {
-            pointer = new SKPoint(-1, -1);
+            _pointer = new SKPoint(-1, -1);
         }
         base.OnHoverChanged(isHovered);
     }
@@ -217,14 +217,14 @@ internal sealed class TextListView : View
     public SKRect HorizontalThumb()
     {
         float track = ViewportWidth;
-        float length = Math.Max(2 * BarThickness, track * ViewportWidth / Math.Max(1, contentWidth + (2 * Inset)));
+        float length = Math.Max(2 * BarThickness, track * ViewportWidth / Math.Max(1, _contentWidth + (2 * Inset)));
         float left = MaximumScrollX <= 0 ? 0 : (track - length) * ScrollX / MaximumScrollX;
         return SKRect.Create(left, ViewportHeight, length, BarThickness);
     }
 
     private void DrawThumb(SKCanvas canvas, SKPaint paint, SKRect thumb, bool isDragging)
     {
-        bool isLit = isDragging || thumb.Contains(pointer);
+        bool isLit = isDragging || thumb.Contains(_pointer);
         paint.Style = SKPaintStyle.Fill;
         paint.Color = isLit ? Theme.Amber.Brighter(0.25f) : Theme.Amber;
         canvas.DrawRoundRect(Plates.Reduced(thumb, 1.5f), 4, 4, paint);

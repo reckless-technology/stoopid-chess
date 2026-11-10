@@ -127,7 +127,16 @@ public class UciSessionTests
         using (session)
         {
             session.HandleCommand("position startpos");
-            foreach (string go in new[] { "go wtime 0 btime 0 movestogo 0", "go depth -5", "go movetime 0", "go nodes 0", "go depth 0 nodes -1 movestogo -3" })
+            foreach (
+                string go in new[]
+                {
+                    "go wtime 0 btime 0 movestogo 0",
+                    "go depth -5",
+                    "go movetime 0",
+                    "go nodes 0",
+                    "go depth 0 nodes -1 movestogo -3",
+                }
+            )
             {
                 session.HandleCommand(go);
                 session.HandleCommand("stop");
@@ -151,12 +160,17 @@ public class UciSessionTests
         {
             session.HandleCommand("position startpos moves e2e4");
             session.HandleCommand("go depth 3");
-            session.HandleCommand("stop");        // Waits for the search to finish
+            session.HandleCommand("stop"); // Waits for the search to finish
             Assert.False(session.IsSearching);
         }
         string[] lines = Lines(output);
         Assert.Contains(lines, l => l.StartsWith("info depth 1 score cp ", StringComparison.Ordinal));
-        Assert.Contains(lines, l => l.StartsWith("info depth 3 score cp ", StringComparison.Ordinal) && l.Contains(" pv ", StringComparison.Ordinal));
+        Assert.Contains(
+            lines,
+            l =>
+                l.StartsWith("info depth 3 score cp ", StringComparison.Ordinal)
+                && l.Contains(" pv ", StringComparison.Ordinal)
+        );
         string best = lines[^1];
         Assert.StartsWith("bestmove ", best, StringComparison.Ordinal);
         var position = Position.Start();
@@ -198,14 +212,16 @@ public class UciSessionTests
     [Fact]
     public void RunProcessesAScriptUntilQuit()
     {
-        (UciSession session, StringWriter output) = NewSession(string.Join(Environment.NewLine, "uci", "isready", "position startpos", "go depth 2", "quit", "isready"));
+        (UciSession session, StringWriter output) = NewSession(
+            string.Join(Environment.NewLine, "uci", "isready", "position startpos", "go depth 2", "quit", "isready")
+        );
         using (session)
         {
             session.Run();
         }
         string[] lines = Lines(output);
         Assert.Contains("uciok", lines);
-        Assert.Single(lines, "readyok");     // The isready after quit is never read
+        Assert.Single(lines, "readyok"); // The isready after quit is never read
         Assert.Contains(lines, l => l.StartsWith("bestmove ", StringComparison.Ordinal));
     }
 
@@ -226,12 +242,21 @@ public class UciSessionTests
             session.HandleCommand("quit");
         }
         string[] lines = Lines(output);
-        int[] bestMoveLines = [.. lines.Select((line, index) => (line, index)).Where(t => t.line.StartsWith("bestmove ", StringComparison.Ordinal)).Select(t => t.index)];
+        int[] bestMoveLines =
+        [
+            .. lines
+                .Select((line, index) => (line, index))
+                .Where(t => t.line.StartsWith("bestmove ", StringComparison.Ordinal))
+                .Select(t => t.index),
+        ];
         Assert.Equal(3, bestMoveLines.Length);
         Assert.Equal("bestmove d1d8", lines[bestMoveLines[2]]);
         // Every bestmove precedes the info lines of the next search, so after the second bestmove
         // only the mate position's lines appear
-        Assert.All(lines.Skip(bestMoveLines[1] + 1).Where(l => l.StartsWith("info depth", StringComparison.Ordinal)), l => Assert.Contains("d1d8", l, StringComparison.Ordinal));
+        Assert.All(
+            lines.Skip(bestMoveLines[1] + 1).Where(l => l.StartsWith("info depth", StringComparison.Ordinal)),
+            l => Assert.Contains("d1d8", l, StringComparison.Ordinal)
+        );
     }
 
     [Fact]

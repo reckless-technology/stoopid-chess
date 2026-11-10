@@ -17,8 +17,8 @@ internal sealed class MenuBarView : View
 
     private const float TitlePadding = 11.0f;
 
-    private readonly List<SKRect> titles = [];
-    private MenuPopup? popup;
+    private readonly List<SKRect> _titles = [];
+    private MenuPopup? _popup;
 
     /// <summary>The bar's menus, left to right: each a title whose items are its rows.</summary>
     public List<MenuItem> Menus { get; } = [];
@@ -27,7 +27,7 @@ internal sealed class MenuBarView : View
     public int OpenMenu { get; private set; } = -1;
 
     /// <summary>The open menu's popup; null while none is open.</summary>
-    public MenuPopup? Popup => popup;
+    public MenuPopup? Popup => _popup;
 
     /// <summary>
     /// The rectangle of title <paramref name="index"/>, in the bar's coordinates.
@@ -35,7 +35,7 @@ internal sealed class MenuBarView : View
     public SKRect TitleBounds(int index)
     {
         LayOutTitles();
-        return titles[index];
+        return _titles[index];
     }
 
     /// <summary>
@@ -55,15 +55,15 @@ internal sealed class MenuBarView : View
             return;
         }
         LayOutTitles();
-        SKRect title = titles[index];
+        SKRect title = _titles[index];
         MenuPopup opened = MenuPopup.Open(root, menu.Items, ToRoot(new SKPoint(title.Left, title.Bottom)));
         SKPoint origin = ToRoot(SKPoint.Empty);
         opened.PassThrough = SKRect.Create(origin.X, origin.Y, Width, Height);
         opened.Closed += () =>
         {
-            if (popup == opened)
+            if (_popup == opened)
             {
-                popup = null;
+                _popup = null;
                 OpenMenu = -1;
                 Invalidate();
             }
@@ -72,9 +72,9 @@ internal sealed class MenuBarView : View
         {
             int next = (OpenMenu + direction + Menus.Count) % Menus.Count;
             Open(next);
-            popup?.HoverFirst();
+            _popup?.HoverFirst();
         };
-        popup = opened;
+        _popup = opened;
         OpenMenu = index;
         Invalidate();
     }
@@ -82,20 +82,22 @@ internal sealed class MenuBarView : View
     /// <summary>
     /// Close the open menu, choosing nothing.
     /// </summary>
-    public void Close() => popup?.Close();
+    public void Close() => _popup?.Close();
 
     /// <summary>
     /// Open the menu whose title starts with <paramref name="letter"/>, its first row lit; false when no title does.
     /// </summary>
     public bool OpenByLetter(char letter)
     {
-        int index = Menus.FindIndex(menu => menu.Text.Length > 0 && char.ToUpperInvariant(menu.Text[0]) == char.ToUpperInvariant(letter));
+        int index = Menus.FindIndex(menu =>
+            menu.Text.Length > 0 && char.ToUpperInvariant(menu.Text[0]) == char.ToUpperInvariant(letter)
+        );
         if (index < 0)
         {
             return false;
         }
         Open(index);
-        popup?.HoverFirst();
+        _popup?.HoverFirst();
         return true;
     }
 
@@ -106,15 +108,24 @@ internal sealed class MenuBarView : View
         canvas.DrawRect(LocalBounds, paint);
         paint.Color = Theme.Rule;
         canvas.DrawRect(SKRect.Create(0, Height - 1, Width, 1), paint);
-        for (int i = 0; i < titles.Count; i++)
+        for (int i = 0; i < _titles.Count; i++)
         {
             if (i == OpenMenu)
             {
                 paint.Color = Theme.Select;
-                canvas.DrawRect(new SKRect(titles[i].Left, titles[i].Top, titles[i].Right, titles[i].Bottom - 1), paint);
+                canvas.DrawRect(
+                    new SKRect(_titles[i].Left, _titles[i].Top, _titles[i].Right, _titles[i].Bottom - 1),
+                    paint
+                );
             }
-            Drawing.Text(canvas, Menus[i].Text, titles[i], Fonts.MenuBar, Menus[i].IsEnabled ? Theme.Ink : Theme.Faint,
-                TextAlignment.Centre);
+            Drawing.Text(
+                canvas,
+                Menus[i].Text,
+                _titles[i],
+                Fonts.MenuBar,
+                Menus[i].IsEnabled ? Theme.Ink : Theme.Faint,
+                TextAlignment.Centre
+            );
         }
     }
 
@@ -140,7 +151,7 @@ internal sealed class MenuBarView : View
     public override void OnPointerMove(PointerEvent e)
     {
         int index = TitleAt(e.Position);
-        if (popup is not null && index >= 0 && index != OpenMenu && Menus[index].HasSubmenu)
+        if (_popup is not null && index >= 0 && index != OpenMenu && Menus[index].HasSubmenu)
         {
             Open(index);
         }
@@ -149,17 +160,17 @@ internal sealed class MenuBarView : View
     private int TitleAt(SKPoint point)
     {
         LayOutTitles();
-        return titles.FindIndex(title => title.Contains(point));
+        return _titles.FindIndex(title => title.Contains(point));
     }
 
     private void LayOutTitles()
     {
-        titles.Clear();
+        _titles.Clear();
         float x = 0;
         foreach (MenuItem menu in Menus)
         {
             float width = MathF.Ceiling(Drawing.Measure(Fonts.MenuBar, menu.Text)) + (2 * TitlePadding);
-            titles.Add(SKRect.Create(x, 0, width, Height));
+            _titles.Add(SKRect.Create(x, 0, width, Height));
             x += width;
         }
     }

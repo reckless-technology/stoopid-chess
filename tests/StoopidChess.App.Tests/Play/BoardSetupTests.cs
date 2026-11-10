@@ -56,7 +56,10 @@ public class BoardSetupTests
         BoardSetup edited = BoardSetup.From(Position.Start());
         edited.SideToMove = Color.Black;
         Assert.Equal(Color.Black, edited.SideToMove);
-        Assert.Equal(Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1").Key, edited.ToPosition()!.Key);
+        Assert.Equal(
+            Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1").Key,
+            edited.ToPosition()!.Key
+        );
         Assert.Throws<ArgumentOutOfRangeException>(() => edited.SideToMove = (Color)2);
     }
 

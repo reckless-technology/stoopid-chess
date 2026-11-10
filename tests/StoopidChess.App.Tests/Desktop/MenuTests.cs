@@ -69,12 +69,12 @@ public class MenuTests
         var bar = new Bar();
         bar.Window.Click(bar.Title(0));
         MenuPopup popup = bar.Popup;
-        bar.Window.Click(popup.RowCentre(0, 2));                  // Disabled
-        bar.Window.Click(popup.RowCentre(0, 1));                  // The separator
+        bar.Window.Click(popup.RowCentre(0, 2)); // Disabled
+        bar.Window.Click(popup.RowCentre(0, 1)); // The separator
         SKRect box = popup.MenuBounds(0);
-        bar.Window.Click(new SKPoint(box.Left + 0.5f, box.MidY));  // The border
+        bar.Window.Click(new SKPoint(box.Left + 0.5f, box.MidY)); // The border
         bar.Window.Press(popup.RowCentre(0, 0));
-        bar.Window.Release(popup.RowCentre(0, 3));                // Released on another row
+        bar.Window.Release(popup.RowCentre(0, 3)); // Released on another row
         Assert.Empty(bar.Chosen);
         Assert.Equal(0, bar.MenuBar.OpenMenu);
     }
@@ -91,9 +91,9 @@ public class MenuTests
         Assert.Equal(-1, bar.MenuBar.OpenMenu);
         Assert.Empty(bar.Window.Root.Overlays);
         bar.Window.Click(bar.Title(1));
-        bar.Window.Click(new SKPoint(590, 15));                   // The bar beyond its titles
+        bar.Window.Click(new SKPoint(590, 15)); // The bar beyond its titles
         Assert.Equal(-1, bar.MenuBar.OpenMenu);
-        bar.Window.Click(bar.Title(3));                          // A disabled title
+        bar.Window.Click(bar.Title(3)); // A disabled title
         Assert.Equal(-1, bar.MenuBar.OpenMenu);
         Assert.Empty(bar.Chosen);
     }
@@ -106,10 +106,10 @@ public class MenuTests
         bar.Window.Move(bar.Title(1));
         Assert.Equal(1, bar.MenuBar.OpenMenu);
         Assert.Single(bar.Window.Root.Overlays);
-        bar.Window.Move(bar.Title(2));                           // Help has no menu to switch to
+        bar.Window.Move(bar.Title(2)); // Help has no menu to switch to
         Assert.Equal(1, bar.MenuBar.OpenMenu);
         bar.MenuBar.Close();
-        bar.Window.Move(bar.Title(0));                           // Nothing open: nothing opens
+        bar.Window.Move(bar.Title(0)); // Nothing open: nothing opens
         Assert.Equal(-1, bar.MenuBar.OpenMenu);
     }
 
@@ -136,9 +136,9 @@ public class MenuTests
         bar.Window.Render();
         bar.Window.Move(popup.RowCentre(1, 1));
         Assert.Equal(1, popup.HoveredRow(1));
-        bar.Window.Move(new SKPoint(550, 380));                  // Off every menu: nothing changes
+        bar.Window.Move(new SKPoint(550, 380)); // Off every menu: nothing changes
         Assert.Equal(2, popup.LevelCount);
-        bar.Window.Move(popup.RowCentre(0, 1));                  // Another row of the first menu closes it
+        bar.Window.Move(popup.RowCentre(0, 1)); // Another row of the first menu closes it
         Assert.Equal(1, popup.LevelCount);
         bar.Window.Move(popup.RowCentre(0, 0));
         bar.Window.Click(popup.RowCentre(1, 1));
@@ -165,37 +165,37 @@ public class MenuTests
         Assert.Equal(1, bar.MenuBar.OpenMenu);
         MenuPopup game = bar.Popup;
         Assert.Equal(0, game.HoveredRow(0));
-        bar.Window.Key(Key.Right);                               // Into New Game's submenu
+        bar.Window.Key(Key.Right); // Into New Game's submenu
         Assert.Equal(2, game.LevelCount);
         bar.Window.Key(Key.Down);
         bar.Window.Key(Key.Up);
-        bar.Window.Key(Key.Up);                                  // Round to the last
+        bar.Window.Key(Key.Up); // Round to the last
         Assert.Equal(1, game.HoveredRow(1));
-        bar.Window.Key(Key.Left);                                // Back out
+        bar.Window.Key(Key.Left); // Back out
         Assert.Equal(1, game.LevelCount);
         bar.Window.Key(Key.Right);
-        bar.Window.Key(Key.Escape);                              // Closes the submenu only
+        bar.Window.Key(Key.Escape); // Closes the submenu only
         Assert.Equal(1, game.LevelCount);
         bar.Window.Key(Key.Down);
-        bar.Window.Key(Key.Right);                               // Undo has no submenu: the next title
-        Assert.Equal(-1, bar.MenuBar.OpenMenu);                  // Help: acts, and opens nothing
+        bar.Window.Key(Key.Right); // Undo has no submenu: the next title
+        Assert.Equal(-1, bar.MenuBar.OpenMenu); // Help: acts, and opens nothing
         Assert.Contains("help", bar.Chosen);
         Assert.True(bar.MenuBar.OpenByLetter('F'));
-        bar.Window.Key(Key.Left);                                // The previous title, round to the last
-        Assert.Equal(-1, bar.MenuBar.OpenMenu);                  // Off is disabled: nothing opens
+        bar.Window.Key(Key.Left); // The previous title, round to the last
+        Assert.Equal(-1, bar.MenuBar.OpenMenu); // Off is disabled: nothing opens
         bar.MenuBar.OpenByLetter('F');
-        bar.Window.Key(Key.Down);                                // Past the separator and the disabled row
+        bar.Window.Key(Key.Down); // Past the separator and the disabled row
         Assert.Equal(3, bar.Popup.HoveredRow(0));
         bar.Window.Key(Key.Return);
         Assert.Equal(["help", "exit"], bar.Chosen);
         Assert.False(bar.MenuBar.OpenByLetter('Z'));
         bar.MenuBar.OpenByLetter('G');
-        bar.Window.Key(Key.Return);                              // New Game: its submenu opens
+        bar.Window.Key(Key.Return); // New Game: its submenu opens
         Assert.Equal(2, bar.Popup.LevelCount);
         bar.Window.Key(Key.Return);
         Assert.Equal(["help", "exit", "white"], bar.Chosen);
         bar.MenuBar.OpenByLetter('G');
-        bar.Window.Key(Key.A);                                   // Any other key is the menu's, and does nothing
+        bar.Window.Key(Key.A); // Any other key is the menu's, and does nothing
         bar.Window.Key(Key.Escape);
         Assert.Empty(bar.Window.Root.Overlays);
     }
@@ -217,13 +217,13 @@ public class MenuTests
         SKRect box = popup.MenuBounds(0);
         Assert.True(box.Right <= 300 && box.Bottom <= 200);
         window.Move(popup.RowCentre(0, 0));
-        Assert.True(popup.MenuBounds(1).Right <= box.Left + 2);   // No room at the right: opens at the left
+        Assert.True(popup.MenuBounds(1).Right <= box.Left + 2); // No room at the right: opens at the left
         Assert.Equal(-1, popup.HoveredRow(1));
         window.Render();
         window.Key(Key.Escape);
         window.Key(Key.Escape);
         Assert.Empty(window.Root.Overlays);
-        popup.Close();                                           // Closed already: nothing
+        popup.Close(); // Closed already: nothing
         Assert.Throws<ArgumentNullException>(() => MenuPopup.Open(null!, items, SKPoint.Empty));
         popup.HoverFirst();
     }

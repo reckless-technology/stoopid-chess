@@ -84,8 +84,9 @@ public sealed partial class Position
         // line, which for a pinned piece is Attacks.Line(king, piece).
         Bitboard pinned = Bitboard.Empty;
         Bitboard theirQueens = Pieces(them, Piece.Queen);
-        Bitboard pinners = (Attacks.BishopRays(king) & (Pieces(them, Piece.Bishop) | theirQueens))
-                         | (Attacks.RookRays(king) & (Pieces(them, Piece.Rook) | theirQueens));
+        Bitboard pinners =
+            (Attacks.BishopRays(king) & (Pieces(them, Piece.Bishop) | theirQueens))
+            | (Attacks.RookRays(king) & (Pieces(them, Piece.Rook) | theirQueens));
         foreach (Square pinner in pinners)
         {
             Bitboard between = Attacks.Between(king, pinner) & occupied;
@@ -103,19 +104,55 @@ public sealed partial class Position
         GeneratePawnMoves(ref moves, us, king, pinned, checkMask, captureTargets, emptyTargets, quietMoves);
         foreach (Square from in Pieces(us, Piece.Knight))
         {
-            AddPieceMoves(ref moves, from, Piece.Knight, Attacks.Knight(from), king, pinned, captureTargets, quietTargets);
+            AddPieceMoves(
+                ref moves,
+                from,
+                Piece.Knight,
+                Attacks.Knight(from),
+                king,
+                pinned,
+                captureTargets,
+                quietTargets
+            );
         }
         foreach (Square from in Pieces(us, Piece.Bishop))
         {
-            AddPieceMoves(ref moves, from, Piece.Bishop, Attacks.Bishop(occupied, from), king, pinned, captureTargets, quietTargets);
+            AddPieceMoves(
+                ref moves,
+                from,
+                Piece.Bishop,
+                Attacks.Bishop(occupied, from),
+                king,
+                pinned,
+                captureTargets,
+                quietTargets
+            );
         }
         foreach (Square from in Pieces(us, Piece.Rook))
         {
-            AddPieceMoves(ref moves, from, Piece.Rook, Attacks.Rook(occupied, from), king, pinned, captureTargets, quietTargets);
+            AddPieceMoves(
+                ref moves,
+                from,
+                Piece.Rook,
+                Attacks.Rook(occupied, from),
+                king,
+                pinned,
+                captureTargets,
+                quietTargets
+            );
         }
         foreach (Square from in Pieces(us, Piece.Queen))
         {
-            AddPieceMoves(ref moves, from, Piece.Queen, Attacks.Queen(occupied, from), king, pinned, captureTargets, quietTargets);
+            AddPieceMoves(
+                ref moves,
+                from,
+                Piece.Queen,
+                Attacks.Queen(occupied, from),
+                king,
+                pinned,
+                captureTargets,
+                quietTargets
+            );
         }
 
         // The king: any square the enemy does not attack (rule 1), and castling when not in check
@@ -152,11 +189,20 @@ public sealed partial class Position
     /// The moves of a knight, bishop, rook or queen to the squares it attacks: a capture on each
     /// capture target, a quiet move to each quiet target.
     /// </summary>
-    private void AddPieceMoves(ref MoveList moves, Square from, Piece piece, Bitboard attacks, Square king, Bitboard pinned, Bitboard captureTargets, Bitboard quietTargets)
+    private void AddPieceMoves(
+        ref MoveList moves,
+        Square from,
+        Piece piece,
+        Bitboard attacks,
+        Square king,
+        Bitboard pinned,
+        Bitboard captureTargets,
+        Bitboard quietTargets
+    )
     {
         if (pinned.Contains(from))
         {
-            attacks &= Attacks.Line(king, from);   // Rule 3: stay on the pin line (a pinned knight never can)
+            attacks &= Attacks.Line(king, from); // Rule 3: stay on the pin line (a pinned knight never can)
         }
         foreach (Square to in attacks & captureTargets)
         {
@@ -168,7 +214,14 @@ public sealed partial class Position
         }
     }
 
-    private void GenerateKingMoves(ref MoveList moves, Square king, Bitboard attackedByThem, Bitboard occupied, Bitboard theirs, bool quietMoves)
+    private void GenerateKingMoves(
+        ref MoveList moves,
+        Square king,
+        Bitboard attackedByThem,
+        Bitboard occupied,
+        Bitboard theirs,
+        bool quietMoves
+    )
     {
         Bitboard targets = Attacks.King(king) & ~attackedByThem;
         foreach (Square to in targets & theirs)
@@ -190,7 +243,13 @@ public sealed partial class Position
     /// squares it passes over are attacked. The caller has already established the king is not in
     /// check, so the attack set computed without the king is exact for the squares it crosses.
     /// </summary>
-    private void GenerateCastlingMoves(ref MoveList moves, Color us, Square king, Bitboard occupied, Bitboard attackedByThem)
+    private void GenerateCastlingMoves(
+        ref MoveList moves,
+        Color us,
+        Square king,
+        Bitboard occupied,
+        Bitboard attackedByThem
+    )
     {
         CastlingRights kingSide = us == Color.White ? CastlingRights.WhiteKingSide : CastlingRights.BlackKingSide;
         CastlingRights queenSide = us == Color.White ? CastlingRights.WhiteQueenSide : CastlingRights.BlackQueenSide;
@@ -200,16 +259,24 @@ public sealed partial class Position
             return;
         }
         Bitboard rooks = Pieces(us, Piece.Rook);
-        Bitboard kingSidePath = Bitboard.Of(home + 1) | Bitboard.Of(home + 2);              // f and g
-        Bitboard queenSideEmpty = Bitboard.Of(home - 1) | Bitboard.Of(home - 2) | Bitboard.Of(home - 3);   // d, c and b
-        Bitboard queenSidePath = Bitboard.Of(home - 1) | Bitboard.Of(home - 2);             // d and c
-        if ((CastlingRights & kingSide) != CastlingRights.None
-            && rooks.Contains(home + 3) && (occupied & kingSidePath).IsEmpty && (attackedByThem & kingSidePath).IsEmpty)
+        Bitboard kingSidePath = Bitboard.Of(home + 1) | Bitboard.Of(home + 2); // f and g
+        Bitboard queenSideEmpty = Bitboard.Of(home - 1) | Bitboard.Of(home - 2) | Bitboard.Of(home - 3); // d, c and b
+        Bitboard queenSidePath = Bitboard.Of(home - 1) | Bitboard.Of(home - 2); // d and c
+        if (
+            (CastlingRights & kingSide) != CastlingRights.None
+            && rooks.Contains(home + 3)
+            && (occupied & kingSidePath).IsEmpty
+            && (attackedByThem & kingSidePath).IsEmpty
+        )
         {
             moves.Add(new Move(home, home + 2, Piece.King, Piece.None, MoveKind.CastleKingSide));
         }
-        if ((CastlingRights & queenSide) != CastlingRights.None
-            && rooks.Contains(home - 4) && (occupied & queenSideEmpty).IsEmpty && (attackedByThem & queenSidePath).IsEmpty)
+        if (
+            (CastlingRights & queenSide) != CastlingRights.None
+            && rooks.Contains(home - 4)
+            && (occupied & queenSideEmpty).IsEmpty
+            && (attackedByThem & queenSidePath).IsEmpty
+        )
         {
             moves.Add(new Move(home, home - 2, Piece.King, Piece.None, MoveKind.CastleQueenSide));
         }
@@ -220,7 +287,16 @@ public sealed partial class Position
     /// diagonally for captures, the shifted set is cut to the legal targets, and each target left is
     /// mapped back to the pawn that moves there. "West" is towards the a-file, for either color.
     /// </summary>
-    private void GeneratePawnMoves(ref MoveList moves, Color us, Square king, Bitboard pinned, Bitboard checkMask, Bitboard captureTargets, Bitboard emptyTargets, bool quietMoves)
+    private void GeneratePawnMoves(
+        ref MoveList moves,
+        Color us,
+        Square king,
+        Bitboard pinned,
+        Bitboard checkMask,
+        Bitboard captureTargets,
+        Bitboard emptyTargets,
+        bool quietMoves
+    )
     {
         Bitboard pawns = Pieces(us, Piece.Pawn);
         if (pawns.IsEmpty)
@@ -233,13 +309,19 @@ public sealed partial class Position
         // push; pinned along a diagonal it may still capture along that diagonal (which can only
         // be the pinner); pinned along the king's rank it cannot move at all.
         Bitboard pinnedPawns = pawns & pinned;
-        Bitboard pinnedOffFile = pinnedPawns & ~Bitboard.OfFile(king.File);              // May not push
-        Bitboard pinnedOffDiagonal = pinnedPawns & ~Attacks.Diagonal(king);              // May not capture along an a1-h8 diagonal
-        Bitboard pinnedOffAntiDiagonal = pinnedPawns & ~Attacks.AntiDiagonal(king);      // May not capture along an a8-h1 diagonal
+        Bitboard pinnedOffFile = pinnedPawns & ~Bitboard.OfFile(king.File); // May not push
+        Bitboard pinnedOffDiagonal = pinnedPawns & ~Attacks.Diagonal(king); // May not capture along an a1-h8 diagonal
+        Bitboard pinnedOffAntiDiagonal = pinnedPawns & ~Attacks.AntiDiagonal(king); // May not capture along an a8-h1 diagonal
 
         Bitboard empty = ~Occupied;
-        Bitboard promotionRank, pushes, doublePushes, westAttacks, eastAttacks;
-        int pushStep, westStep, eastStep;
+        Bitboard promotionRank,
+            pushes,
+            doublePushes,
+            westAttacks,
+            eastAttacks;
+        int pushStep,
+            westStep,
+            eastStep;
         if (us == Color.White)
         {
             // White's captures to the west run along a8-h1 diagonals, to the east along a1-h8 ones
@@ -305,7 +387,8 @@ public sealed partial class Position
         if (king.Rank == from.Rank)
         {
             Bitboard withoutPawns = Occupied ^ Bitboard.Of(from) ^ Bitboard.Of(captured);
-            Bitboard theirRooksAndQueens = Pieces(SideToMove.Opponent(), Piece.Rook) | Pieces(SideToMove.Opponent(), Piece.Queen);
+            Bitboard theirRooksAndQueens =
+                Pieces(SideToMove.Opponent(), Piece.Rook) | Pieces(SideToMove.Opponent(), Piece.Queen);
             if ((Attacks.Rook(withoutPawns, king) & Bitboard.OfRank(king.Rank) & theirRooksAndQueens).IsNotEmpty)
             {
                 return;

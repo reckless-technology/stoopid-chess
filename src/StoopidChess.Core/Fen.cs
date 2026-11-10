@@ -60,7 +60,9 @@ public static class Fen
         position.ApplyCastlingRights(rights);
         // An en passant square no pawn stands ready to capture on is dropped, as make does, so that
         // the key is the same whichever way the position was reached
-        position.SetEnPassantSquare(enPassant.IsValid && position.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
+        position.SetEnPassantSquare(
+            enPassant.IsValid && position.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None
+        );
         position.SetClocks(halfMoveClock, fullMoveNumber);
         position.UpdateCheckers();
         return position;

@@ -23,17 +23,17 @@ internal sealed class MenuPopup : View
     private const float ShortcutGap = 28.0f;
     private const float MinimumWidth = 140.0f;
 
-    private static readonly SKColor Border = Theme.Ink.WithOpacity(0.6f);
-    private static readonly SKColor Highlight = Theme.Amber.WithOpacity(0.35f);
-    private static readonly SKColor DisabledText = Theme.Ink.WithMultipliedAlpha(0.3f);
+    private static readonly SKColor s_border = Theme.Ink.WithOpacity(0.6f);
+    private static readonly SKColor s_highlight = Theme.Amber.WithOpacity(0.35f);
+    private static readonly SKColor s_disabledText = Theme.Ink.WithMultipliedAlpha(0.3f);
 
-    private readonly List<Level> levels = [];
-    private int pressedLevel = -1;
-    private int pressedRow = -1;
+    private readonly List<Level> _levels = [];
+    private int _pressedLevel = -1;
+    private int _pressedRow = -1;
 
-    private MenuPopup(IReadOnlyList<MenuItem> items, SKPoint at) => anchor = (items, at);
+    private MenuPopup(IReadOnlyList<MenuItem> items, SKPoint at) => _anchor = (items, at);
 
-    private readonly (IReadOnlyList<MenuItem> Items, SKPoint At) anchor;
+    private readonly (IReadOnlyList<MenuItem> Items, SKPoint At) _anchor;
 
     /// <summary>Where a press goes through to the views under the menu, in the window's coordinates.</summary>
     public SKRect PassThrough { get; set; } = SKRect.Empty;
@@ -45,7 +45,7 @@ internal sealed class MenuPopup : View
     public event Action<int>? Sideways;
 
     /// <summary>The menus open: the first, and each submenu opened from it.</summary>
-    public int LevelCount => levels.Count;
+    public int LevelCount => _levels.Count;
 
     /// <summary>
     /// Open a menu of <paramref name="items"/> with its top left at <paramref name="at"/> (in the window's
@@ -62,31 +62,31 @@ internal sealed class MenuPopup : View
     /// <summary>
     /// The rectangle of menu <paramref name="level"/> (0 the first), in the window's coordinates.
     /// </summary>
-    public SKRect MenuBounds(int level) => levels[level].Box;
+    public SKRect MenuBounds(int level) => _levels[level].Box;
 
     /// <summary>
     /// The centre of row <paramref name="row"/> of menu <paramref name="level"/>, in the window's coordinates.
     /// </summary>
     public SKPoint RowCentre(int level, int row)
     {
-        SKRect box = RowBox(levels[level], row);
+        SKRect box = RowBox(_levels[level], row);
         return new SKPoint(box.MidX, box.MidY);
     }
 
     /// <summary>The rows of menu <paramref name="level"/>.</summary>
-    public IReadOnlyList<MenuItem> ItemsOf(int level) => levels[level].Items;
+    public IReadOnlyList<MenuItem> ItemsOf(int level) => _levels[level].Items;
 
     /// <summary>The row under the pointer in menu <paramref name="level"/>; -1 for none.</summary>
-    public int HoveredRow(int level) => levels[level].Hover;
+    public int HoveredRow(int level) => _levels[level].Hover;
 
     /// <summary>
     /// Light the first row that can be chosen, as a menu opened from the keyboard does.
     /// </summary>
     public void HoverFirst()
     {
-        if (levels.Count > 0)
+        if (_levels.Count > 0)
         {
-            Step(levels[0], +1);
+            Step(_levels[0], +1);
         }
     }
 
@@ -104,9 +104,9 @@ internal sealed class MenuPopup : View
 
     protected override void Layout()
     {
-        if (levels.Count == 0)
+        if (_levels.Count == 0)
         {
-            levels.Add(MakeLevel(anchor.Items, anchor.At, null));
+            _levels.Add(MakeLevel(_anchor.Items, _anchor.At, null));
         }
     }
 
@@ -114,7 +114,7 @@ internal sealed class MenuPopup : View
 
     protected override void Draw(SKCanvas canvas)
     {
-        foreach (Level level in levels)
+        foreach (Level level in _levels)
         {
             DrawLevel(canvas, level);
         }
@@ -127,14 +127,14 @@ internal sealed class MenuPopup : View
         {
             return;
         }
-        Level level = levels[levelIndex];
+        Level level = _levels[levelIndex];
         if (level.Hover != row)
         {
             level.Hover = row;
             Invalidate();
         }
         CloseLevelsAfter(levelIndex, keepSubmenuOf: row);
-        if (row >= 0 && level.Items[row] is { HasSubmenu: true, IsEnabled: true } && levels.Count == levelIndex + 1)
+        if (row >= 0 && level.Items[row] is { HasSubmenu: true, IsEnabled: true } && _levels.Count == levelIndex + 1)
         {
             OpenSubmenu(levelIndex);
         }
@@ -145,37 +145,37 @@ internal sealed class MenuPopup : View
         (int levelIndex, int row) = RowAt(e.Position);
         if (levelIndex < 0)
         {
-            if (!levels.Any(level => level.Box.Contains(e.Position)))
+            if (!_levels.Any(level => level.Box.Contains(e.Position)))
             {
                 Close(); // A press outside the menu closes it, and goes no further
                 return false;
             }
-            pressedLevel = -1;
+            _pressedLevel = -1;
             return true;
         }
-        pressedLevel = levelIndex;
-        pressedRow = row;
+        _pressedLevel = levelIndex;
+        _pressedRow = row;
         return true;
     }
 
     public override void OnPointerUp(PointerEvent e)
     {
         (int levelIndex, int row) = RowAt(e.Position);
-        if (levelIndex >= 0 && levelIndex == pressedLevel && row == pressedRow)
+        if (levelIndex >= 0 && levelIndex == _pressedLevel && row == _pressedRow)
         {
             Activate(levelIndex, row);
         }
-        pressedLevel = -1;
+        _pressedLevel = -1;
     }
 
     public override bool OnKeyDown(KeyEvent e)
     {
-        if (levels.Count == 0)
+        if (_levels.Count == 0)
         {
             return false;
         }
-        int deepest = levels.Count - 1;
-        Level level = levels[deepest];
+        int deepest = _levels.Count - 1;
+        Level level = _levels[deepest];
         switch (e.Key)
         {
             case Key.Escape:
@@ -198,7 +198,7 @@ internal sealed class MenuPopup : View
                 if (level.Hover >= 0 && level.Items[level.Hover] is { HasSubmenu: true, IsEnabled: true })
                 {
                     OpenSubmenu(deepest);
-                    Step(levels[^1], +1);
+                    Step(_levels[^1], +1);
                 }
                 else
                 {
@@ -232,17 +232,17 @@ internal sealed class MenuPopup : View
     /// </summary>
     private void Activate(int levelIndex, int row)
     {
-        MenuItem item = levels[levelIndex].Items[row];
+        MenuItem item = _levels[levelIndex].Items[row];
         if (!item.IsEnabled || item.IsSeparator)
         {
             return;
         }
         if (item.HasSubmenu)
         {
-            levels[levelIndex].Hover = row;
+            _levels[levelIndex].Hover = row;
             CloseLevelsAfter(levelIndex, keepSubmenuOf: -1);
             OpenSubmenu(levelIndex);
-            Step(levels[^1], +1);
+            Step(_levels[^1], +1);
             return;
         }
         Close();
@@ -251,22 +251,24 @@ internal sealed class MenuPopup : View
 
     private void OpenSubmenu(int levelIndex)
     {
-        Level level = levels[levelIndex];
+        Level level = _levels[levelIndex];
         SKRect row = RowBox(level, level.Hover);
-        levels.Add(MakeLevel(level.Items[level.Hover].Items, new SKPoint(level.Box.Right - 2, row.Top - 1), level.Box));
+        _levels.Add(
+            MakeLevel(level.Items[level.Hover].Items, new SKPoint(level.Box.Right - 2, row.Top - 1), level.Box)
+        );
         Invalidate();
     }
 
     private void CloseLevelsAfter(int levelIndex, int keepSubmenuOf)
     {
         int keep = levelIndex + 1;
-        if (keepSubmenuOf >= 0 && levels[levelIndex].Items[keepSubmenuOf].HasSubmenu && levels.Count > keep)
+        if (keepSubmenuOf >= 0 && _levels[levelIndex].Items[keepSubmenuOf].HasSubmenu && _levels.Count > keep)
         {
             keep++; // The submenu of the row under the pointer stays open
         }
-        if (levels.Count > keep)
+        if (_levels.Count > keep)
         {
-            levels.RemoveRange(keep, levels.Count - keep);
+            _levels.RemoveRange(keep, _levels.Count - keep);
             Invalidate();
         }
     }
@@ -293,9 +295,9 @@ internal sealed class MenuPopup : View
     /// </summary>
     private (int Level, int Row) RowAt(SKPoint point)
     {
-        for (int i = levels.Count - 1; i >= 0; i--)
+        for (int i = _levels.Count - 1; i >= 0; i--)
         {
-            Level level = levels[i];
+            Level level = _levels[i];
             if (!level.Box.Contains(point))
             {
                 continue;
@@ -320,11 +322,18 @@ internal sealed class MenuPopup : View
         foreach (MenuItem item in items)
         {
             textWidth = Math.Max(textWidth, Drawing.Measure(Fonts.Menu, item.Text));
-            shortcutWidth = Math.Max(shortcutWidth, item.Shortcut is { } shortcut ? Drawing.Measure(Fonts.Menu, shortcut) : 0);
+            shortcutWidth = Math.Max(
+                shortcutWidth,
+                item.Shortcut is { } shortcut ? Drawing.Measure(Fonts.Menu, shortcut) : 0
+            );
             height += item.IsSeparator ? SeparatorHeight : RowHeight;
         }
-        float width = MathF.Ceiling(Math.Max(MinimumWidth,
-            TickColumn + textWidth + (shortcutWidth > 0 ? ShortcutGap + shortcutWidth : 0) + Padding + ArrowColumn));
+        float width = MathF.Ceiling(
+            Math.Max(
+                MinimumWidth,
+                TickColumn + textWidth + (shortcutWidth > 0 ? ShortcutGap + shortcutWidth : 0) + Padding + ArrowColumn
+            )
+        );
         float x = at.X;
         float y = at.Y;
         if (x + width > Width)
@@ -353,7 +362,7 @@ internal sealed class MenuPopup : View
     {
         using var paint = new SKPaint { Color = Theme.Window, IsAntialias = true };
         canvas.DrawRect(level.Box, paint);
-        paint.Color = Border;
+        paint.Color = s_border;
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1;
         canvas.DrawRect(Plates.Reduced(level.Box, 0.5f), paint);
@@ -364,7 +373,7 @@ internal sealed class MenuPopup : View
             if (item.IsSeparator)
             {
                 paint.Style = SKPaintStyle.Stroke;
-                paint.Color = Border;
+                paint.Color = s_border;
                 float middle = MathF.Floor(row.MidY) + 0.5f;
                 canvas.DrawLine(row.Left + Padding, middle, row.Right - Padding, middle, paint);
                 continue;
@@ -373,10 +382,10 @@ internal sealed class MenuPopup : View
             if (isLit)
             {
                 paint.Style = SKPaintStyle.Fill;
-                paint.Color = Highlight;
+                paint.Color = s_highlight;
                 canvas.DrawRect(row, paint);
             }
-            SKColor ink = item.IsEnabled ? Theme.Ink : DisabledText;
+            SKColor ink = item.IsEnabled ? Theme.Ink : s_disabledText;
             if (item.IsChecked)
             {
                 // A tick: two strokes in the left column
@@ -393,7 +402,12 @@ internal sealed class MenuPopup : View
                 canvas.DrawPath(tick, paint);
                 paint.StrokeWidth = 1;
             }
-            var text = new SKRect(row.Left + TickColumn, row.Top, row.Right - Padding - (item.HasSubmenu ? ArrowColumn : 0), row.Bottom);
+            var text = new SKRect(
+                row.Left + TickColumn,
+                row.Top,
+                row.Right - Padding - (item.HasSubmenu ? ArrowColumn : 0),
+                row.Bottom
+            );
             Drawing.Text(canvas, item.Text, text, Fonts.Menu, ink);
             if (item.Shortcut is { } shortcut)
             {

@@ -10,44 +10,47 @@ namespace StoopidChess.Desktop;
 /// </summary>
 internal sealed class UiSynchronizationContext(Action wake) : SynchronizationContext
 {
-    private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> queue = new();
-    private readonly int ownerThread = Environment.CurrentManagedThreadId;
+    private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> _queue = new();
+    private readonly int _ownerThread = Environment.CurrentManagedThreadId;
 
     /// <summary>Whether work is waiting.</summary>
-    public bool HasPending => !queue.IsEmpty;
+    public bool HasPending => !_queue.IsEmpty;
 
     public override void Post(SendOrPostCallback d, object? state)
     {
         ArgumentNullException.ThrowIfNull(d);
-        queue.Enqueue((d, state));
+        _queue.Enqueue((d, state));
         wake();
     }
 
     public override void Send(SendOrPostCallback d, object? state)
     {
         ArgumentNullException.ThrowIfNull(d);
-        if (Environment.CurrentManagedThreadId == ownerThread)
+        if (Environment.CurrentManagedThreadId == _ownerThread)
         {
             d(state);
             return;
         }
         var done = new ManualResetEventSlim(); // Not disposed: Set may still be returning as Wait does
         Exception? failure = null;
-        Post(_ =>
-        {
-            try
+        Post(
+            _ =>
             {
-                d(state);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                failure = ex;
-            }
-            finally
-            {
-                done.Set();
-            }
-        }, null);
+                try
+                {
+                    d(state);
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    failure = ex;
+                }
+                finally
+                {
+                    done.Set();
+                }
+            },
+            null
+        );
         done.Wait();
         if (failure is not null)
         {
@@ -63,7 +66,7 @@ internal sealed class UiSynchronizationContext(Action wake) : SynchronizationCon
     public int RunPending()
     {
         int count = 0;
-        while (queue.TryDequeue(out (SendOrPostCallback Callback, object? State) work))
+        while (_queue.TryDequeue(out (SendOrPostCallback Callback, object? State) work))
         {
             work.Callback(work.State);
             count++;

@@ -6,12 +6,12 @@ namespace StoopidChess.Tests.Engine;
 public class StaticExchangeTests
 {
     [Theory]
-    [InlineData("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1", "e4d5", 100)]                 // Free pawn
-    [InlineData("4k3/8/2p5/3p4/4P3/8/8/4K3 w - - 0 1", "e4d5", 0)]                // Pawn takes pawn, pawn takes back
-    [InlineData("4k3/8/2p5/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)]   // Rook takes a defended pawn
-    [InlineData("4k3/8/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", 100)]                 // Rook takes an undefended pawn
-    [InlineData("4k3/4n3/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)]   // Knight defends
-    [InlineData("3rk3/4n3/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)]  // Two defenders, one attacker
+    [InlineData("4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1", "e4d5", 100)] // Free pawn
+    [InlineData("4k3/8/2p5/3p4/4P3/8/8/4K3 w - - 0 1", "e4d5", 0)] // Pawn takes pawn, pawn takes back
+    [InlineData("4k3/8/2p5/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)] // Rook takes a defended pawn
+    [InlineData("4k3/8/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", 100)] // Rook takes an undefended pawn
+    [InlineData("4k3/4n3/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)] // Knight defends
+    [InlineData("3rk3/4n3/8/3p4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)] // Two defenders, one attacker
     [InlineData("3rk3/4n3/8/3p4/8/8/8/3RK2R w - - 0 1", "d1d5", Evaluator.PawnValue - Evaluator.RookValue)] // The h1 rook does not reach d5
     [InlineData("4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1", "d1d5", Evaluator.QueenValue)] // Free queen
     [InlineData("4k3/8/8/3q4/4P3/8/8/4K3 w - - 0 1", "e4d5", Evaluator.QueenValue)] // Pawn takes queen
@@ -30,7 +30,10 @@ public class StaticExchangeTests
         // white loses a rook, wins a pawn and a knight
         var position = Position.FromFen("4k3/4n3/8/3p4/8/8/3R4/3RK3 w - - 0 1");
         Move move = position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == "d2d5");
-        Assert.Equal(Evaluator.PawnValue + Evaluator.KnightValue - Evaluator.RookValue, StaticExchange.Evaluate(position, move));
+        Assert.Equal(
+            Evaluator.PawnValue + Evaluator.KnightValue - Evaluator.RookValue,
+            StaticExchange.Evaluate(position, move)
+        );
     }
 
     [Fact]

@@ -25,6 +25,7 @@ internal static class Assets
     {
         using Stream stream = Open(name);
         using var data = SKData.Create(stream);
-        return SKImage.FromEncodedData(data) ?? throw new InvalidDataException($"The embedded picture {name} could not be decoded.");
+        return SKImage.FromEncodedData(data)
+            ?? throw new InvalidDataException($"The embedded picture {name} could not be decoded.");
     }
 }

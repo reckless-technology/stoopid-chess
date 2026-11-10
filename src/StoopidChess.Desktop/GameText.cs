@@ -62,7 +62,7 @@ internal static class GameText
         bool lineOpen = false;
         if (mover == Color.Black && game.Moves.Count > 0)
         {
-            text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. {"...",-9}");
+            text.Append(CultureInfo.InvariantCulture, $"{moveNumber, 2}. {"...", -9}");
             lineOpen = true;
         }
         var replay = Position.FromFen(game.StartFen);
@@ -70,10 +70,10 @@ internal static class GameText
         {
             if (mover == Color.White)
             {
-                text.Append(CultureInfo.InvariantCulture, $"{moveNumber,2}. ");
+                text.Append(CultureInfo.InvariantCulture, $"{moveNumber, 2}. ");
                 lineOpen = true;
             }
-            text.Append(CultureInfo.InvariantCulture, $"{San.Format(replay, move),-9}");
+            text.Append(CultureInfo.InvariantCulture, $"{San.Format(replay, move), -9}");
             replay.MakeMove(move);
             if (mover == Color.Black)
             {
@@ -145,7 +145,8 @@ internal static class GameText
                 case "depth" when i + 1 < tokens.Length:
                     depth = tokens[i + 1];
                     break;
-                case "score" when i + 2 < tokens.Length && tokens[i + 1] == "cp" && int.TryParse(tokens[i + 2], out int cp):
+                case "score"
+                    when i + 2 < tokens.Length && tokens[i + 1] == "cp" && int.TryParse(tokens[i + 2], out int cp):
                     score = (cp / 100.0).ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture);
                     break;
                 case "score" when i + 2 < tokens.Length && tokens[i + 1] == "mate":
@@ -168,7 +169,7 @@ internal static class GameText
             return null;
         }
         string pv = string.Join(' ', tokens.Skip(pvStart).Take(12));
-        return $"d{depth,3}  {score,8}  {nodes,14} n   {pv}";
+        return $"d{depth, 3}  {score, 8}  {nodes, 14} n   {pv}";
     }
 
     /// <summary>
@@ -194,8 +195,10 @@ internal static class GameText
         return controller.Game.Status switch
         {
             GameStatus.Checkmate => controller.Game.SideToMove == Color.White ? "0-1" : "1-0",
-            GameStatus.Stalemate or GameStatus.DrawByRepetition or GameStatus.DrawByFiftyMoveRule
-                or GameStatus.DrawByInsufficientMaterial => "1/2-1/2",
+            GameStatus.Stalemate
+            or GameStatus.DrawByRepetition
+            or GameStatus.DrawByFiftyMoveRule
+            or GameStatus.DrawByInsufficientMaterial => "1/2-1/2",
             _ => "*",
         };
     }

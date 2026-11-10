@@ -1,10 +1,11 @@
 #!/bin/sh
 # Pre-commit hook: refuse a commit made under any identity but Jonny Reckless <jonny@recklesstechnology.com>,
-# and refuse the commit if `dotnet format` would change any of the code. The identity is every commit's in the
+# and refuse the commit if CSharpier or `dotnet format` would change any of the code. The identity is every commit's in the
 # reckless-technology organisation; the pre-push hook checks the commits a rebase or a cherry-pick makes.
 #
 # Enable it once per clone with:   git config core.hooksPath .githooks
-# Fix a refusal with:              dotnet format StoopidChess.slnx    (then stage the result)
+# Fix a refusal with:              dotnet csharpier format .   and   dotnet format style StoopidChess.slnx
+#                                  (then stage the result; `dotnet tool restore` installs CSharpier, once per clone)
 #
 # The check runs only when C# sources or project files are staged, and it examines the working
 # tree, so unstaged formatting problems in those files are reported too.
@@ -20,10 +21,18 @@ for role in AUTHOR COMMITTER; do
 done
 
 if git diff --cached --name-only --diff-filter=ACMR | grep -qE '\.(cs|csproj|props|editorconfig)$'; then
-    echo "pre-commit: checking formatting with dotnet format..."
+    # CSharpier owns the layout of every .cs file; dotnet format keeps the style and naming rules (usings, var, braces,
+    # identifier names), never the whitespace, so the two cannot disagree.
+    echo "pre-commit: checking formatting with CSharpier..."
+    if ! dotnet csharpier check .; then
+        echo "pre-commit: layout problems found. Run 'dotnet csharpier format .', stage the result and commit again." >&2
+        echo "pre-commit: (a missing tool: 'dotnet tool restore')" >&2
+        exit 1
+    fi
+    echo "pre-commit: checking style and naming rules with dotnet format..."
     # The whole solution loads on every OS.
-    if ! dotnet format StoopidChess.slnx --verify-no-changes; then
-        echo "pre-commit: formatting problems found. Run 'dotnet format StoopidChess.slnx', stage the result and commit again." >&2
+    if ! dotnet format style StoopidChess.slnx --verify-no-changes; then
+        echo "pre-commit: style or naming problems found. Run 'dotnet format style StoopidChess.slnx', fix what it cannot, stage the result and commit again." >&2
         exit 1
     fi
 fi

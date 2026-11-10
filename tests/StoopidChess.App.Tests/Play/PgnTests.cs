@@ -38,14 +38,14 @@ public class PgnTests
     [Fact]
     public void CommentsVariationsAndGlyphsAreIgnored()
     {
-        const string pgn = """
+        const string Pgn = """
             [Event "Test"]
             [Result "1-0"]
 
             1. e4 {a fine move} e5 ; to the end of this line
             2. Nf3 $1 (2. f4 {the king's gambit} exf4) Nc6 3.Bb5 1-0
             """;
-        Game? parsed = Pgn.Parse(pgn);
+        Game? parsed = StoopidChess.Play.Pgn.Parse(Pgn);
         Assert.NotNull(parsed);
         Assert.Equal(["e2e4", "e7e5", "g1f3", "b8c6", "f1b5"], parsed.UciMoves);
     }
@@ -53,7 +53,7 @@ public class PgnTests
     [Fact]
     public void OnlyTheFirstGameOfAFileIsRead()
     {
-        const string pgn = """
+        const string Pgn = """
             [Event "First"]
 
             1. d4 d5 1/2-1/2
@@ -62,7 +62,7 @@ public class PgnTests
 
             1. e4 e5 *
             """;
-        Game? parsed = Pgn.Parse(pgn);
+        Game? parsed = StoopidChess.Play.Pgn.Parse(Pgn);
         Assert.NotNull(parsed);
         Assert.Equal(["d2d4", "d7d5"], parsed.UciMoves);
     }

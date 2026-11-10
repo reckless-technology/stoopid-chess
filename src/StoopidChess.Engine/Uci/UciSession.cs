@@ -20,42 +20,44 @@ public sealed class UciSession : IDisposable
     public const string EngineName = "Stoopid Chess";
     public const string EngineAuthor = "Jonny Reckless";
 
-    private readonly TextReader input;
-    private readonly TextWriter output;
-    private readonly Lock outputLock = new();
-    private readonly TranspositionTable table = new();
-    private readonly Searcher searcher;
-    private Position position = Position.Start();
-    private Task? searchTask;
-    private CancellationTokenSource? searchCancellation;
-    private bool disposed;
+    private readonly TextReader _input;
+    private readonly TextWriter _output;
+    private readonly Lock _outputLock = new();
+    private readonly TranspositionTable _table = new();
+    private readonly Searcher _searcher;
+    private Position _position = Position.Start();
+    private Task? _searchTask;
+    private CancellationTokenSource? _searchCancellation;
+    private bool _disposed;
 
     public UciSession(TextReader input, TextWriter output)
     {
-        this.input = input ?? throw new ArgumentNullException(nameof(input));
-        this.output = output ?? throw new ArgumentNullException(nameof(output));
-        searcher = new Searcher(table);
-        Attacks.Initialize();   // Before "uciok", so that the first search does not pay for it
+        this._input = input ?? throw new ArgumentNullException(nameof(input));
+        this._output = output ?? throw new ArgumentNullException(nameof(output));
+        _searcher = new Searcher(_table);
+        Attacks.Initialize(); // Before "uciok", so that the first search does not pay for it
     }
 
     public static string EngineVersion { get; } =
-        typeof(UciSession).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+        typeof(UciSession)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion.Split('+')[0]
         ?? typeof(UciSession).Assembly.GetName().Version?.ToString(3)
         ?? "0.0.0";
 
     /// <summary>
     /// The current position, as set by the last "position" command.
     /// </summary>
-    public Position Position => position;
+    public Position Position => _position;
 
-    public bool IsSearching => searchTask is { IsCompleted: false };
+    public bool IsSearching => _searchTask is { IsCompleted: false };
 
     /// <summary>
     /// Process commands until "quit" or the end of the input.
     /// </summary>
     public void Run()
     {
-        while (input.ReadLine() is string line)
+        while (_input.ReadLine() is string line)
         {
             if (!HandleCommand(line))
             {
@@ -82,7 +84,9 @@ public sealed class UciSession : IDisposable
             case "uci":
                 WriteLine($"id name {EngineName} {EngineVersion}");
                 WriteLine($"id author {EngineAuthor}");
-                WriteLine($"option name Hash type spin default {TranspositionTable.DefaultSizeInMegabytes} min {TranspositionTable.MinimumSizeInMegabytes} max {TranspositionTable.MaximumSizeInMegabytes}");
+                WriteLine(
+                    $"option name Hash type spin default {TranspositionTable.DefaultSizeInMegabytes} min {TranspositionTable.MinimumSizeInMegabytes} max {TranspositionTable.MaximumSizeInMegabytes}"
+                );
                 WriteLine("uciok");
                 break;
             case "isready":
@@ -96,8 +100,8 @@ public sealed class UciSession : IDisposable
                 break;
             case "ucinewgame":
                 StopSearch();
-                table.Clear();
-                searcher.NewGame();
+                _table.Clear();
+                _searcher.NewGame();
                 break;
             case "position":
                 StopSearch();
@@ -112,13 +116,13 @@ public sealed class UciSession : IDisposable
                 return false;
             case "d":
                 StopSearch();
-                WriteLine(position.ToString());
-                WriteLine($"fen {position.ToFen()}");
-                WriteLine($"key {position.Key:X16}");
+                WriteLine(_position.ToString());
+                WriteLine($"fen {_position.ToFen()}");
+                WriteLine($"key {_position.Key:X16}");
                 break;
             case "eval":
                 StopSearch();
-                WriteLine($"eval {searcher.Evaluate(position)} cp (side to move)");
+                WriteLine($"eval {_searcher.Evaluate(_position)} cp (side to move)");
                 break;
             case "perft":
                 StopSearch();
@@ -126,7 +130,7 @@ public sealed class UciSession : IDisposable
                 break;
             case "bench":
                 StopSearch();
-                Bench.Run(Math.Max(1, ParseInt(tokens.ElementAtOrDefault(1)) ?? Bench.DefaultDepth), output);
+                Bench.Run(Math.Max(1, ParseInt(tokens.ElementAtOrDefault(1)) ?? Bench.DefaultDepth), _output);
                 break;
             default:
                 // UCI says unknown commands and tokens are ignored
@@ -148,7 +152,7 @@ public sealed class UciSession : IDisposable
         if (name.Equals("Hash", StringComparison.OrdinalIgnoreCase) && ParseInt(value) is int megabytes)
         {
             StopSearch();
-            table.Resize(megabytes);
+            _table.Resize(megabytes);
         }
     }
 
@@ -193,19 +197,19 @@ public sealed class UciSession : IDisposable
                 break;
             }
         }
-        position = game.Position;
+        _position = game.Position;
     }
 
     private void Go(SearchLimits limits)
     {
-        Position root = position.Clone();
-        searchCancellation = new CancellationTokenSource();
-        CancellationToken token = searchCancellation.Token;
-        searchTask = Task.Run(() =>
+        Position root = _position.Clone();
+        _searchCancellation = new CancellationTokenSource();
+        CancellationToken token = _searchCancellation.Token;
+        _searchTask = Task.Run(() =>
         {
             try
             {
-                SearchResult result = searcher.Search(root, limits, WriteProgress, token);
+                SearchResult result = _searcher.Search(root, limits, WriteProgress, token);
                 WriteLine($"bestmove {result.BestMove}");
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -242,7 +246,10 @@ public sealed class UciSession : IDisposable
                 ("btime", long btime) => limits with { BlackTime = TimeSpan.FromMilliseconds(btime) },
                 ("winc", long winc) => limits with { WhiteIncrement = TimeSpan.FromMilliseconds(winc) },
                 ("binc", long binc) => limits with { BlackIncrement = TimeSpan.FromMilliseconds(binc) },
-                ("movestogo", long movesToGo) => limits with { MovesToGo = (int)Math.Clamp(movesToGo, int.MinValue, int.MaxValue) },
+                ("movestogo", long movesToGo) => limits with
+                {
+                    MovesToGo = (int)Math.Clamp(movesToGo, int.MinValue, int.MaxValue),
+                },
                 _ => null,
             };
             if (updated is not null)
@@ -259,63 +266,71 @@ public sealed class UciSession : IDisposable
     /// </summary>
     private void StopSearch()
     {
-        if (searchTask is null)
+        if (_searchTask is null)
         {
             return;
         }
-        searchCancellation?.Cancel();
-        searchTask.Wait();
-        searchTask = null;
-        searchCancellation?.Dispose();
-        searchCancellation = null;
+        _searchCancellation?.Cancel();
+        _searchTask.Wait();
+        _searchTask = null;
+        _searchCancellation?.Dispose();
+        _searchCancellation = null;
     }
 
     private void WriteProgress(SearchResult progress)
     {
         string score = progress.IsMateScore ? $"mate {progress.MateIn}" : $"cp {progress.Score}";
         string pv = string.Join(' ', progress.PrincipalVariation);
-        WriteLine($"info depth {progress.Depth} score {score} nodes {progress.Nodes} nps {progress.NodesPerSecond} time {(long)progress.Elapsed.TotalMilliseconds} pv {pv}");
+        WriteLine(
+            $"info depth {progress.Depth} score {score} nodes {progress.Nodes} nps {progress.NodesPerSecond} time {(long)progress.Elapsed.TotalMilliseconds} pv {pv}"
+        );
     }
 
     private void RunPerft(int depth)
     {
         var stopwatch = Stopwatch.StartNew();
         long total = 0;
-        foreach ((Move move, long nodes) in Perft.Divide(position, depth))
+        foreach ((Move move, long nodes) in Perft.Divide(_position, depth))
         {
             WriteLine($"{move}: {nodes}");
             total += nodes;
         }
         stopwatch.Stop();
-        WriteLine($"nodes {total} time {(long)stopwatch.Elapsed.TotalMilliseconds} nps {SearchResult.Rate(total, stopwatch.Elapsed)}");
+        WriteLine(
+            $"nodes {total} time {(long)stopwatch.Elapsed.TotalMilliseconds} nps {SearchResult.Rate(total, stopwatch.Elapsed)}"
+        );
     }
 
     private void WriteLine(string text)
     {
-        lock (outputLock)
+        lock (_outputLock)
         {
-            output.WriteLine(text);
-            output.Flush();
+            _output.WriteLine(text);
+            _output.Flush();
         }
     }
 
     private static int? ParseInt(string? text)
     {
-        return int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int value) ? value : null;
+        return int.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out int value)
+            ? value
+            : null;
     }
 
     private static long? ParseLong(string? text)
     {
-        return long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long value) ? value : null;
+        return long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long value)
+            ? value
+            : null;
     }
 
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
-        disposed = true;
+        _disposed = true;
         StopSearch();
     }
 }

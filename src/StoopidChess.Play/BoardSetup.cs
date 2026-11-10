@@ -13,14 +13,18 @@ namespace StoopidChess.Play;
 public sealed class BoardSetup
 {
     // The king and rook squares each castling right needs
-    private static readonly (Square Square, Color Color, Piece Type)[] CastlingHomes =
+    private static readonly (Square Square, Color Color, Piece Type)[] s_castlingHomes =
     [
-        (Square.E1, Color.White, Piece.King), (Square.H1, Color.White, Piece.Rook), (Square.A1, Color.White, Piece.Rook),
-        (Square.E8, Color.Black, Piece.King), (Square.H8, Color.Black, Piece.Rook), (Square.A8, Color.Black, Piece.Rook),
+        (Square.E1, Color.White, Piece.King),
+        (Square.H1, Color.White, Piece.Rook),
+        (Square.A1, Color.White, Piece.Rook),
+        (Square.E8, Color.Black, Piece.King),
+        (Square.H8, Color.Black, Piece.Rook),
+        (Square.A8, Color.Black, Piece.Rook),
     ];
 
-    private readonly (Color Color, Piece Type)[] squares = new (Color, Piece)[Square.Count];
-    private Color sideToMove;
+    private readonly (Color Color, Piece Type)[] _squares = new (Color, Piece)[Square.Count];
+    private Color _sideToMove;
 
     private BoardSetup(Color sideToMove)
     {
@@ -42,7 +46,7 @@ public sealed class BoardSetup
         var setup = new BoardSetup(position.SideToMove);
         foreach (Square square in Square.All)
         {
-            setup.squares[square] = position[square];
+            setup._squares[square] = position[square];
         }
         setup.CastlingRights = position.CastlingRights & setup.HomeCastlingRights();
         return setup;
@@ -53,8 +57,11 @@ public sealed class BoardSetup
     /// </summary>
     public Color SideToMove
     {
-        get => sideToMove;
-        set => sideToMove = value is Color.White or Color.Black ? value : throw new ArgumentOutOfRangeException(nameof(value));
+        get => _sideToMove;
+        set =>
+            _sideToMove = value is Color.White or Color.Black
+                ? value
+                : throw new ArgumentOutOfRangeException(nameof(value));
     }
 
     public CastlingRights CastlingRights { get; private set; }
@@ -63,7 +70,7 @@ public sealed class BoardSetup
     /// The piece on a square; an empty square's type is <see cref="Piece.None"/>.
     /// </summary>
     public (Color Color, Piece Type) this[Square square] =>
-        square.IsValid ? squares[square] : throw new ArgumentOutOfRangeException(nameof(square));
+        square.IsValid ? _squares[square] : throw new ArgumentOutOfRangeException(nameof(square));
 
     /// <summary>
     /// Put a piece on a square, replacing whatever stood there; a type of <see cref="Piece.None"/>
@@ -75,13 +82,14 @@ public sealed class BoardSetup
         {
             throw new ArgumentOutOfRangeException(nameof(square));
         }
-        bool valid = piece.Type == Piece.None
+        bool valid =
+            piece.Type == Piece.None
             || (piece.Color is Color.White or Color.Black && piece.Type is >= Piece.Pawn and <= Piece.King);
         if (!valid)
         {
             throw new ArgumentException($"'{piece.Color} {piece.Type}' is not a valid piece", nameof(piece));
         }
-        squares[square] = piece.Type == Piece.None ? default : piece;
+        _squares[square] = piece.Type == Piece.None ? default : piece;
         CastlingRights &= HomeCastlingRights();
     }
 
@@ -96,7 +104,7 @@ public sealed class BoardSetup
             int empty = 0;
             for (int file = 0; file < 8; file++)
             {
-                (Color color, Piece type) = squares[Square.At(file, rank)];
+                (Color color, Piece type) = _squares[Square.At(file, rank)];
                 if (type == Piece.None)
                 {
                     empty++;
@@ -132,9 +140,9 @@ public sealed class BoardSetup
     private CastlingRights HomeCastlingRights()
     {
         CastlingRights rights = CastlingRights.All;
-        foreach ((Square square, Color color, Piece type) in CastlingHomes)
+        foreach ((Square square, Color color, Piece type) in s_castlingHomes)
         {
-            if (squares[square] != (color, type))
+            if (_squares[square] != (color, type))
             {
                 rights &= ~CastlingRightsExtensions.LostBySquare(square);
             }

@@ -11,13 +11,22 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 public class GameTextTests
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
-    private static readonly string NL = Environment.NewLine;
+    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+    private static readonly string s_newLine = Environment.NewLine;
 
     private static GameController Loaded(string fen = Position.StartFen, params string[] moves)
     {
         var controller = new GameController();
-        Assert.True(controller.Load(new SavedGame { StartFen = fen, Moves = moves, HumanColor = Color.White }));
+        Assert.True(
+            controller.Load(
+                new SavedGame
+                {
+                    StartFen = fen,
+                    Moves = moves,
+                    HumanColor = Color.White,
+                }
+            )
+        );
         return controller;
     }
 
@@ -26,31 +35,31 @@ public class GameTextTests
     /// that starts one runs on a <see cref="ControllerThread"/> (GameController is single-threaded) and
     /// waits for the engine to be idle before it reads what it shows.
     /// </summary>
-    private static GameController WithScriptedEngines() => new()
-    {
-        StartExternalEngine = path => ScriptedEngine.Start(path, ScriptedEngine.Plays("0000")),
-    };
+    private static GameController WithScriptedEngines() =>
+        new() { StartExternalEngine = path => ScriptedEngine.Start(path, ScriptedEngine.Plays("0000")) };
 
     [Fact]
-    public Task TheTitleNamesTheEngine() => ControllerThread.Run(async () =>
-    {
-        using GameController controller = WithScriptedEngines();
-        Assert.Equal("Stoopid Chess", GameText.Title(controller));
-        Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(Timeout));
-        Assert.Equal("Stoopid Chess - Alpha", GameText.Title(controller));
-    });
+    public Task TheTitleNamesTheEngine() =>
+        ControllerThread.Run(async () =>
+        {
+            using GameController controller = WithScriptedEngines();
+            Assert.Equal("Stoopid Chess", GameText.Title(controller));
+            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(s_timeout));
+            Assert.Equal("Stoopid Chess - Alpha", GameText.Title(controller));
+        });
 
     [Fact]
-    public Task PlayerNamesPutTheHumanOnItsSide() => ControllerThread.Run(async () =>
-    {
-        using GameController controller = WithScriptedEngines();
-        Assert.Equal(("Human", "Engine"), GameText.PlayerNames(controller));
-        Assert.Equal("White", GameText.HumanColor(controller));
-        Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(Timeout));
-        controller.NewGame(Color.Black);
-        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal(("Alpha", "Human"), GameText.PlayerNames(controller));
-    });
+    public Task PlayerNamesPutTheHumanOnItsSide() =>
+        ControllerThread.Run(async () =>
+        {
+            using GameController controller = WithScriptedEngines();
+            Assert.Equal(("Human", "Engine"), GameText.PlayerNames(controller));
+            Assert.Equal("White", GameText.HumanColor(controller));
+            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(s_timeout));
+            controller.NewGame(Color.Black);
+            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            Assert.Equal(("Alpha", "Human"), GameText.PlayerNames(controller));
+        });
 
     [Fact]
     public void LosingOnTimeIsReportedAndScored()
@@ -86,7 +95,10 @@ public class GameTextTests
     public void TheMoveListNumbersTwoMovesToALine()
     {
         using GameController controller = Loaded(Position.StartFen, "e2e4", "e7e5", "g1f3");
-        Assert.Equal($" 1. e4       e5       {NL} 2. Nf3      {NL}", GameText.MoveList(controller, showEngineOutput: false));
+        Assert.Equal(
+            $" 1. e4       e5       {s_newLine} 2. Nf3      {s_newLine}",
+            GameText.MoveList(controller, showEngineOutput: false)
+        );
         using GameController empty = Loaded();
         Assert.Equal("", GameText.MoveList(empty, showEngineOutput: true));
     }
@@ -95,7 +107,10 @@ public class GameTextTests
     public void AGameStartingWithBlackToMoveOpensWithAnEllipsis()
     {
         using GameController controller = Loaded("4k3/8/8/8/8/8/4P3/4K3 b - - 0 7", "e8d8", "e2e4");
-        Assert.Equal($" 7. ...      Kd8      {NL} 8. e4       {NL}", GameText.MoveList(controller, showEngineOutput: false));
+        Assert.Equal(
+            $" 7. ...      Kd8      {s_newLine} 8. e4       {s_newLine}",
+            GameText.MoveList(controller, showEngineOutput: false)
+        );
     }
 
     [Theory]
@@ -107,18 +122,39 @@ public class GameTextTests
     public void TheMoveListEndsWithHowTheGameStands(string fen, string ending, string result)
     {
         using GameController controller = Loaded(fen);
-        Assert.Equal($"Position edited by user{NL}{ending}", GameText.MoveList(controller, showEngineOutput: false));
+        Assert.Equal(
+            $"Position edited by user{s_newLine}{ending}",
+            GameText.MoveList(controller, showEngineOutput: false)
+        );
         Assert.Equal(result, GameText.Result(controller));
     }
 
     [Fact]
     public void ARepetitionAndAMateAgainstBlackAreScored()
     {
-        using GameController repeated = Loaded(Position.StartFen, "g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8");
-        Assert.EndsWith($"{NL}GAME OVER: DRAW\nDraw by threefold repetition", GameText.MoveList(repeated, showEngineOutput: false), StringComparison.Ordinal);
+        using GameController repeated = Loaded(
+            Position.StartFen,
+            "g1f3",
+            "g8f6",
+            "f3g1",
+            "f6g8",
+            "g1f3",
+            "g8f6",
+            "f3g1",
+            "f6g8"
+        );
+        Assert.EndsWith(
+            $"{s_newLine}GAME OVER: DRAW\nDraw by threefold repetition",
+            GameText.MoveList(repeated, showEngineOutput: false),
+            StringComparison.Ordinal
+        );
         Assert.Equal("1/2-1/2", GameText.Result(repeated));
         using GameController mated = Loaded("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", "d1d8");
-        Assert.EndsWith("CHECKMATE: White wins", GameText.MoveList(mated, showEngineOutput: false), StringComparison.Ordinal);
+        Assert.EndsWith(
+            "CHECKMATE: White wins",
+            GameText.MoveList(mated, showEngineOutput: false),
+            StringComparison.Ordinal
+        );
         Assert.Equal("1-0", GameText.Result(mated));
         using GameController going = Loaded();
         Assert.Equal("*", GameText.Result(going));
@@ -129,34 +165,48 @@ public class GameTextTests
     {
         using var controller = new GameController();
         controller.ClearBoard();
-        Assert.Equal("Position edited by user: place both kings to continue", GameText.MoveList(controller, showEngineOutput: true));
+        Assert.Equal(
+            "Position edited by user: place both kings to continue",
+            GameText.MoveList(controller, showEngineOutput: true)
+        );
     }
 
     [Fact]
-    public Task TheEnginesLastReportIsShownWhenAsked() => ControllerThread.Run(async () =>
-    {
-        using var controller = new GameController
+    public Task TheEnginesLastReportIsShownWhenAsked() =>
+        ControllerThread.Run(async () =>
         {
-            StartExternalEngine = path => ScriptedEngine.Start(path, command => command.StartsWith("go", StringComparison.Ordinal)
-                ? ["info depth 1 score cp 25 nodes 30 pv e2e4", "bestmove e2e4"]
-                : []),
-        };
-        Assert.True(await controller.StartEngineAsync("Talker").WaitAsync(Timeout));
-        controller.NewGame(Color.Black);
-        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal($" 1. e4       {NL}", GameText.MoveList(controller, showEngineOutput: false));
-        Assert.Equal($" 1. e4       {NL}{NL}info depth 1 score cp 25 nodes 30 pv e2e4", GameText.MoveList(controller, showEngineOutput: true));
-    });
+            using var controller = new GameController
+            {
+                StartExternalEngine = path =>
+                    ScriptedEngine.Start(
+                        path,
+                        command =>
+                            command.StartsWith("go", StringComparison.Ordinal)
+                                ? ["info depth 1 score cp 25 nodes 30 pv e2e4", "bestmove e2e4"]
+                                : []
+                    ),
+            };
+            Assert.True(await controller.StartEngineAsync("Talker").WaitAsync(s_timeout));
+            controller.NewGame(Color.Black);
+            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            Assert.Equal($" 1. e4       {s_newLine}", GameText.MoveList(controller, showEngineOutput: false));
+            Assert.Equal(
+                $" 1. e4       {s_newLine}{s_newLine}info depth 1 score cp 25 nodes 30 pv e2e4",
+                GameText.MoveList(controller, showEngineOutput: true)
+            );
+        });
 
     [Theory]
-    [InlineData("info depth 12 seldepth 18 score cp 34 nodes 1234 nps 5000 pv e2e4 e7e5",
-        "d 12     +0.34           1,234 n   e2e4 e7e5")]
-    [InlineData("info depth 3 score cp -150 nodes 99 pv d2d4",
-        "d  3     -1.50              99 n   d2d4")]
-    [InlineData("info depth 7 score mate 3 pv a1a8",
-        "d  7        #3                 n   a1a8")]
-    [InlineData("info depth 1 score cp 0 nodes 1 pv a2a3 a7a6 b2b3 b7b6 c2c3 c7c6 d2d3 d7d6 e2e3 e7e6 f2f3 f7f6 g2g3 g7g6",
-        "d  1      0.00               1 n   a2a3 a7a6 b2b3 b7b6 c2c3 c7c6 d2d3 d7d6 e2e3 e7e6 f2f3 f7f6")]
+    [InlineData(
+        "info depth 12 seldepth 18 score cp 34 nodes 1234 nps 5000 pv e2e4 e7e5",
+        "d 12     +0.34           1,234 n   e2e4 e7e5"
+    )]
+    [InlineData("info depth 3 score cp -150 nodes 99 pv d2d4", "d  3     -1.50              99 n   d2d4")]
+    [InlineData("info depth 7 score mate 3 pv a1a8", "d  7        #3                 n   a1a8")]
+    [InlineData(
+        "info depth 1 score cp 0 nodes 1 pv a2a3 a7a6 b2b3 b7b6 c2c3 c7c6 d2d3 d7d6 e2e3 e7e6 f2f3 f7f6 g2g3 g7g6",
+        "d  1      0.00               1 n   a2a3 a7a6 b2b3 b7b6 c2c3 c7c6 d2d3 d7d6 e2e3 e7e6 f2f3 f7f6"
+    )]
     public void AnInfoReportWithAVariationIsOneAnalysisLine(string info, string line)
     {
         Assert.Equal(line, GameText.InfoLine(info));

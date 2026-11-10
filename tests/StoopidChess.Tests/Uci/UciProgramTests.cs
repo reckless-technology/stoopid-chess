@@ -9,10 +9,10 @@ namespace StoopidChess.Tests.Uci;
 [Collection(ConsoleCapture.Name)]
 public class UciProgramTests
 {
-    private static readonly MethodInfo EntryPoint = Assembly.Load("stoopid-chess").EntryPoint!;
+    private static readonly MethodInfo s_entryPoint = Assembly.Load("stoopid-chess").EntryPoint!;
 
     private static (int ExitCode, string Output, string Error) Run(string input, params string[] args) =>
-        ConsoleCapture.Run(() => (int)EntryPoint.Invoke(null, [args])!, input);
+        ConsoleCapture.Run(() => (int)s_entryPoint.Invoke(null, [args])!, input);
 
     [Fact]
     public void WithNoArgumentsItSpeaksUciOnTheConsole()
@@ -25,7 +25,7 @@ public class UciProgramTests
 
     [Theory]
     [InlineData("bench depth 2:", "bench", "2")]
-    [InlineData("bench depth 6:", "bench")]          // The default depth, CI's signature
+    [InlineData("bench depth 6:", "bench")] // The default depth, CI's signature
     public void BenchPrintsItsSignature(string signature, params string[] args)
     {
         (int exitCode, string output, _) = Run("", args);

@@ -15,7 +15,7 @@ public readonly record struct Square
 {
     public const int Count = 64;
 
-    private readonly byte index;
+    private readonly byte _index;
 
     /// <summary>
     /// The square with the given index (0..63), or <see cref="None"/> for 64.
@@ -27,12 +27,12 @@ public readonly record struct Square
         {
             throw new ArgumentOutOfRangeException(nameof(index));
         }
-        this.index = (byte)index;
+        this._index = (byte)index;
     }
 
     private Square(byte index)
     {
-        this.index = index;
+        this._index = index;
     }
 
     /// <summary>
@@ -79,16 +79,16 @@ public readonly record struct Square
         return Unchecked(file | (rank << 3));
     }
 
-    public int Index => index;
+    public int Index => _index;
 
-    public int File => index & 7;
+    public int File => _index & 7;
 
-    public int Rank => index >> 3;
+    public int Rank => _index >> 3;
 
     /// <summary>
     /// True for the 64 real squares; false for <see cref="None"/>.
     /// </summary>
-    public bool IsValid => index < Count;
+    public bool IsValid => _index < Count;
 
     public bool IsLight => ((File + Rank) & 1) == 1;
 
@@ -126,7 +126,7 @@ public readonly record struct Square
     /// <summary>
     /// The index, so that a square can index a 64-entry table directly.
     /// </summary>
-    public static implicit operator int(Square square) => square.index;
+    public static implicit operator int(Square square) => square._index;
 
     public static explicit operator Square(int index) => new(index);
 
@@ -134,7 +134,7 @@ public readonly record struct Square
     /// The square a number of indices further on (8 is one rank up the board, 1 one file to the
     /// right). The caller guarantees the result is on the board.
     /// </summary>
-    public static Square operator +(Square square, int delta) => Unchecked(square.index + delta);
+    public static Square operator +(Square square, int delta) => Unchecked(square._index + delta);
 
-    public static Square operator -(Square square, int delta) => Unchecked(square.index - delta);
+    public static Square operator -(Square square, int delta) => Unchecked(square._index - delta);
 }

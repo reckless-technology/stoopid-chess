@@ -137,33 +137,37 @@ public static class San
         Move? found = null;
         foreach (Move move in moves)
         {
-            if (move.Piece != piece || move.To != to.Value
+            if (
+                move.Piece != piece
+                || move.To != to.Value
                 || move.Kind is MoveKind.CastleKingSide or MoveKind.CastleQueenSide
                 || (move.Kind == MoveKind.Promotion) != (promotion != Piece.None)
                 || (promotion != Piece.None && move.Promotion != promotion)
                 || (fromFile >= 0 && move.From.File != fromFile)
-                || (fromRank >= 0 && move.From.Rank != fromRank))
+                || (fromRank >= 0 && move.From.Rank != fromRank)
+            )
             {
                 continue;
             }
             if (found is not null)
             {
-                return null;    // Ambiguous
+                return null; // Ambiguous
             }
             found = move;
         }
         return found;
     }
 
-    private static Piece FromLetter(char letter) => letter switch
-    {
-        'N' => Piece.Knight,
-        'B' => Piece.Bishop,
-        'R' => Piece.Rook,
-        'Q' => Piece.Queen,
-        'K' => Piece.King,
-        _ => Piece.None,
-    };
+    private static Piece FromLetter(char letter) =>
+        letter switch
+        {
+            'N' => Piece.Knight,
+            'B' => Piece.Bishop,
+            'R' => Piece.Rook,
+            'Q' => Piece.Queen,
+            'K' => Piece.King,
+            _ => Piece.None,
+        };
 
     /// <summary>
     /// What must precede the destination when another piece of the same type could also legally

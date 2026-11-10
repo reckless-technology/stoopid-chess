@@ -12,29 +12,31 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 public sealed class DialogTests : IDisposable
 {
-    private readonly ViewHarness window = new(new TestPanel());
+    private readonly ViewHarness _window = new(new TestPanel());
 
-    public void Dispose() => window.Dispose();
+    public void Dispose() => _window.Dispose();
 
-    private T Open<T>(T dialog) where T : DialogView
+    private T Open<T>(T dialog)
+        where T : DialogView
     {
-        _ = dialog.ShowAsync(window.Root);
-        window.Render();
+        _ = dialog.ShowAsync(_window.Root);
+        _window.Render();
         return dialog;
     }
 
-    private void Press(DialogView dialog, string text) => window.Click(dialog.Buttons.Single(button => button.Text == text));
+    private void Press(DialogView dialog, string text) =>
+        _window.Click(dialog.Buttons.Single(button => button.Text == text));
 
     [Fact]
     public void ThePromotionDialogReturnsThePiecePressedOrNothing()
     {
         PromotionDialog dialog = Open(new PromotionDialog(Color.Black));
         Assert.Equal(Piece.None, dialog.Choice);
-        window.Click(dialog.Pieces[3]);
+        _window.Click(dialog.Pieces[3]);
         Assert.Equal(Piece.Knight, dialog.Choice);
 
         PromotionDialog closed = Open(new PromotionDialog(Color.White));
-        window.Key(Key.Escape);
+        _window.Key(Key.Escape);
         Assert.True(closed.IsClosed);
         Assert.Equal(Piece.None, closed.Choice);
     }
@@ -42,14 +44,14 @@ public sealed class DialogTests : IDisposable
     [Fact]
     public async Task AMessageDialogShowsItsMessageAndClosesOnOk()
     {
-        Task shown = MessageDialog.ShowAsync(window.Root, "Engine", "The engine could not be started.");
-        MessageDialog dialog = Assert.IsType<MessageDialog>(window.Root.Overlays.Single());
-        window.Render();
+        Task shown = MessageDialog.ShowAsync(_window.Root, "Engine", "The engine could not be started.");
+        MessageDialog dialog = Assert.IsType<MessageDialog>(_window.Root.Overlays.Single());
+        _window.Render();
         Assert.Equal("Engine", dialog.Title);
         Assert.Equal("The engine could not be started.", dialog.Message.Text);
         Press(dialog, "OK");
         await shown;
-        Assert.Empty(window.Root.Overlays);
+        Assert.Empty(_window.Root.Overlays);
     }
 
     [Fact]

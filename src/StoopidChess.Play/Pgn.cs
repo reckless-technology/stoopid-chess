@@ -21,7 +21,10 @@ public static class Pgn
         var text = new StringBuilder();
         text.AppendLine("[Event \"Stoopid Chess game\"]");
         text.AppendLine("[Site \"?\"]");
-        text.AppendLine(CultureInfo.InvariantCulture, $"[Date \"{(date is { } d ? d.ToString("yyyy.MM.dd", CultureInfo.InvariantCulture) : "????.??.??")}\"]");
+        text.AppendLine(
+            CultureInfo.InvariantCulture,
+            $"[Date \"{(date is { } d ? d.ToString("yyyy.MM.dd", CultureInfo.InvariantCulture) : "????.??.??")}\"]"
+        );
         text.AppendLine("[Round \"?\"]");
         text.AppendLine(CultureInfo.InvariantCulture, $"[White \"{Escape(white)}\"]");
         text.AppendLine(CultureInfo.InvariantCulture, $"[Black \"{Escape(black)}\"]");
@@ -38,11 +41,10 @@ public static class Pgn
         foreach (Move move in game.Moves)
         {
             string san = San.Format(replay, move);
-            string token = replay.SideToMove == Color.White
-                ? $"{replay.FullMoveNumber}. {san}"
-                : line.Length == 0 && replay.Ply == 0
-                    ? $"{replay.FullMoveNumber}... {san}"
-                    : san;
+            string token =
+                replay.SideToMove == Color.White ? $"{replay.FullMoveNumber}. {san}"
+                : line.Length == 0 && replay.Ply == 0 ? $"{replay.FullMoveNumber}... {san}"
+                : san;
             if (line.Length + token.Length + 1 > 80)
             {
                 text.AppendLine(line.ToString());
@@ -98,8 +100,11 @@ public static class Pgn
             position = close + 1;
             int firstQuote = tag.IndexOf('"');
             int lastQuote = tag.LastIndexOf('"');
-            if (firstQuote >= 0 && lastQuote > firstQuote
-                && tag[..firstQuote].Trim().Equals("FEN", StringComparison.OrdinalIgnoreCase))
+            if (
+                firstQuote >= 0
+                && lastQuote > firstQuote
+                && tag[..firstQuote].Trim().Equals("FEN", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 startFen = tag[(firstQuote + 1)..lastQuote].Replace("\\\"", "\"", StringComparison.Ordinal);
             }
@@ -164,7 +169,7 @@ public static class Pgn
             }
             if (c == '[')
             {
-                yield break;    // The next game's tags begin
+                yield break; // The next game's tags begin
             }
             if (!char.IsWhiteSpace(c))
             {
@@ -179,7 +184,7 @@ public static class Pgn
             token.Clear();
             if (word.StartsWith('$'))
             {
-                continue;   // A numeric annotation glyph
+                continue; // A numeric annotation glyph
             }
             if (word is "1-0" or "0-1" or "1/2-1/2" or "*")
             {
@@ -200,11 +205,11 @@ public static class Pgn
                 }
                 if (dots > digits)
                 {
-                    word = word[dots..];    // "12." alone or "12.e4" run together
+                    word = word[dots..]; // "12." alone or "12.e4" run together
                 }
                 else if (digits == word.Length)
                 {
-                    continue;               // A bare move number ("12 . e4" split oddly)
+                    continue; // A bare move number ("12 . e4" split oddly)
                 }
                 // Otherwise the word merely begins with a digit, like castling written as 0-0
             }
@@ -215,5 +220,6 @@ public static class Pgn
         }
     }
 
-    private static string Escape(string value) => value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+    private static string Escape(string value) =>
+        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
 }

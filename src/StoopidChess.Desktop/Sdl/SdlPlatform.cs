@@ -12,13 +12,20 @@ namespace StoopidChess.Desktop.Sdl;
 /// </summary>
 internal sealed unsafe class SdlPlatform(SdlHost host) : IDesktopPlatform
 {
-    private string? pendingTitle;
+    private string? _pendingTitle;
 
     public Task<string?> ChooseFileToOpenAsync(string title, IReadOnlyList<FileFilter> filters)
     {
         var request = new FileRequest(host.Context, filters);
-        SDL3.SDL_ShowOpenFileDialog(&FileChosen, request.Handle, MainWindowHandle, request.Filters, request.FilterCount,
-            (string?)null, false);
+        SDL3.SDL_ShowOpenFileDialog(
+            &FileChosen,
+            request.Handle,
+            MainWindowHandle,
+            request.Filters,
+            request.FilterCount,
+            (string?)null,
+            false
+        );
         return request.Task;
     }
 
@@ -26,8 +33,18 @@ internal sealed unsafe class SdlPlatform(SdlHost host) : IDesktopPlatform
     {
         var request = new FileRequest(host.Context, filters);
         string folder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        string location = Path.Combine(folder.Length > 0 ? folder : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), suggestedName);
-        SDL3.SDL_ShowSaveFileDialog(&FileChosen, request.Handle, MainWindowHandle, request.Filters, request.FilterCount, location);
+        string location = Path.Combine(
+            folder.Length > 0 ? folder : Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            suggestedName
+        );
+        SDL3.SDL_ShowSaveFileDialog(
+            &FileChosen,
+            request.Handle,
+            MainWindowHandle,
+            request.Filters,
+            request.FilterCount,
+            location
+        );
         return request.Task;
     }
 
@@ -37,14 +54,14 @@ internal sealed unsafe class SdlPlatform(SdlHost host) : IDesktopPlatform
 
     public void SetTitle(string title)
     {
-        pendingTitle = title;
+        _pendingTitle = title;
         FlushTitle();
     }
 
     /// <summary>The title set before the main window opened, given to it now.</summary>
     public void FlushTitle()
     {
-        if (host.MainWindow is { } window && pendingTitle is { } title)
+        if (host.MainWindow is { } window && _pendingTitle is { } title)
         {
             window.SetTitle(title);
         }
@@ -84,54 +101,59 @@ internal sealed unsafe class SdlPlatform(SdlHost host) : IDesktopPlatform
     /// </summary>
     private sealed class FileRequest
     {
-        private readonly TaskCompletionSource<string?> answer = new();
-        private readonly UiSynchronizationContext context;
-        private readonly List<IntPtr> strings = [];
-        private GCHandle self;
+        private readonly TaskCompletionSource<string?> _answer = new();
+        private readonly UiSynchronizationContext _context;
+        private readonly List<IntPtr> _strings = [];
+        private GCHandle _self;
 
         public FileRequest(UiSynchronizationContext context, IReadOnlyList<FileFilter> filters)
         {
-            this.context = context;
+            this._context = context;
             FilterCount = filters.Count;
-            Filters = (SDL_DialogFileFilter*)NativeMemory.Alloc((nuint)Math.Max(1, filters.Count), (nuint)sizeof(SDL_DialogFileFilter));
+            Filters = (SDL_DialogFileFilter*)
+                NativeMemory.Alloc((nuint)Math.Max(1, filters.Count), (nuint)sizeof(SDL_DialogFileFilter));
             for (int i = 0; i < filters.Count; i++)
             {
                 Filters[i].name = Utf8(filters[i].Name);
                 Filters[i].pattern = Utf8(filters[i].Extensions);
             }
-            self = GCHandle.Alloc(this);
+            _self = GCHandle.Alloc(this);
         }
 
         public SDL_DialogFileFilter* Filters { get; }
 
         public int FilterCount { get; }
 
-        public IntPtr Handle => GCHandle.ToIntPtr(self);
+        public IntPtr Handle => GCHandle.ToIntPtr(_self);
 
-        public Task<string?> Task => answer.Task;
+        public Task<string?> Task => _answer.Task;
 
-        public void Answer(string? path, string? failure) => context.Post(_ =>
-        {
-            foreach (IntPtr text in strings)
-            {
-                Marshal.FreeCoTaskMem(text);
-            }
-            NativeMemory.Free(Filters);
-            self.Free();
-            if (failure is not null)
-            {
-                answer.SetException(new InvalidOperationException(failure));
-            }
-            else
-            {
-                answer.SetResult(path);
-            }
-        }, null);
+        public void Answer(string? path, string? failure) =>
+            _context.Post(
+                _ =>
+                {
+                    foreach (IntPtr text in _strings)
+                    {
+                        Marshal.FreeCoTaskMem(text);
+                    }
+                    NativeMemory.Free(Filters);
+                    _self.Free();
+                    if (failure is not null)
+                    {
+                        _answer.SetException(new InvalidOperationException(failure));
+                    }
+                    else
+                    {
+                        _answer.SetResult(path);
+                    }
+                },
+                null
+            );
 
         private byte* Utf8(string text)
         {
             IntPtr pointer = Marshal.StringToCoTaskMemUTF8(text);
-            strings.Add(pointer);
+            _strings.Add(pointer);
             return (byte*)pointer;
         }
     }

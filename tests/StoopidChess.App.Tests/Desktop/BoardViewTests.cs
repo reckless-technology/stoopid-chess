@@ -13,7 +13,7 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 public class BoardViewTests
 {
-    private const int Size = 404;     // 400 of squares and the frame: a square is 50
+    private const int Size = 404; // 400 of squares and the frame: a square is 50
 
     /// <summary>
     /// A board alone in a window, with the events it raised recorded.
@@ -47,7 +47,7 @@ public class BoardViewTests
         public SKColor ColorOf(string square)
         {
             SKPoint origin = Board.SquareOrigin(Square.Parse(square));
-            return Window.ColorAt(origin.X + 3, origin.Y + 20);    // Clear of the piece and the coordinates
+            return Window.ColorAt(origin.X + 3, origin.Y + 20); // Clear of the piece and the coordinates
         }
 
         public void Drag(string from, string to, PointerButton button = PointerButton.Left) =>
@@ -73,8 +73,8 @@ public class BoardViewTests
         Assert.Equal(Theme.DarkSquare, rig.ColorOf("a1"));
         Assert.Equal(Theme.BoardEdge, rig.Window.ColorAt(0, 200));
         Assert.Equal(Square.Parse("a1"), rig.Board.SquareAt(new SKPoint(Edge() + 1, Edge() + 399)));
-        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(-10, 500)));   // Beyond the squares: none
-        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(1, 1)));       // The frame is no square
+        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(-10, 500))); // Beyond the squares: none
+        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(1, 1))); // The frame is no square
     }
 
     private static float Edge() => BoardView.Edge;
@@ -129,7 +129,16 @@ public class BoardViewTests
     public void TheFlippedBoardMapsTheSquaresTheOtherWayRound()
     {
         using var controller = new GameController();
-        Assert.True(controller.Load(new SavedGame { Moves = ["e2e4"], HumanColor = Color.Black, IsBoardFlipped = true }));
+        Assert.True(
+            controller.Load(
+                new SavedGame
+                {
+                    Moves = ["e2e4"],
+                    HumanColor = Color.Black,
+                    IsBoardFlipped = true,
+                }
+            )
+        );
         using var rig = new Rig(controller);
         Assert.True(rig.Centre("e7").Y > rig.Centre("e5").Y);
         rig.Drag("e7", "e5");
@@ -141,12 +150,12 @@ public class BoardViewTests
     {
         using GameController controller = Game(Position.StartFen);
         using var rig = new Rig(controller);
-        rig.Drag("e7", "e5");                   // Not the human's piece
-        rig.Drag("e4", "e5");                   // An empty square
-        rig.Drag("e2", "e2");                   // Back where it started
+        rig.Drag("e7", "e5"); // Not the human's piece
+        rig.Drag("e4", "e5"); // An empty square
+        rig.Drag("e2", "e2"); // Back where it started
         rig.Drag("e2", "e4", PointerButton.Middle);
         Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
-        rig.Drag("d2", "d4");                   // Not the human's turn
+        rig.Drag("d2", "d4"); // Not the human's turn
         Assert.Empty(rig.Dropped);
     }
 
@@ -156,7 +165,7 @@ public class BoardViewTests
         using GameController controller = Game("4k3/8/8/8/8/8/8/r3K3 w - - 0 1");
         using var rig = new Rig(controller);
         SKPoint king = rig.Centre("e1");
-        Assert.NotEqual(Theme.DarkSquare, rig.Window.ColorAt(king.X - 22, king.Y));   // The glow, not the square
+        Assert.NotEqual(Theme.DarkSquare, rig.Window.ColorAt(king.X - 22, king.Y)); // The glow, not the square
         rig.Window.Click(rig.Centre("c3"), PointerButton.Right);
         Assert.Equal([Square.Parse("c3")], rig.EditRequests);
     }
@@ -200,16 +209,18 @@ public class BoardViewTests
     public void TheCaptureBinDrawsBothSidesLosses()
     {
         using var controller = new GameController();
-        Assert.True(controller.Load(new SavedGame { Moves = ["e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5a2", "a1a2"] }));
+        Assert.True(
+            controller.Load(new SavedGame { Moves = ["e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5a2", "a1a2"] })
+        );
         var bin = new CaptureBinView { Controller = controller };
         using var window = new ViewHarness(bin, 400, 68);
         Assert.Equal(25, bin.PieceSize);
-        Assert.NotEqual(Theme.Window, window.ColorAt(12, 12));     // White's lost pawn
-        Assert.NotEqual(Theme.Window, window.ColorAt(12, 37));     // Black's lost queen
-        bin.SetBounds(SKRect.Create(4, 1));                         // No room for a piece
+        Assert.NotEqual(Theme.Window, window.ColorAt(12, 12)); // White's lost pawn
+        Assert.NotEqual(Theme.Window, window.ColorAt(12, 37)); // Black's lost queen
+        bin.SetBounds(SKRect.Create(4, 1)); // No room for a piece
         window.Render();
         bin.SetBounds(SKRect.Create(400, 68));
-        controller.ClearBoard();                                    // Editing: nothing to show
+        controller.ClearBoard(); // Editing: nothing to show
         Assert.Equal(Theme.Window, window.ColorAt(12, 12));
         bin.Controller = null;
         window.Render();

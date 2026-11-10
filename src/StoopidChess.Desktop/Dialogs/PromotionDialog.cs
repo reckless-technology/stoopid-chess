@@ -14,9 +14,10 @@ internal sealed class PromotionDialog : DialogView
     private const float PlateSide = 76.0f;
     private const float Gap = 12.0f;
 
-    private readonly List<PlateButton> pieces = [];
+    private readonly List<PlateButton> _pieces = [];
 
-    public PromotionDialog(Color color) : base("Promote pawn to")
+    public PromotionDialog(Color color)
+        : base("Promote pawn to")
     {
         foreach (Piece type in PieceExtensions.PromotionTypes)
         {
@@ -26,7 +27,7 @@ internal sealed class PromotionDialog : DialogView
                 Choice = type;
                 Close();
             };
-            pieces.Add(button);
+            _pieces.Add(button);
             AddChild(button);
         }
     }
@@ -35,14 +36,14 @@ internal sealed class PromotionDialog : DialogView
     public Piece Choice { get; private set; } = Piece.None;
 
     /// <summary>The plates, in <see cref="PieceExtensions.PromotionTypes"/> order.</summary>
-    public IReadOnlyList<PlateButton> Pieces => pieces;
+    public IReadOnlyList<PlateButton> Pieces => _pieces;
 
-    protected override SKSize ContentSize => new((pieces.Count * PlateSide) + ((pieces.Count - 1) * Gap), PlateSide);
+    protected override SKSize ContentSize => new((_pieces.Count * PlateSide) + ((_pieces.Count - 1) * Gap), PlateSide);
 
     protected override void LayoutContent(SKRect area)
     {
         float x = area.Left + ((area.Width - ContentSize.Width) / 2);
-        foreach (PlateButton piece in pieces)
+        foreach (PlateButton piece in _pieces)
         {
             piece.SetBounds(SKRect.Create(x, area.Top, PlateSide, PlateSide));
             x += PlateSide + Gap;

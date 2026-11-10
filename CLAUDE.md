@@ -148,18 +148,37 @@ only the things a change must not break.
 
 ## Conventions
 
-- .NET naming and idioms: PascalCase members, file-scoped namespaces, records for data,
+- .NET idioms: file-scoped namespaces, records for data,
   `ArgumentNullException.ThrowIfNull` on public entry points, `CancellationToken` last, nullable
   returns rather than `Try`/`out` pairs. No static mutable state; the node count lives in its `Searcher`.
+- **Names follow Microsoft's "C# identifier naming rules and conventions"** (learn.microsoft.com/dotnet/csharp/
+  fundamentals/coding-style/identifier-names, checked 2026-11-10), enforced as warnings in `.editorconfig`
+  (IDE1006, which `dotnet format style` fails on): PascalCase for types, namespaces, methods, properties, events and
+  constants (including private ones); camelCase for locals and parameters; `_camelCase` for private and internal
+  instance fields; `s_camelCase` for private and internal static fields, `static readonly` tables included; `I` on
+  interfaces and `T` on type parameters. Underscores appear nowhere else. A declaration that mirrors a native name
+  (SDL's `SDLK_*`) would be exempt in a section of its own in `.editorconfig`; none is declared here, the SDL3
+  bindings being a package. The house rule on top: names spelled out, booleans starting is/has/can/may/do/does.
 - American spelling in identifiers and comments: `Color`, not `Colour`.
-- Formatting follows `.editorconfig` (Allman braces, braces on every block, `var` only when the type
-  is apparent, LF line endings). **All code is formatted with `dotnet format StoopidChess.slnx`
-  before it is committed.** The pre-commit hook in `.githooks/pre-commit` refuses a commit that
-  `dotnet format --verify-no-changes` would change; enable it once per clone with
-  `git config core.hooksPath .githooks`. VS Code formats C# files on save with the C# extension
-  (`.vscode/settings.json`), organising imports too. The style rules the hook does not enforce (they
-  are suggestions, not errors) are applied by an occasional `dotnet format StoopidChess.slnx
-  --severity info` pass.
+- **Formatting is two tools with separate jobs.** CSharpier (pinned in `.config/dotnet-tools.json`, configured by
+  `.csharpierrc.json`: `printWidth` 120, the C++ repositories' ColumnLimit, 4-space indent, LF) owns the layout of
+  every `.cs` file: run `dotnet csharpier format .`. `dotnet format` keeps the style and analyser rules (usings,
+  `var`, braces on every block, the naming rules above) and never the whitespace: run
+  `dotnet format style StoopidChess.slnx`, and fix by hand what it cannot (it cannot rename). The pre-commit hook
+  in `.githooks/pre-commit` and CI's `format` job run `dotnet csharpier check .` and
+  `dotnet format style StoopidChess.slnx --verify-no-changes`; enable the hook once per clone with
+  `git config core.hooksPath .githooks`, and `dotnet tool restore` (or `tools/setup-dev.*`) installs CSharpier.
+  VS Code formats C# files on save with the CSharpier extension (`.vscode/settings.json`).
+  The house C++ style (`.clang-format`: Microsoft base, braces on their own lines, braces on every statement, a blank
+  line between definitions, 120 columns) is matched where C# allows: Allman braces and `csharp_prefer_braces` (a
+  warning) from `.editorconfig`, the blank lines and 120 columns from CSharpier. **Not expressible:** column
+  alignment of consecutive assignments, declarations, operands and trailing comments (`AlignConsecutive*`,
+  `AlignOperands`, `AlignTrailingComments`): CSharpier has no such option and rewrites any alignment by hand, so the
+  C# is not aligned. CSharpier's own style (its wrapping of long chains and argument lists) is not configurable
+  either, and is the one place the C# differs from clang-format's.
+- **The reformat and rename commit is listed in `.git-blame-ignore-revs`**: `git config blame.ignoreRevsFile
+  .git-blame-ignore-revs` makes `git blame` skip it (GitHub does so already).
+- American spelling in identifiers and comments: `Color`, not `Colour`.
 - Everything must build, test and run on Linux, macOS and Windows (CI enforces it): no Windows-only
   APIs outside an `OperatingSystem.IsWindows()` guard.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is

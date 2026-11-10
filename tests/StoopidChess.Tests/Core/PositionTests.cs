@@ -180,8 +180,8 @@ public class PositionTests
     [InlineData("4k3/8/8/8/8/8/8/4KN2 w - - 0 1", true)]
     [InlineData("4k3/8/8/8/8/8/8/4KNN1 w - - 0 1", false)]
     [InlineData("4k3/8/8/8/8/8/5P2/4K3 w - - 0 1", false)]
-    [InlineData("4kb2/8/8/8/8/8/8/4KB2 w - - 0 1", false)]   // f8 is dark, f1 is light
-    [InlineData("4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1", true)]   // g8 and f1 are both light
+    [InlineData("4kb2/8/8/8/8/8/8/4KB2 w - - 0 1", false)] // f8 is dark, f1 is light
+    [InlineData("4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1", true)] // g8 and f1 are both light
     [InlineData("4k3/8/8/8/8/8/8/4KR2 w - - 0 1", false)]
     public void DetectsInsufficientMaterial(string fen, bool expected)
     {
@@ -200,14 +200,14 @@ public class PositionTests
         Assert.Equal(Position.Start().Key, position.Key);
         Assert.Equal(0, position.RepetitionCount());
         position.UnmakeMove();
-        Assert.Equal(1, position.HalfMoveClock);    // The clock comes back with the unmake
+        Assert.Equal(1, position.HalfMoveClock); // The clock comes back with the unmake
     }
 
     [Fact]
     public void NullMoveSwitchesSidesAndUnmakesExactly()
     {
         var position = Position.FromFen("rnbqkbnr/ppp1pppp/8/8/3p4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3");
-        position.MakeMove(FindMove(position, "c2c4")!.Value);     // The black pawn on d4 could capture en passant on c3
+        position.MakeMove(FindMove(position, "c2c4")!.Value); // The black pawn on d4 could capture en passant on c3
         Assert.Equal(Square.Parse("c3"), position.EnPassantSquare);
         string fen = position.ToFen();
         ulong key = position.Key;

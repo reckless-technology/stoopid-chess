@@ -6,7 +6,13 @@ namespace StoopidChess.Engine;
 /// The outcome of a search, or of one completed iteration of it: the expected line of play, the
 /// score of the first move, and the work done to find it.
 /// </summary>
-public sealed record SearchResult(int Depth, int Score, long Nodes, TimeSpan Elapsed, IReadOnlyList<Move> PrincipalVariation)
+public sealed record SearchResult(
+    int Depth,
+    int Score,
+    long Nodes,
+    TimeSpan Elapsed,
+    IReadOnlyList<Move> PrincipalVariation
+)
 {
     /// <summary>
     /// The move to play; <see cref="Move.None"/> when the position has no legal moves.
@@ -26,5 +32,6 @@ public sealed record SearchResult(int Depth, int Score, long Nodes, TimeSpan Ela
     /// <summary>
     /// Nodes per second, zero when no time has passed.
     /// </summary>
-    public static long Rate(long nodes, TimeSpan elapsed) => elapsed > TimeSpan.Zero ? (long)(nodes / elapsed.TotalSeconds) : 0;
+    public static long Rate(long nodes, TimeSpan elapsed) =>
+        elapsed > TimeSpan.Zero ? (long)(nodes / elapsed.TotalSeconds) : 0;
 }

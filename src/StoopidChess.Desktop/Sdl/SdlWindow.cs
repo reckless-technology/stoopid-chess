@@ -12,10 +12,10 @@ namespace StoopidChess.Desktop.Sdl;
 /// </summary>
 internal sealed unsafe class SdlWindow : IDisposable
 {
-    private SDL_Renderer* renderer;
-    private SDL_Texture* texture;
-    private SKBitmap? bitmap;
-    private bool isTextInputOn;
+    private SDL_Renderer* _renderer;
+    private SDL_Texture* _texture;
+    private SKBitmap? _bitmap;
+    private bool _isTextInputOn;
 
     public SdlWindow(string title, SKSizeI size, SKSizeI minimumSize, ViewRoot root)
     {
@@ -25,19 +25,29 @@ internal sealed unsafe class SdlWindow : IDisposable
         {
             contentScale = 1;
         }
-        Handle = SDL3.SDL_CreateWindow(title, (int)(size.Width * contentScale), (int)(size.Height * contentScale),
-            SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_HIGH_PIXEL_DENSITY | SDL_WindowFlags.SDL_WINDOW_HIDDEN);
+        Handle = SDL3.SDL_CreateWindow(
+            title,
+            (int)(size.Width * contentScale),
+            (int)(size.Height * contentScale),
+            SDL_WindowFlags.SDL_WINDOW_RESIZABLE
+                | SDL_WindowFlags.SDL_WINDOW_HIGH_PIXEL_DENSITY
+                | SDL_WindowFlags.SDL_WINDOW_HIDDEN
+        );
         if (Handle == null)
         {
             throw new InvalidOperationException($"SDL could not open a window: {SDL3.SDL_GetError()}");
         }
-        SDL3.SDL_SetWindowMinimumSize(Handle, (int)(minimumSize.Width * contentScale), (int)(minimumSize.Height * contentScale));
-        renderer = SDL3.SDL_CreateRenderer(Handle, (string?)null);
-        if (renderer == null)
+        SDL3.SDL_SetWindowMinimumSize(
+            Handle,
+            (int)(minimumSize.Width * contentScale),
+            (int)(minimumSize.Height * contentScale)
+        );
+        _renderer = SDL3.SDL_CreateRenderer(Handle, (string?)null);
+        if (_renderer == null)
         {
-            renderer = SDL3.SDL_CreateRenderer(Handle, "software");
+            _renderer = SDL3.SDL_CreateRenderer(Handle, "software");
         }
-        if (renderer == null)
+        if (_renderer == null)
         {
             throw new InvalidOperationException($"SDL could not make a renderer: {SDL3.SDL_GetError()}");
         }
@@ -84,7 +94,7 @@ internal sealed unsafe class SdlWindow : IDisposable
         }
         float scale = SDL3.SDL_GetWindowDisplayScale(Handle);
         scale = scale > 0 ? scale : 1;
-        bool isNewSize = bitmap is null || bitmap.Width != width || bitmap.Height != height || scale != Scale;
+        bool isNewSize = _bitmap is null || _bitmap.Width != width || _bitmap.Height != height || scale != Scale;
         if (!isNewSize && !isForced && !Root.IsDirty)
         {
             return;
@@ -92,24 +102,29 @@ internal sealed unsafe class SdlWindow : IDisposable
         if (isNewSize)
         {
             Scale = scale;
-            bitmap?.Dispose();
-            bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
-            if (texture != null)
+            _bitmap?.Dispose();
+            _bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+            if (_texture != null)
             {
-                SDL3.SDL_DestroyTexture(texture);
+                SDL3.SDL_DestroyTexture(_texture);
             }
-            texture = SDL3.SDL_CreateTexture(renderer, SDL_PixelFormat.SDL_PIXELFORMAT_ARGB8888,
-                SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, width, height);
+            _texture = SDL3.SDL_CreateTexture(
+                _renderer,
+                SDL_PixelFormat.SDL_PIXELFORMAT_ARGB8888,
+                SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING,
+                width,
+                height
+            );
             Root.Resize(width / scale, height / scale);
         }
-        using (var canvas = new SKCanvas(bitmap))
+        using (var canvas = new SKCanvas(_bitmap))
         {
             canvas.Scale(Scale);
             Root.Render(canvas);
         }
-        SDL3.SDL_UpdateTexture(texture, null, bitmap!.GetPixels(), bitmap.RowBytes);
-        SDL3.SDL_RenderTexture(renderer, texture, null, null);
-        SDL3.SDL_RenderPresent(renderer);
+        SDL3.SDL_UpdateTexture(_texture, null, _bitmap!.GetPixels(), _bitmap.RowBytes);
+        SDL3.SDL_RenderTexture(_renderer, _texture, null, null);
+        SDL3.SDL_RenderPresent(_renderer);
     }
 
     /// <summary>
@@ -118,11 +133,11 @@ internal sealed unsafe class SdlWindow : IDisposable
     public void UpdateTextInput()
     {
         bool wants = Root.WantsTextInput;
-        if (wants == isTextInputOn)
+        if (wants == _isTextInputOn)
         {
             return;
         }
-        isTextInputOn = wants;
+        _isTextInputOn = wants;
         if (wants)
         {
             SDL3.SDL_StartTextInput(Handle);
@@ -139,13 +154,20 @@ internal sealed unsafe class SdlWindow : IDisposable
     private void SetIcon()
     {
         using SKImage image = Look.Assets.Image("AppIcon.png");
-        using var icon = new SKBitmap(new SKImageInfo(image.Width, image.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul));
+        using var icon = new SKBitmap(
+            new SKImageInfo(image.Width, image.Height, SKColorType.Bgra8888, SKAlphaType.Unpremul)
+        );
         if (!image.ReadPixels(icon.Info, icon.GetPixels(), icon.RowBytes, 0, 0))
         {
             return;
         }
-        SDL_Surface* surface = SDL3.SDL_CreateSurfaceFrom(icon.Width, icon.Height, SDL_PixelFormat.SDL_PIXELFORMAT_ARGB8888,
-            icon.GetPixels(), icon.RowBytes);
+        SDL_Surface* surface = SDL3.SDL_CreateSurfaceFrom(
+            icon.Width,
+            icon.Height,
+            SDL_PixelFormat.SDL_PIXELFORMAT_ARGB8888,
+            icon.GetPixels(),
+            icon.RowBytes
+        );
         if (surface != null)
         {
             SDL3.SDL_SetWindowIcon(Handle, surface);
@@ -155,22 +177,22 @@ internal sealed unsafe class SdlWindow : IDisposable
 
     public void Dispose()
     {
-        if (texture != null)
+        if (_texture != null)
         {
-            SDL3.SDL_DestroyTexture(texture);
-            texture = null;
+            SDL3.SDL_DestroyTexture(_texture);
+            _texture = null;
         }
-        if (renderer != null)
+        if (_renderer != null)
         {
-            SDL3.SDL_DestroyRenderer(renderer);
-            renderer = null;
+            SDL3.SDL_DestroyRenderer(_renderer);
+            _renderer = null;
         }
         if (Handle != null)
         {
             SDL3.SDL_DestroyWindow(Handle);
             Handle = null;
         }
-        bitmap?.Dispose();
-        bitmap = null;
+        _bitmap?.Dispose();
+        _bitmap = null;
     }
 }

@@ -10,7 +10,7 @@ namespace StoopidChess.Desktop.Views;
 /// </summary>
 internal sealed class PlateButton(string text) : View
 {
-    private bool isHeld;
+    private bool _isHeld;
 
     /// <summary>The caption.</summary>
     public string Text { get; set; } = text;
@@ -37,7 +37,7 @@ internal sealed class PlateButton(string text) : View
 
     protected override void Draw(SKCanvas canvas)
     {
-        Plates.Button(canvas, LocalBounds, IsOn, IsHovered && IsEnabled, isHeld);
+        Plates.Button(canvas, LocalBounds, IsOn, IsHovered && IsEnabled, _isHeld);
         if (Image is { } image)
         {
             float side = Math.Min(Width, Height) - 8;
@@ -58,14 +58,14 @@ internal sealed class PlateButton(string text) : View
         {
             return false;
         }
-        isHeld = true;
+        _isHeld = true;
         Invalidate();
         return true;
     }
 
     public override void OnPointerUp(PointerEvent e)
     {
-        isHeld = false;
+        _isHeld = false;
         Invalidate();
         if (LocalBounds.Contains(e.Position))
         {

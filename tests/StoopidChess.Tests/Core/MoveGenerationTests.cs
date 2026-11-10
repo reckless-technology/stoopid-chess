@@ -51,7 +51,14 @@ public class MoveGenerationTests
         foreach (PerftPosition entry in Perft.StandardPositions)
         {
             var position = Position.FromFen(entry.Fen);
-            List<Move> expected = [.. position.GenerateLegalMoves().ToArray().Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits())];
+            List<Move> expected =
+            [
+                .. position
+                    .GenerateLegalMoves()
+                    .ToArray()
+                    .Where(m => m.IsCapture || m.IsPromotion)
+                    .OrderBy(m => m.ToBits()),
+            ];
             MoveList captures = default;
             position.GenerateLegalCaptures(ref captures);
             Assert.Equal(expected, [.. captures.ToArray().OrderBy(m => m.ToBits())]);
@@ -74,7 +81,7 @@ public class MoveGenerationTests
         Assert.True(position.IsInCheck);
         Assert.Contains("e4d3", Uci(position));
         Assert.Contains("c5d4", Uci(position));
-        Assert.DoesNotContain("e4e3", Uci(position));     // Does not resolve the check
+        Assert.DoesNotContain("e4e3", Uci(position)); // Does not resolve the check
     }
 
     [Fact]
@@ -129,14 +136,22 @@ public class MoveGenerationTests
         Assert.Contains("e1e2", Uci(position));
     }
 
-    private static List<string> Uci(Position position) => [.. position.GenerateLegalMoves().ToArray().Select(m => m.ToUci())];
+    private static List<string> Uci(Position position) =>
+        [.. position.GenerateLegalMoves().ToArray().Select(m => m.ToUci())];
 
     private static MoveList AssertMatchesReference(Position position)
     {
         MoveList moves = position.GenerateLegalMoves();
         List<Move> expected = ReferenceGenerator.LegalMoves(position);
         Assert.Equal(expected.OrderBy(m => m.ToBits()), moves.ToArray().OrderBy(m => m.ToBits()));
-        Assert.Equal(ReferenceGenerator.IsAttacked(position, position.KingSquare(position.SideToMove), position.SideToMove.Opponent()), position.IsInCheck);
+        Assert.Equal(
+            ReferenceGenerator.IsAttacked(
+                position,
+                position.KingSquare(position.SideToMove),
+                position.SideToMove.Opponent()
+            ),
+            position.IsInCheck
+        );
         return moves;
     }
 
@@ -145,11 +160,31 @@ public class MoveGenerationTests
     /// </summary>
     private static class ReferenceGenerator
     {
-        private static readonly (int File, int Rank)[] KnightSteps = [(1, 2), (2, 1), (2, -1), (1, -2), (-1, -2), (-2, -1), (-2, 1), (-1, 2)];
-        private static readonly (int File, int Rank)[] KingSteps = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)];
-        private static readonly (int File, int Rank)[] Diagonals = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
-        private static readonly (int File, int Rank)[] Orthogonals = [(0, 1), (1, 0), (0, -1), (-1, 0)];
-        private static readonly Piece[] Promotions = [Piece.Queen, Piece.Rook, Piece.Bishop, Piece.Knight];
+        private static readonly (int File, int Rank)[] s_knightSteps =
+        [
+            (1, 2),
+            (2, 1),
+            (2, -1),
+            (1, -2),
+            (-1, -2),
+            (-2, -1),
+            (-2, 1),
+            (-1, 2),
+        ];
+        private static readonly (int File, int Rank)[] s_kingSteps =
+        [
+            (0, 1),
+            (1, 1),
+            (1, 0),
+            (1, -1),
+            (0, -1),
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+        ];
+        private static readonly (int File, int Rank)[] s_diagonals = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
+        private static readonly (int File, int Rank)[] s_orthogonals = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+        private static readonly Piece[] s_promotions = [Piece.Queen, Piece.Rook, Piece.Bishop, Piece.Knight];
 
         public static List<Move> LegalMoves(Position position)
         {
@@ -171,7 +206,7 @@ public class MoveGenerationTests
         {
             int file = square.File;
             int rank = square.Rank;
-            int pawnRank = rank - (by == Color.White ? 1 : -1);     // A pawn attacks from the rank behind (from its point of view)
+            int pawnRank = rank - (by == Color.White ? 1 : -1); // A pawn attacks from the rank behind (from its point of view)
             foreach (int pawnFile in new[] { file - 1, file + 1 })
             {
                 if (At(position, pawnFile, pawnRank) == (by, Piece.Pawn))
@@ -179,28 +214,37 @@ public class MoveGenerationTests
                     return true;
                 }
             }
-            foreach ((int df, int dr) in KnightSteps)
+            foreach ((int df, int dr) in s_knightSteps)
             {
                 if (At(position, file + df, rank + dr) == (by, Piece.Knight))
                 {
                     return true;
                 }
             }
-            foreach ((int df, int dr) in KingSteps)
+            foreach ((int df, int dr) in s_kingSteps)
             {
                 if (At(position, file + df, rank + dr) == (by, Piece.King))
                 {
                     return true;
                 }
             }
-            return SliderAttacks(position, file, rank, by, Diagonals, Piece.Bishop) || SliderAttacks(position, file, rank, by, Orthogonals, Piece.Rook);
+            return SliderAttacks(position, file, rank, by, s_diagonals, Piece.Bishop)
+                || SliderAttacks(position, file, rank, by, s_orthogonals, Piece.Rook);
         }
 
-        private static bool SliderAttacks(Position position, int file, int rank, Color by, (int File, int Rank)[] directions, Piece slider)
+        private static bool SliderAttacks(
+            Position position,
+            int file,
+            int rank,
+            Color by,
+            (int File, int Rank)[] directions,
+            Piece slider
+        )
         {
             foreach ((int df, int dr) in directions)
             {
-                int f = file + df, r = rank + dr;
+                int f = file + df,
+                    r = rank + dr;
                 while (IsOnBoard(f, r))
                 {
                     (Color Color, Piece Type) piece = position[f, r];
@@ -242,7 +286,7 @@ public class MoveGenerationTests
                         break;
                     case Piece.Knight:
                     case Piece.King:
-                        foreach ((int df, int dr) in piece.Type == Piece.Knight ? KnightSteps : KingSteps)
+                        foreach ((int df, int dr) in piece.Type == Piece.Knight ? s_knightSteps : s_kingSteps)
                         {
                             if (!IsOnBoard(file + df, rank + dr))
                             {
@@ -270,13 +314,14 @@ public class MoveGenerationTests
                     default:
                         (int File, int Rank)[] directions = piece.Type switch
                         {
-                            Piece.Bishop => Diagonals,
-                            Piece.Rook => Orthogonals,
-                            _ => [.. Diagonals, .. Orthogonals],
+                            Piece.Bishop => s_diagonals,
+                            Piece.Rook => s_orthogonals,
+                            _ => [.. s_diagonals, .. s_orthogonals],
                         };
                         foreach ((int df, int dr) in directions)
                         {
-                            int f = file + df, r = rank + dr;
+                            int f = file + df,
+                                r = rank + dr;
                             while (IsOnBoard(f, r))
                             {
                                 var to = Square.At(f, r);
@@ -302,7 +347,14 @@ public class MoveGenerationTests
             }
         }
 
-        private static IEnumerable<Move> PawnMoves(Position position, Color us, Color them, Square from, int file, int rank)
+        private static IEnumerable<Move> PawnMoves(
+            Position position,
+            Color us,
+            Color them,
+            Square from,
+            int file,
+            int rank
+        )
         {
             int direction = us == Color.White ? 1 : -1;
             int startRank = us == Color.White ? 1 : 6;
@@ -314,7 +366,7 @@ public class MoveGenerationTests
                 var to = Square.At(file, forwardRank);
                 if (promotes)
                 {
-                    foreach (Piece promotion in Promotions)
+                    foreach (Piece promotion in s_promotions)
                     {
                         yield return new Move(from, to, Piece.Pawn, Piece.None, MoveKind.Promotion, promotion);
                     }
@@ -324,7 +376,13 @@ public class MoveGenerationTests
                     yield return new Move(from, to, Piece.Pawn);
                     if (rank == startRank && position[file, forwardRank + direction].Type == Piece.None)
                     {
-                        yield return new Move(from, Square.At(file, forwardRank + direction), Piece.Pawn, Piece.None, MoveKind.DoublePawnPush);
+                        yield return new Move(
+                            from,
+                            Square.At(file, forwardRank + direction),
+                            Piece.Pawn,
+                            Piece.None,
+                            MoveKind.DoublePawnPush
+                        );
                     }
                 }
             }
@@ -340,7 +398,7 @@ public class MoveGenerationTests
                 {
                     if (promotes)
                     {
-                        foreach (Piece promotion in Promotions)
+                        foreach (Piece promotion in s_promotions)
                         {
                             yield return new Move(from, to, Piece.Pawn, target.Type, MoveKind.Promotion, promotion);
                         }
@@ -366,14 +424,28 @@ public class MoveGenerationTests
             }
             (Color, Piece) rook = (us, Piece.Rook);
             CastlingRights kingSide = us == Color.White ? CastlingRights.WhiteKingSide : CastlingRights.BlackKingSide;
-            CastlingRights queenSide = us == Color.White ? CastlingRights.WhiteQueenSide : CastlingRights.BlackQueenSide;
-            if (position.CastlingRights.HasFlag(kingSide) && position[home + 3] == rook && position[home + 1].Type == Piece.None && position[home + 2].Type == Piece.None
-                && !IsAttacked(position, home + 1, them) && !IsAttacked(position, home + 2, them))
+            CastlingRights queenSide =
+                us == Color.White ? CastlingRights.WhiteQueenSide : CastlingRights.BlackQueenSide;
+            if (
+                position.CastlingRights.HasFlag(kingSide)
+                && position[home + 3] == rook
+                && position[home + 1].Type == Piece.None
+                && position[home + 2].Type == Piece.None
+                && !IsAttacked(position, home + 1, them)
+                && !IsAttacked(position, home + 2, them)
+            )
             {
                 yield return new Move(home, home + 2, Piece.King, Piece.None, MoveKind.CastleKingSide);
             }
-            if (position.CastlingRights.HasFlag(queenSide) && position[home - 4] == rook && position[home - 1].Type == Piece.None && position[home - 2].Type == Piece.None && position[home - 3].Type == Piece.None
-                && !IsAttacked(position, home - 1, them) && !IsAttacked(position, home - 2, them))
+            if (
+                position.CastlingRights.HasFlag(queenSide)
+                && position[home - 4] == rook
+                && position[home - 1].Type == Piece.None
+                && position[home - 2].Type == Piece.None
+                && position[home - 3].Type == Piece.None
+                && !IsAttacked(position, home - 1, them)
+                && !IsAttacked(position, home - 2, them)
+            )
             {
                 yield return new Move(home, home - 2, Piece.King, Piece.None, MoveKind.CastleQueenSide);
             }
@@ -384,6 +456,7 @@ public class MoveGenerationTests
         /// <summary>
         /// The piece at file and rank, or the empty pair off the board.
         /// </summary>
-        private static (Color Color, Piece Type) At(Position position, int file, int rank) => IsOnBoard(file, rank) ? position[file, rank] : default;
+        private static (Color Color, Piece Type) At(Position position, int file, int rank) =>
+            IsOnBoard(file, rank) ? position[file, rank] : default;
     }
 }

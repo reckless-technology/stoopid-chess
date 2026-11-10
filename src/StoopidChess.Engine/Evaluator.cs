@@ -61,121 +61,513 @@ public sealed class Evaluator
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    private static readonly int[] ShelterByRank = [0, 15, 11, 1, 0, 0, 0, 0];      // Pawn rank from its own side
+    private static readonly int[] s_shelterByRank = [0, 15, 11, 1, 0, 0, 0, 0]; // Pawn rank from its own side
     public const int ShelterMissing = -16;
-    private static readonly int[] StormByDistance = [0, 0, 19, 11, 9, 0, 0, 0];   // Ranks between the king and the pawn
+    private static readonly int[] s_stormByDistance = [0, 0, 19, 11, 9, 0, 0, 0]; // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
-    private static readonly int[] PassedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
+    private static readonly int[] s_passedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
 
     // The squares ahead of a pawn on its own file and the two beside it, indexed [color][square]:
     // an enemy pawn there stops it being passed
-    private static readonly Bitboard[][] PassedPawnSpan = BuildPassedPawnSpans();
+    private static readonly Bitboard[][] s_passedPawnSpan = BuildPassedPawnSpans();
 
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram.
-    private static readonly int[] PawnTable =
+    private static readonly int[] s_pawnTable =
     [
-         0,  0,  0,  0,  0,  0,  0,  0,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        10, 10, 20, 30, 30, 20, 10, 10,
-         5,  5, 10, 25, 25, 10,  5,  5,
-         0,  0,  0, 20, 20,  0,  0,  0,
-         5, -5,-10,  0,  0,-10, -5,  5,
-         5, 10, 10,-20,-20, 10, 10,  5,
-         0,  0,  0,  0,  0,  0,  0,  0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        10,
+        10,
+        20,
+        30,
+        30,
+        20,
+        10,
+        10,
+        5,
+        5,
+        10,
+        25,
+        25,
+        10,
+        5,
+        5,
+        0,
+        0,
+        0,
+        20,
+        20,
+        0,
+        0,
+        0,
+        5,
+        -5,
+        -10,
+        0,
+        0,
+        -10,
+        -5,
+        5,
+        5,
+        10,
+        10,
+        -20,
+        -20,
+        10,
+        10,
+        5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
     ];
 
-    private static readonly int[] KnightTable =
+    private static readonly int[] s_knightTable =
     [
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50,
+        -50,
+        -40,
+        -30,
+        -30,
+        -30,
+        -30,
+        -40,
+        -50,
+        -40,
+        -20,
+        0,
+        0,
+        0,
+        0,
+        -20,
+        -40,
+        -30,
+        0,
+        10,
+        15,
+        15,
+        10,
+        0,
+        -30,
+        -30,
+        5,
+        15,
+        20,
+        20,
+        15,
+        5,
+        -30,
+        -30,
+        0,
+        15,
+        20,
+        20,
+        15,
+        0,
+        -30,
+        -30,
+        5,
+        10,
+        15,
+        15,
+        10,
+        5,
+        -30,
+        -40,
+        -20,
+        0,
+        5,
+        5,
+        0,
+        -20,
+        -40,
+        -50,
+        -40,
+        -30,
+        -30,
+        -30,
+        -30,
+        -40,
+        -50,
     ];
 
-    private static readonly int[] BishopTable =
+    private static readonly int[] s_bishopTable =
     [
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20,
+        -20,
+        -10,
+        -10,
+        -10,
+        -10,
+        -10,
+        -10,
+        -20,
+        -10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -10,
+        -10,
+        0,
+        5,
+        10,
+        10,
+        5,
+        0,
+        -10,
+        -10,
+        5,
+        5,
+        10,
+        10,
+        5,
+        5,
+        -10,
+        -10,
+        0,
+        10,
+        10,
+        10,
+        10,
+        0,
+        -10,
+        -10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        -10,
+        -10,
+        5,
+        0,
+        0,
+        0,
+        0,
+        5,
+        -10,
+        -20,
+        -10,
+        -10,
+        -10,
+        -10,
+        -10,
+        -10,
+        -20,
     ];
 
-    private static readonly int[] RookTable =
+    private static readonly int[] s_rookTable =
     [
-          0,  0,  0,  0,  0,  0,  0,  0,
-          5, 10, 10, 10, 10, 10, 10,  5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-          0,  0,  0,  5,  5,  0,  0,  0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        5,
+        -5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        -5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        -5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        -5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        -5,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -5,
+        0,
+        0,
+        0,
+        5,
+        5,
+        0,
+        0,
+        0,
     ];
 
-    private static readonly int[] QueenTable =
+    private static readonly int[] s_queenTable =
     [
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-         -5,  0,  5,  5,  5,  5,  0, -5,
-          0,  0,  5,  5,  5,  5,  0, -5,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20,
+        -20,
+        -10,
+        -10,
+        -5,
+        -5,
+        -10,
+        -10,
+        -20,
+        -10,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        -10,
+        -10,
+        0,
+        5,
+        5,
+        5,
+        5,
+        0,
+        -10,
+        -5,
+        0,
+        5,
+        5,
+        5,
+        5,
+        0,
+        -5,
+        0,
+        0,
+        5,
+        5,
+        5,
+        5,
+        0,
+        -5,
+        -10,
+        5,
+        5,
+        5,
+        5,
+        5,
+        0,
+        -10,
+        -10,
+        0,
+        5,
+        0,
+        0,
+        0,
+        0,
+        -10,
+        -20,
+        -10,
+        -10,
+        -5,
+        -5,
+        -10,
+        -10,
+        -20,
     ];
 
     // The king stays safely on the back rank in the opening and middle game...
-    private static readonly int[] KingTable =
+    private static readonly int[] s_kingTable =
     [
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-         20, 20,  0,  0,  0,  0, 20, 20,
-         20, 30, 10,  0,  0, 10, 30, 20,
+        -30,
+        -40,
+        -40,
+        -50,
+        -50,
+        -40,
+        -40,
+        -30,
+        -30,
+        -40,
+        -40,
+        -50,
+        -50,
+        -40,
+        -40,
+        -30,
+        -30,
+        -40,
+        -40,
+        -50,
+        -50,
+        -40,
+        -40,
+        -30,
+        -30,
+        -40,
+        -40,
+        -50,
+        -50,
+        -40,
+        -40,
+        -30,
+        -20,
+        -30,
+        -30,
+        -40,
+        -40,
+        -30,
+        -30,
+        -20,
+        -10,
+        -20,
+        -20,
+        -20,
+        -20,
+        -20,
+        -20,
+        -10,
+        20,
+        20,
+        0,
+        0,
+        0,
+        0,
+        20,
+        20,
+        20,
+        30,
+        10,
+        0,
+        0,
+        10,
+        30,
+        20,
     ];
 
     // ...and heads for the centre in the endgame.
-    private static readonly int[] KingEndgameTable =
+    private static readonly int[] s_kingEndgameTable =
     [
-        -50,-40,-30,-20,-20,-30,-40,-50,
-        -30,-20,-10,  0,  0,-10,-20,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-30,  0,  0,  0,  0,-30,-30,
-        -50,-30,-30,-30,-30,-30,-30,-50,
+        -50,
+        -40,
+        -30,
+        -20,
+        -20,
+        -30,
+        -40,
+        -50,
+        -30,
+        -20,
+        -10,
+        0,
+        0,
+        -10,
+        -20,
+        -30,
+        -30,
+        -10,
+        20,
+        30,
+        30,
+        20,
+        -10,
+        -30,
+        -30,
+        -10,
+        30,
+        40,
+        40,
+        30,
+        -10,
+        -30,
+        -30,
+        -10,
+        30,
+        40,
+        40,
+        30,
+        -10,
+        -30,
+        -30,
+        -10,
+        20,
+        30,
+        30,
+        20,
+        -10,
+        -30,
+        -30,
+        -30,
+        0,
+        0,
+        0,
+        0,
+        -30,
+        -30,
+        -50,
+        -30,
+        -30,
+        -30,
+        -30,
+        -30,
+        -30,
+        -50,
     ];
 
     // Material plus piece-square value of each piece type on each square, from white's point of
     // view: positive for white pieces, negative (and vertically mirrored) for black pieces.
     // Indexed [color][type][square]; the king is stored twice, for the middle game and the endgame.
     private const int KingEndgameIndex = 7;
-    private static readonly int[][][] PieceSquareValues = BuildPieceSquareValues();
+    private static readonly int[][][] s_pieceSquareValues = BuildPieceSquareValues();
 
     // The evaluation cache: one 64-bit word per entry holding the top 48 bits of the Zobrist key and
     // the 16-bit score, always replaced. Positions reached again by transposition, by a re-search or
     // by the next iteration are not evaluated twice.
-    private const int CacheBits = 16;   // 65,536 entries, 512 KB: small enough to stay in the CPU cache, which measured best
-    private readonly ulong[] cache = new ulong[1 << CacheBits];
+    private const int CacheBits = 16; // 65,536 entries, 512 KB: small enough to stay in the CPU cache, which measured best
+    private readonly ulong[] _cache = new ulong[1 << CacheBits];
 
     // The pawn structure cache, the same single-word scheme keyed by the pawn key: pawn structures
     // repeat across vast numbers of positions, so nearly every probe hits
     private const int PawnCacheBits = 14;
-    private readonly ulong[] pawnCache = new ulong[1 << PawnCacheBits];
+    private readonly ulong[] _pawnCache = new ulong[1 << PawnCacheBits];
 
     /// <summary>
     /// The score of the position from the side to move's point of view, in centipawns.
@@ -184,7 +576,7 @@ public sealed class Evaluator
     {
         ArgumentNullException.ThrowIfNull(position);
         ulong key = position.Key;
-        ref ulong entry = ref cache[key & ((1UL << CacheBits) - 1)];
+        ref ulong entry = ref _cache[key & ((1UL << CacheBits) - 1)];
         if ((entry >> 16) == (key >> 16))
         {
             return (short)(entry & 0xFFFF);
@@ -199,8 +591,8 @@ public sealed class Evaluator
     /// </summary>
     public void Clear()
     {
-        Array.Clear(cache);
-        Array.Clear(pawnCache);
+        Array.Clear(_cache);
+        Array.Clear(_pawnCache);
     }
 
     /// <summary>
@@ -224,7 +616,7 @@ public sealed class Evaluator
         SideAttacks black = PieceAttacks(position, Color.Black, whiteZone);
         foreach (Color color in ColorExtensions.Sides)
         {
-            int[][] tables = PieceSquareValues[(int)color];
+            int[][] tables = s_pieceSquareValues[(int)color];
             for (Piece type = Piece.Pawn; type <= Piece.Queen; type++)
             {
                 int[] table = tables[(int)type];
@@ -234,8 +626,12 @@ public sealed class Evaluator
                 }
             }
             score += tables[endgame ? KingEndgameIndex : (int)Piece.King][position.KingSquare(color)];
-            (SideAttacks us, SideAttacks them, Bitboard zone) = color == Color.White ? (white, black, whiteZone) : (black, white, blackZone);
-            int own = us.Mobility + PassedPawns(position, color, endgame) + KnightOutposts(position, color)
+            (SideAttacks us, SideAttacks them, Bitboard zone) =
+                color == Color.White ? (white, black, whiteZone) : (black, white, blackZone);
+            int own =
+                us.Mobility
+                + PassedPawns(position, color, endgame)
+                + KnightOutposts(position, color)
                 + RookFiles(position, color);
             if (position.Pieces(color, Piece.Bishop).Count >= 2)
             {
@@ -261,7 +657,7 @@ public sealed class Evaluator
     private int PawnStructure(Position position)
     {
         ulong key = position.PawnKey;
-        ref ulong entry = ref pawnCache[key & ((1UL << PawnCacheBits) - 1)];
+        ref ulong entry = ref _pawnCache[key & ((1UL << PawnCacheBits) - 1)];
         if ((entry >> 16) == (key >> 16))
         {
             return (short)(entry & 0xFFFF);
@@ -283,7 +679,12 @@ public sealed class Evaluator
     /// <summary>
     /// One side's pawns sorted by the structure terms that score them.
     /// </summary>
-    internal readonly record struct PawnPatterns(Bitboard Isolated, Bitboard Doubled, Bitboard Backward, Bitboard Connected);
+    internal readonly record struct PawnPatterns(
+        Bitboard Isolated,
+        Bitboard Doubled,
+        Bitboard Backward,
+        Bitboard Connected
+    );
 
     internal static PawnPatterns FindPawnPatterns(Position position, Color color)
     {
@@ -296,9 +697,10 @@ public sealed class Evaluator
         Bitboard connected = pawns & (Attacks.Pawns(color, pawns) | pawns.East() | pawns.West());
         // A pawn that no neighbouring pawn can ever step up beside: only squares at or above an
         // adjacent own pawn are reachable support
-        Bitboard everSupported = color == Color.White
-            ? NorthFill(pawns).East() | NorthFill(pawns).West()
-            : SouthFill(pawns).East() | SouthFill(pawns).West();
+        Bitboard everSupported =
+            color == Color.White
+                ? NorthFill(pawns).East() | NorthFill(pawns).West()
+                : SouthFill(pawns).East() | SouthFill(pawns).West();
         Bitboard enemyControl = Attacks.Pawns(color.Opponent(), enemyPawns);
         Bitboard stopControlled = color == Color.White ? enemyControl.South() : enemyControl.North();
         Bitboard backward = pawns & ~everSupported & ~isolated & stopControlled;
@@ -353,8 +755,12 @@ public sealed class Evaluator
             // for a minor down wins only exceptionally
             return winnerMaterial < RookValue ? score / 16 : score / 4;
         }
-        if (loserMaterial == 0 && position.Pieces(loser, Piece.Pawn).IsEmpty
-            && winnerMaterial == 2 * KnightValue && position.Count(winner, Piece.Knight) == 2)
+        if (
+            loserMaterial == 0
+            && position.Pieces(loser, Piece.Pawn).IsEmpty
+            && winnerMaterial == 2 * KnightValue
+            && position.Count(winner, Piece.Knight) == 2
+        )
         {
             return score / 16;
         }
@@ -379,9 +785,10 @@ public sealed class Evaluator
         Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
         Bitboard enemyPawns = position.Pieces(color.Opponent(), Piece.Pawn);
         // The ranks in front of the king, from its point of view
-        Bitboard ahead = color == Color.White
-            ? new Bitboard(~0UL << (8 * (king.Rank + 1)))
-            : new Bitboard(king.Rank == 0 ? 0UL : ~0UL >> (8 * (8 - king.Rank)));
+        Bitboard ahead =
+            color == Color.White
+                ? new Bitboard(~0UL << (8 * (king.Rank + 1)))
+                : new Bitboard(king.Rank == 0 ? 0UL : ~0UL >> (8 * (8 - king.Rank)));
         int score = 0;
         int centreFile = Math.Clamp(king.File, 1, 6);
         for (int file = centreFile - 1; file <= centreFile + 1; file++)
@@ -395,13 +802,13 @@ public sealed class Evaluator
             else
             {
                 Square pawn = color == Color.White ? shelter.First : shelter.Last;
-                score += ShelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
+                score += s_shelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
             }
             Bitboard storm = column & enemyPawns;
             if (storm.IsNotEmpty)
             {
                 Square pawn = color == Color.White ? storm.First : storm.Last;
-                int penalty = StormByDistance[Math.Abs(pawn.Rank - king.Rank)];
+                int penalty = s_stormByDistance[Math.Abs(pawn.Rank - king.Rank)];
                 // An enemy pawn faced by one of ours cannot advance to open lines
                 if (ownPawns.Contains(pawn - Position.PawnDirection(color.Opponent())))
                 {
@@ -422,11 +829,12 @@ public sealed class Evaluator
         Color them = color.Opponent();
         Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
         Bitboard enemyPawns = position.Pieces(them, Piece.Pawn);
-        Bitboard outpostRanks = color == Color.White
-            ? Bitboard.Rank4 | Bitboard.Rank5 | Bitboard.Rank6
-            : Bitboard.Rank5 | Bitboard.Rank4 | Bitboard.Rank3;
+        Bitboard outpostRanks =
+            color == Color.White
+                ? Bitboard.Rank4 | Bitboard.Rank5 | Bitboard.Rank6
+                : Bitboard.Rank5 | Bitboard.Rank4 | Bitboard.Rank3;
         Bitboard defended = Attacks.Pawns(color, ownPawns);
-        Bitboard[] spans = PassedPawnSpan[(int)color];
+        Bitboard[] spans = s_passedPawnSpan[(int)color];
         int bonus = 0;
         foreach (Square square in position.Pieces(color, Piece.Knight) & outpostRanks & defended)
         {
@@ -448,7 +856,7 @@ public sealed class Evaluator
     {
         Color them = color.Opponent();
         Bitboard enemyPawns = position.Pieces(them, Piece.Pawn);
-        Bitboard[] spans = PassedPawnSpan[(int)color];
+        Bitboard[] spans = s_passedPawnSpan[(int)color];
         Square ownKing = position.KingSquare(color);
         Square enemyKing = position.KingSquare(them);
         int bonus = 0;
@@ -459,10 +867,10 @@ public sealed class Evaluator
                 continue;
             }
             var next = new Square(square + (color == Color.White ? 8 : -8));
-            int rankBonus = PassedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
+            int rankBonus = s_passedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
             if (position.Occupied.Contains(next))
             {
-                rankBonus /= 2;   // A blocked passer is worth half until it can move again
+                rankBonus /= 2; // A blocked passer is worth half until it can move again
             }
             bonus += rankBonus;
             if (endgame)
@@ -488,7 +896,8 @@ public sealed class Evaluator
             spans[color] = new Bitboard[Square.Count];
             foreach (Square square in Square.All)
             {
-                Bitboard files = Bitboard.OfFile(square.File)
+                Bitboard files =
+                    Bitboard.OfFile(square.File)
                     | (square.File > 0 ? Bitboard.OfFile(square.File - 1) : Bitboard.Empty)
                     | (square.File < 7 ? Bitboard.OfFile(square.File + 1) : Bitboard.Empty);
                 Bitboard ranksAhead = Bitboard.Empty;
@@ -594,8 +1003,13 @@ public sealed class Evaluator
         ArgumentNullException.ThrowIfNull(position);
         foreach (Color color in ColorExtensions.Sides)
         {
-            if (position.Pieces(color, Piece.Queen).IsNotEmpty
-                && (position.Pieces(color, Piece.Rook).IsNotEmpty || (position.Pieces(color, Piece.Knight) | position.Pieces(color, Piece.Bishop)).Count > 1))
+            if (
+                position.Pieces(color, Piece.Queen).IsNotEmpty
+                && (
+                    position.Pieces(color, Piece.Rook).IsNotEmpty
+                    || (position.Pieces(color, Piece.Knight) | position.Pieces(color, Piece.Bishop)).Count > 1
+                )
+            )
             {
                 return false;
             }
@@ -607,14 +1021,14 @@ public sealed class Evaluator
     {
         (int[] Table, int Material)[] source =
         [
-            ([], 0),                                // None
-            (PawnTable, PawnValue),
-            (KnightTable, KnightValue),
-            (BishopTable, BishopValue),
-            (RookTable, RookValue),
-            (QueenTable, QueenValue),
-            (KingTable, 0),                         // Kings are always present, so they carry no material value
-            (KingEndgameTable, 0),
+            ([], 0), // None
+            (s_pawnTable, PawnValue),
+            (s_knightTable, KnightValue),
+            (s_bishopTable, BishopValue),
+            (s_rookTable, RookValue),
+            (s_queenTable, QueenValue),
+            (s_kingTable, 0), // Kings are always present, so they carry no material value
+            (s_kingEndgameTable, 0),
         ];
         int[][][] values = new int[2][][];
         for (int color = 0; color < 2; color++)

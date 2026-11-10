@@ -15,11 +15,14 @@ public class UiSynchronizationContextTests
         var context = new UiSynchronizationContext(() => wakes++);
         var ran = new List<int>();
         context.Post(_ => ran.Add(1), null);
-        context.Post(_ =>
-        {
-            ran.Add(2);
-            context.Post(_ => ran.Add(3), null);            // Posted while running: runs in the same turn
-        }, null);
+        context.Post(
+            _ =>
+            {
+                ran.Add(2);
+                context.Post(_ => ran.Add(3), null); // Posted while running: runs in the same turn
+            },
+            null
+        );
         Assert.Equal(2, wakes);
         Assert.True(context.HasPending);
         Assert.Empty(ran);
@@ -49,7 +52,9 @@ public class UiSynchronizationContextTests
         Task failing = OnAnotherThread(() => context.Send(_ => throw new InvalidDataException("bad"), null));
         await UntilPendingAsync(context);
         context.RunPending();
-        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() => failing.WaitAsync(TimeSpan.FromSeconds(10)));
+        InvalidOperationException failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            failing.WaitAsync(TimeSpan.FromSeconds(10))
+        );
         Assert.IsType<InvalidDataException>(failure.InnerException);
     }
 
@@ -72,7 +77,9 @@ public class UiSynchronizationContextTests
                 done.SetException(ex);
             }
         })
-        { IsBackground = true };
+        {
+            IsBackground = true,
+        };
         thread.Start();
         return done.Task;
     }
