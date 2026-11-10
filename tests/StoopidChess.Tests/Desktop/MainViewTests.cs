@@ -215,9 +215,21 @@ public sealed class MainViewTests : IDisposable
         using var rig = new Rig(new SavedGame { StartFen = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1" });
         rig.Window.Drag(rig.Square("e7"), rig.Square("e8"));
         PromotionDialog dialog = rig.Dialog<PromotionDialog>();
-        Assert.Equal(Piece.Queen, dialog.Choice);
+        Assert.Equal(Piece.None, dialog.Choice);
         rig.Window.Click(dialog.Pieces[3]);
         Assert.Equal((Color.White, Piece.Knight), rig.Controller.PieceAt(Square.Parse("e8")));
+    }
+
+    [Fact]
+    public void EscapeInThePromotionDialogCancelsTheMove()
+    {
+        using var rig = new Rig(new SavedGame { StartFen = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1" });
+        rig.Window.Drag(rig.Square("e7"), rig.Square("e8"));
+        rig.Dialog<PromotionDialog>();
+        rig.Window.Key(Key.Escape);
+        Assert.Empty(rig.Window.Root.Overlays);
+        Assert.Empty(rig.Controller.Game.Moves);
+        Assert.Equal((Color.White, Piece.Pawn), rig.Controller.PieceAt(Square.Parse("e7")));
     }
 
     [Fact]

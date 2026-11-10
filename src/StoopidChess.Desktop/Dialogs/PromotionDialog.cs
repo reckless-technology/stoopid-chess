@@ -6,7 +6,8 @@ namespace StoopidChess.Desktop.Dialogs;
 
 /// <summary>
 /// Asks which piece a pawn promotes to: a plate for each, the piece drawn on it. The choice is in
-/// <see cref="Choice"/> once the dialog closes; closing it any other way (Escape) promotes to a queen.
+/// <see cref="Choice"/> once the dialog closes; closing it any other way (Escape) leaves it
+/// <see cref="Piece.None"/>, which cancels the move.
 /// </summary>
 internal sealed class PromotionDialog : DialogView
 {
@@ -30,8 +31,8 @@ internal sealed class PromotionDialog : DialogView
         }
     }
 
-    /// <summary>The piece chosen.</summary>
-    public Piece Choice { get; private set; } = Piece.Queen;
+    /// <summary>The piece chosen, or <see cref="Piece.None"/> while none has been (the dialog was cancelled).</summary>
+    public Piece Choice { get; private set; } = Piece.None;
 
     /// <summary>The plates, in <see cref="PieceExtensions.PromotionTypes"/> order.</summary>
     public IReadOnlyList<PlateButton> Pieces => pieces;

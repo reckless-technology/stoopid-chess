@@ -411,6 +411,10 @@ internal sealed class MainView : View, IDisposable
             var dialog = new PromotionDialog(controller.HumanColor);
             await ShowDialogAsync(dialog);
             promotion = dialog.Choice;
+            if (promotion == Piece.None)
+            {
+                return;     // Escape cancels the move: nothing is promoted by default
+            }
         }
         controller.TryHumanMove(from, to, promotion);
     }

@@ -68,13 +68,18 @@ internal sealed class BoardView : View
     }
 
     /// <summary>
-    /// The square under a point in the board's coordinates (an edge square for a point beyond the squares).
+    /// The square under a point in the board's coordinates, or <see cref="Square.None"/> for a point beyond
+    /// the squares (the frame, or off the board: a piece dragged off the board is not dropped anywhere).
     /// </summary>
     public Square SquareAt(SKPoint location)
     {
         float size = SquareSize;
-        int x = Math.Clamp((int)MathF.Floor((location.X - Edge) / size), 0, 7);
-        int y = Math.Clamp((int)MathF.Floor((location.Y - Edge) / size), 0, 7);
+        int x = (int)MathF.Floor((location.X - Edge) / size);
+        int y = (int)MathF.Floor((location.Y - Edge) / size);
+        if (x is < 0 or > 7 || y is < 0 or > 7)
+        {
+            return Square.None;
+        }
         return Square.At(IsFlipped ? 7 - x : x, IsFlipped ? y : 7 - y);
     }
 
@@ -203,7 +208,7 @@ internal sealed class BoardView : View
             return false;
         }
         Square square = SquareAt(e.Position);
-        if (!controller.IsHumanTurn || controller.PieceAt(square).Color != controller.HumanColor)
+        if (square == Square.None || !controller.IsHumanTurn || controller.PieceAt(square).Color != controller.HumanColor)
         {
             return false;
         }
@@ -239,7 +244,7 @@ internal sealed class BoardView : View
             dragFrom = Square.None;
             dragTargets = Bitboard.Empty;
             Invalidate();
-            if (to != from)
+            if (to != Square.None && to != from)     // Dropped off the board: the move is cancelled
             {
                 MoveDropped?.Invoke(from, to);
             }
@@ -247,7 +252,11 @@ internal sealed class BoardView : View
         else if (e.Button == PointerButton.Right && Controller is { } controller
                  && !controller.IsThinking && !(controller.IsEngineTurn && controller.HumanColor != Color.None))
         {
-            EditRequested?.Invoke(SquareAt(e.Position), ToRoot(e.Position));
+            Square square = SquareAt(e.Position);
+            if (square != Square.None)
+            {
+                EditRequested?.Invoke(square, ToRoot(e.Position));
+            }
         }
     }
 }

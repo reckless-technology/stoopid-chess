@@ -26,17 +26,17 @@ public sealed class DialogTests : IDisposable
     private void Press(DialogView dialog, string text) => window.Click(dialog.Buttons.Single(button => button.Text == text));
 
     [Fact]
-    public void ThePromotionDialogReturnsThePiecePressedOrAQueen()
+    public void ThePromotionDialogReturnsThePiecePressedOrNothing()
     {
         PromotionDialog dialog = Open(new PromotionDialog(Color.Black));
-        Assert.Equal(Piece.Queen, dialog.Choice);
+        Assert.Equal(Piece.None, dialog.Choice);
         window.Click(dialog.Pieces[3]);
         Assert.Equal(Piece.Knight, dialog.Choice);
 
         PromotionDialog closed = Open(new PromotionDialog(Color.White));
         window.Key(Key.Escape);
         Assert.True(closed.IsClosed);
-        Assert.Equal(Piece.Queen, closed.Choice);
+        Assert.Equal(Piece.None, closed.Choice);
     }
 
     [Fact]

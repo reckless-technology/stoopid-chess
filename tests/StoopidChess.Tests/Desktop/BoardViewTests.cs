@@ -72,7 +72,27 @@ public class BoardViewTests
         Assert.Equal(Theme.LightSquare, rig.ColorOf("a8"));
         Assert.Equal(Theme.DarkSquare, rig.ColorOf("a1"));
         Assert.Equal(Theme.BoardEdge, rig.Window.ColorAt(0, 200));
-        Assert.Equal(Square.Parse("a1"), rig.Board.SquareAt(new SKPoint(-10, 500)));   // Beyond the squares: the edge one
+        Assert.Equal(Square.Parse("a1"), rig.Board.SquareAt(new SKPoint(Edge() + 1, Edge() + 399)));
+        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(-10, 500)));   // Beyond the squares: none
+        Assert.Equal(Square.None, rig.Board.SquareAt(new SKPoint(1, 1)));       // The frame is no square
+    }
+
+    private static float Edge() => BoardView.Edge;
+
+    [Fact]
+    public void ADragReleasedOffTheBoardIsCancelled()
+    {
+        // A rook dragged off the left edge along its rank used to land on a1 and be played
+        using GameController controller = Game("7k/8/8/8/8/8/8/4R2K w - - 0 1");
+        using var rig = new Rig(controller);
+        rig.Window.Move(rig.Centre("e1"));
+        rig.Window.Press(rig.Centre("e1"));
+        SKPoint offBoard = new(-30, rig.Centre("e1").Y);
+        rig.Window.Move(offBoard);
+        rig.Window.Release(offBoard);
+        Assert.Empty(rig.Dropped);
+        Assert.Equal(Square.None, rig.Board.DragFrom);
+        Assert.Empty(controller.Game.Moves);
     }
 
     [Fact]
