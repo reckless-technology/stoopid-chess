@@ -38,6 +38,7 @@ static int RunBench(int depth)
 static int RunPerft(int maxMillionNodes)
 {
     long budget = maxMillionNodes * 1_000_000L;
+    Attacks.Initialize();   // Not part of the time measured
     var stopwatch = Stopwatch.StartNew();
     long totalNodes = 0;
     int failures = 0;

@@ -28,7 +28,7 @@ public class MoveListTests
             seen.Add(move);
         }
         Assert.Equal([E2E4, G1F3], seen);
-        Assert.Equal([E2E4, G1F3], moves.ToList());       // Through IEnumerable<Move>, for LINQ
+        Assert.Equal([E2E4, G1F3], moves.ToArray());
         moves.Clear();
         Assert.Equal(0, moves.Count);
         Assert.Empty(moves.ToArray());

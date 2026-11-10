@@ -102,7 +102,7 @@ public class BoardTests
     public void PromotionReplacesThePawn()
     {
         var position = Position.FromFen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1");
-        List<Move> promotions = [.. position.GenerateLegalMoves().Where(m => m.From == Square.Parse("b7"))];
+        List<Move> promotions = [.. position.GenerateLegalMoves().ToArray().Where(m => m.From == Square.Parse("b7"))];
         Assert.Equal(4, promotions.Count);
         Move knight = promotions.Single(m => m.Promotion == Piece.Knight);
         position.MakeMove(knight);
@@ -237,7 +237,7 @@ public class BoardTests
             viaOtherOrder.MakeMove(FindMove(viaOtherOrder, uci)!.Value);
         }
         Assert.Equal(viaOneOrder.ToFen(), viaOtherOrder.ToFen());
-        Assert.Equal(viaOneOrder.GenerateLegalMoves(), viaOtherOrder.GenerateLegalMoves());
+        Assert.Equal(viaOneOrder.GenerateLegalMoves().ToArray(), viaOtherOrder.GenerateLegalMoves().ToArray());
     }
 
     [Fact]

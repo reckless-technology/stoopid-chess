@@ -14,7 +14,7 @@ public class PositionEditingTests
             edited.Place(square, reference[square]);
         }
         edited.SetCastlingRights(CastlingRights.All);
-        Assert.True(edited.IsLegal);
+        Assert.True(edited.IsValid);
         Assert.Equal(Position.StartFen, edited.ToFen());
         Assert.Equal(reference.Key, edited.Key);
         Assert.Equal(0, edited.Ply);
@@ -71,32 +71,32 @@ public class PositionEditingTests
     public void RecognisesIllegalPositions()
     {
         Position empty = Position.Empty();
-        Assert.False(empty.IsLegal);
+        Assert.False(empty.IsValid);
         Assert.Throws<ArgumentException>(() => new Game(empty));
 
         Position noBlackKing = Position.Setup(Position.Start());
         noBlackKing.Clear(Square.E8);
-        Assert.False(noBlackKing.IsLegal);
+        Assert.False(noBlackKing.IsValid);
 
         Position backRankPawn = Position.Setup(Position.Start());
         backRankPawn.Place(Square.A8, (Color.White, Piece.Pawn));
-        Assert.False(backRankPawn.IsLegal);
+        Assert.False(backRankPawn.IsValid);
         backRankPawn.Place(Square.A8, (Color.Black, Piece.Rook));
-        Assert.True(backRankPawn.IsLegal);
+        Assert.True(backRankPawn.IsValid);
 
         // White to move while the black king is already in check from a white rook
         Position checkedKing = Position.Empty();
         checkedKing.Place(Square.E8, (Color.Black, Piece.King));
         checkedKing.Place(Square.E1, (Color.White, Piece.King));
         checkedKing.Place(Square.Parse("e7"), (Color.White, Piece.Rook));
-        Assert.False(checkedKing.IsLegal);
+        Assert.False(checkedKing.IsValid);
         checkedKing.SetSideToMove(Color.Black);
-        Assert.True(checkedKing.IsLegal);
+        Assert.True(checkedKing.IsValid);
 
         Position adjacentKings = Position.Empty();
         adjacentKings.Place(Square.E8, (Color.Black, Piece.King));
         adjacentKings.Place(Square.Parse("e7"), (Color.White, Piece.King));
-        Assert.False(adjacentKings.IsLegal);
+        Assert.False(adjacentKings.IsValid);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class PositionEditingTests
         Position edited = Position.Setup(played);
         edited.Clear(Square.Parse("d8"));
         Assert.Equal(0, edited.Ply);
-        Assert.True(edited.IsLegal);
+        Assert.True(edited.IsValid);
     }
 
     [Fact]

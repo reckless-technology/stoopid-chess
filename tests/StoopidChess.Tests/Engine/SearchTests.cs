@@ -202,7 +202,7 @@ public class SearchTests
         Position replay = position.Clone();
         foreach (Move move in result.PrincipalVariation)
         {
-            Assert.Contains(move, replay.GenerateLegalMoves());
+            Assert.Contains(move, replay.GenerateLegalMoves().ToArray());
             replay.MakeMove(move);
         }
     }
@@ -285,6 +285,6 @@ internal static class BoardTestHelpers
 {
     public static Move Move(Position position, string uci)
     {
-        return position.GenerateLegalMoves().Single(m => m.ToUci() == uci);
+        return position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == uci);
     }
 }

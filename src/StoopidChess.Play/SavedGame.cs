@@ -85,7 +85,7 @@ public sealed class SavedGame
     /// </summary>
     public Game? ToGame()
     {
-        if (Fen.TryParse(StartFen) is not Position position || !position.IsLegal)
+        if (Fen.TryParse(StartFen) is not Position position || !position.IsValid)
         {
             return null;
         }

@@ -45,7 +45,7 @@ public class SanTests
     public void FormatsTheKnownCases(string fen, string uci, string expected)
     {
         var position = Position.FromFen(fen);
-        Move move = position.GenerateLegalMoves().Single(m => m.ToUci() == uci);
+        Move move = position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == uci);
         Assert.Equal(expected, San.Format(position, move));
     }
 

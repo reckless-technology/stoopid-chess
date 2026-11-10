@@ -610,7 +610,7 @@ public sealed class GameController : IDisposable
     private void ApplyEdit(Position editing)
     {
         CancelThinking(discardResult: true);
-        if (editing.IsLegal)
+        if (editing.IsValid)
         {
             Game = new Game(editing);
             Editing = null;

@@ -37,6 +37,12 @@ public static class Attacks
     private static readonly SliderAttacks RookAttacks = new(OrthogonalDirections, RookAttacksByWalking);
 
     /// <summary>
+    /// Build the tables now rather than on first use, so that their cost (mostly the magic search,
+    /// a few tens of milliseconds) is paid at start-up, not inside the first search or a timed run.
+    /// </summary>
+    public static void Initialize() => RuntimeHelpers.RunClassConstructor(typeof(Attacks).TypeHandle);
+
+    /// <summary>
     /// The squares a knight on the square attacks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -266,8 +272,10 @@ public static class Attacks
     /// </summary>
     private sealed class SliderAttacks
     {
-        // Stockfish's seeds for its own identical search, one per rank, restarting at every square. Any seed
-        // finds valid magics; these happen to find them about five times sooner than an arbitrary one.
+        // The random generator restarts at every square from its rank's seed. Any seeds find valid
+        // magics, and the same attack sets; these eight are Stockfish's, for the same search, and
+        // they find every magic in about 30 ms. The best single seed of 20,000 tried took three
+        // times as long, an arbitrary one six times.
         private static readonly ulong[] SeedByRank = [728, 10316, 55013, 32803, 12281, 15100, 16645, 255];
 
         private readonly Magic[] magics = new Magic[Square.Count];

@@ -30,14 +30,14 @@ public sealed class Game
 
     /// <summary>
     /// A game starting from the given position, which must be legal (see
-    /// <see cref="Position.IsLegal"/>) and must not have any moves made on it yet;
+    /// <see cref="Position.IsValid"/>) and must not have any moves made on it yet;
     /// use <see cref="MakeMove"/> to replay moves. The game owns the board from here on: make moves
     /// only through the game, or the move history will not match.
     /// </summary>
     public Game(Position position)
     {
         ArgumentNullException.ThrowIfNull(position);
-        if (!position.IsLegal)
+        if (!position.IsValid)
         {
             throw new ArgumentException("the position is not legal: each side needs one king and the side not to move may not be in check", nameof(position));
         }

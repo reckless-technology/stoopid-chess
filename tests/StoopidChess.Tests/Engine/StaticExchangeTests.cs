@@ -19,7 +19,7 @@ public class StaticExchangeTests
     public void ScoresTheExchange(string fen, string uci, int expected)
     {
         var position = Position.FromFen(fen);
-        Move move = position.GenerateLegalMoves().Single(m => m.ToUci() == uci);
+        Move move = position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == uci);
         Assert.Equal(expected, StaticExchange.Evaluate(position, move));
     }
 
@@ -29,7 +29,7 @@ public class StaticExchangeTests
         // Rook takes pawn; knight takes rook; the second rook, uncovered by the first, takes the knight:
         // white loses a rook, wins a pawn and a knight
         var position = Position.FromFen("4k3/4n3/8/3p4/8/8/3R4/3RK3 w - - 0 1");
-        Move move = position.GenerateLegalMoves().Single(m => m.ToUci() == "d2d5");
+        Move move = position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == "d2d5");
         Assert.Equal(Evaluator.PawnValue + Evaluator.KnightValue - Evaluator.RookValue, StaticExchange.Evaluate(position, move));
     }
 
@@ -43,7 +43,7 @@ public class StaticExchangeTests
         var move = new Move(Square.E1, Square.Parse("e2"), Piece.King, Piece.Pawn);
         Assert.True(StaticExchange.Evaluate(position, move) < 0);
         var safe = Position.FromFen("4k3/8/8/8/8/8/4p3/4K3 w - - 0 1");
-        Move capture = safe.GenerateLegalMoves().Single(m => m.ToUci() == "e1e2");
+        Move capture = safe.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == "e1e2");
         Assert.Equal(100, StaticExchange.Evaluate(safe, capture));
     }
 
@@ -51,7 +51,7 @@ public class StaticExchangeTests
     public void EnPassantCapturesThePawn()
     {
         var position = Position.FromFen("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 2");
-        Move move = position.GenerateLegalMoves().Single(m => m.ToUci() == "e5d6");
+        Move move = position.GenerateLegalMoves().ToArray().Single(m => m.ToUci() == "e5d6");
         Assert.Equal(100, StaticExchange.Evaluate(position, move));
     }
 }

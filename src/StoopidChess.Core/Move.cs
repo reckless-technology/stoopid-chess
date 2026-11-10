@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace StoopidChess.Core;
 
 /// <summary>
@@ -113,37 +111,5 @@ public readonly record struct Move
             }
         }
         return (from, to, promotion);
-    }
-
-    /// <summary>
-    /// Long algebraic notation for display: "e2-e4", "Ng1-f3", "e4xd5", "e5xd6 e.p.", "e7-e8=Q", "O-O".
-    /// </summary>
-    public string ToLongAlgebraic()
-    {
-        switch (Kind)
-        {
-            case MoveKind.CastleKingSide:
-                return "O-O";
-            case MoveKind.CastleQueenSide:
-                return "O-O-O";
-            default:
-                var text = new StringBuilder(12);
-                if (Piece != Piece.Pawn)
-                {
-                    text.Append(Piece.ToChar());
-                }
-                text.Append(From.Name);
-                text.Append(IsCapture ? 'x' : '-');
-                text.Append(To.Name);
-                if (IsPromotion)
-                {
-                    text.Append('=').Append(Promotion.ToChar());
-                }
-                if (Kind == MoveKind.EnPassant)
-                {
-                    text.Append(" e.p.");
-                }
-                return text.ToString();
-        }
     }
 }

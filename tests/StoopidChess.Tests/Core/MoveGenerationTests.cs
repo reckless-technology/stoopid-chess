@@ -51,10 +51,10 @@ public class MoveGenerationTests
         foreach (PerftPosition entry in Perft.StandardPositions)
         {
             var position = Position.FromFen(entry.Fen);
-            List<Move> expected = [.. position.GenerateLegalMoves().Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits())];
+            List<Move> expected = [.. position.GenerateLegalMoves().ToArray().Where(m => m.IsCapture || m.IsPromotion).OrderBy(m => m.ToBits())];
             MoveList captures = default;
             position.GenerateLegalCaptures(ref captures);
-            Assert.Equal(expected, [.. captures.OrderBy(m => m.ToBits())]);
+            Assert.Equal(expected, [.. captures.ToArray().OrderBy(m => m.ToBits())]);
         }
     }
 
@@ -113,7 +113,7 @@ public class MoveGenerationTests
     public void PinnedPiecesMoveOnlyAlongThePin()
     {
         var knight = Position.FromFen("k3r3/8/8/8/8/8/4N3/4K3 w - - 0 1");
-        Assert.DoesNotContain(knight.GenerateLegalMoves(), m => m.From == Square.Parse("e2"));
+        Assert.DoesNotContain(knight.GenerateLegalMoves().ToArray(), m => m.From == Square.Parse("e2"));
         var bishop = Position.FromFen("7q/8/8/8/3B4/8/8/K6k w - - 0 1");
         List<string> bishopMoves = [.. Uci(bishop).Where(m => m.StartsWith("d4", StringComparison.Ordinal)).Order()];
         Assert.Equal(["d4b2", "d4c3", "d4e5", "d4f6", "d4g7", "d4h8"], bishopMoves);
@@ -129,13 +129,13 @@ public class MoveGenerationTests
         Assert.Contains("e1e2", Uci(position));
     }
 
-    private static List<string> Uci(Position position) => [.. position.GenerateLegalMoves().Select(m => m.ToUci())];
+    private static List<string> Uci(Position position) => [.. position.GenerateLegalMoves().ToArray().Select(m => m.ToUci())];
 
     private static MoveList AssertMatchesReference(Position position)
     {
         MoveList moves = position.GenerateLegalMoves();
         List<Move> expected = ReferenceGenerator.LegalMoves(position);
-        Assert.Equal(expected.OrderBy(m => m.ToBits()), moves.OrderBy(m => m.ToBits()));
+        Assert.Equal(expected.OrderBy(m => m.ToBits()), moves.ToArray().OrderBy(m => m.ToBits()));
         Assert.Equal(ReferenceGenerator.IsAttacked(position, position.KingSquare(position.SideToMove), position.SideToMove.Opponent()), position.IsInCheck);
         return moves;
     }

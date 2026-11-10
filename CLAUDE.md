@@ -65,7 +65,7 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
    perft count changes, the move generator is wrong, not the reference. `MoveGenerationTests` also
    cross-checks the legal generator against a naive reference generator and pins the en passant,
-   pin and double-check special cases; `AttacksTests` checks the magic tables against ray walking
+   pin and double-check special cases; `AttacksTests` checks the magic tables (found by a seeded search at start-up) against ray walking
    and the `Bitboard` operations; `MoveListTests` covers the inline move list.
 2. **The search is deterministic and has a signature.** `Bench.Run(5)` must equal
    `BenchTests.Depth5Signature` (42,531 nodes; depth 6 is 79,698). Any change to search
@@ -184,7 +184,9 @@ only the things a change must not break.
   `ulong` sets appear in any public API, Play and the GUI included. There is no coloured-piece type; where a caller wants
   both, it is a `(Color Color, Piece Type)` tuple whose default is an empty square.
 - **`Position`'s editing methods** (`Empty`, `Setup`, `Place`, `Clear`, `SetSideToMove`, `SetCastlingRights`) work only
-  before a move is made; everything about a position, make/unmake included, lives in the one file `Position.cs`.
+  before a move is made. `Position` is one partial class in three files: `Position.cs` (the board, make/unmake),
+  `Position.MoveGeneration.cs` (the legal generator) and `Position.Editing.cs`. `Checkers` is worked out once per move
+  and kept in the undo record, so every mutator must leave it right.
 - **`Searcher` searches a clone** of the caller's position. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary; a draw scores 0. `Evaluator` is an instance with a 512 KB
   evaluation cache cleared by `ucinewgame`, and its weights are named constants (docs/EVALUATION.md).

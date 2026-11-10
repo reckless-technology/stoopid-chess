@@ -26,18 +26,15 @@ public class NotationTests
     }
 
     [Fact]
-    public void WritesUciAndLongAlgebraic()
+    public void WritesUci()
     {
         var position = Position.FromFen("r3k2r/1P2p3/8/3pP3/8/8/8/R3K2R w KQkq d6 0 1");
-        var moves = position.GenerateLegalMoves().ToDictionary(m => m.ToUci());
-        Assert.Equal("O-O", moves["e1g1"].ToLongAlgebraic());
-        Assert.Equal("O-O-O", moves["e1c1"].ToLongAlgebraic());
-        Assert.Equal("e5xd6 e.p.", moves["e5d6"].ToLongAlgebraic());
-        Assert.Equal("b7xa8=Q", moves["b7a8q"].ToLongAlgebraic());
-        Assert.Equal("b7-b8=N", moves["b7b8n"].ToLongAlgebraic());
-        Assert.Equal("Ra1-b1", moves["a1b1"].ToLongAlgebraic());
-        Assert.Equal("Ke1-d2", moves["e1d2"].ToLongAlgebraic());
-        Assert.Equal("e5-e6", moves["e5e6"].ToLongAlgebraic());
+        var moves = position.GenerateLegalMoves().ToArray().ToDictionary(m => m.ToUci());
+        Assert.Equal(MoveKind.CastleKingSide, moves["e1g1"].Kind);
+        Assert.Equal(MoveKind.CastleQueenSide, moves["e1c1"].Kind);
+        Assert.Equal(MoveKind.EnPassant, moves["e5d6"].Kind);
+        Assert.Equal(Piece.Queen, moves["b7a8q"].Promotion);
+        Assert.Equal(Piece.Knight, moves["b7b8n"].Promotion);
         Assert.Equal("0000", Move.None.ToString());
     }
 

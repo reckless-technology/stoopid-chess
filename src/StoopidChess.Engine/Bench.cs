@@ -38,6 +38,7 @@ public static class Bench
     {
         var table = new TranspositionTable(TableSizeInMegabytes);
         var searcher = new Searcher(table);
+        Attacks.Initialize();   // Not part of the time measured
         var stopwatch = Stopwatch.StartNew();
         long totalNodes = 0;
         for (int i = 0; i < Positions.Count; i++)

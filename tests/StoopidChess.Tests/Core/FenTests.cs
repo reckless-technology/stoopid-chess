@@ -58,16 +58,16 @@ public class FenTests
     }
 
     [Fact]
-    public void HugeClockValuesAreClampedNotOverflowed()
+    public void ClocksAreReadAsGivenAndNumbersBeyondAnIntAreRejected()
     {
-        var position = Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 2147483647 99999999999");
-        Assert.Equal(Position.MaxHalfMoveClock, position.HalfMoveClock);
-        Assert.Equal(int.MaxValue, position.FullMoveNumber);
+        var position = Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 150 9999");
+        Assert.Equal(150, position.HalfMoveClock);
+        Assert.Equal(9999, position.FullMoveNumber);
         var game = new Game(position);
         Assert.True(game.TryMakeMove("g1f3"));
         Assert.Equal(GameStatus.DrawByFiftyMoveRule, game.Status);
-        Assert.Equal(Position.MaxHalfMoveClock, game.Position.HalfMoveClock);
-        Assert.Equal(position.ToFen(), Position.FromFen(position.ToFen()).ToFen());
+        Assert.Equal(151, game.Position.HalfMoveClock);
+        Assert.Null(Fen.TryParse("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 99999999999"));
     }
 
     [Fact]

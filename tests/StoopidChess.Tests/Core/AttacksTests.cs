@@ -16,7 +16,7 @@ public class AttacksTests
         Assert.Equal(Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("f3")), Attacks.Pawn(Color.Black, Square.Parse("e4")));
         Assert.Equal(Bitboard.Of(Square.Parse("b2")), Attacks.Pawn(Color.White, Square.A1));   // No wrap around the edge
         Assert.Equal(Bitboard.Of(Square.Parse("g7")), Attacks.Pawn(Color.Black, Square.H8));
-        Assert.Equal(Bitboard.Rank3 & (Bitboard.FileA | Bitboard.FileC | Bitboard.FileG), Attacks.Pawns(Color.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH)));
+        Assert.Equal(Bitboard.Rank3 & (Bitboard.FileA | Bitboard.OfFile(2) | Bitboard.OfFile(6)), Attacks.Pawns(Color.White, Bitboard.Rank2 & (Bitboard.FileB | Bitboard.FileH)));
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public class AttacksTests
         Assert.Equal(Bitboard.Empty, Attacks.Between(a1, Square.Parse("b1")));       // Adjacent
         Assert.Equal(Bitboard.Empty, Attacks.Between(e4, e4));
         Assert.Equal(Bitboard.Rank4, Attacks.Line(e4, Square.Parse("a4")));
-        Assert.Equal(Bitboard.FileE, Attacks.Line(e4, Square.Parse("e8")));
+        Assert.Equal(Bitboard.OfFile(4), Attacks.Line(e4, Square.Parse("e8")));
         Assert.Equal(8, Attacks.Line(a1, Square.Parse("e5")).Count);
         Assert.Equal(Bitboard.Empty, Attacks.Line(a1, e4));
         Assert.Equal(Bitboard.Empty, Attacks.Line(a1, Square.Parse("c2")));
@@ -106,19 +106,15 @@ public class AttacksTests
         Assert.Equal(Bitboard.Rank3, Bitboard.Rank2.Forward(Color.White));
         Assert.Equal(Bitboard.Rank1, Bitboard.Rank2.Forward(Color.Black));
         Assert.Equal(32, Bitboard.LightSquares.Count);
-        Assert.Equal(Bitboard.Full, Bitboard.LightSquares | Bitboard.DarkSquares);
-        Assert.Equal(Bitboard.Empty, Bitboard.LightSquares & Bitboard.DarkSquares);
-        Assert.Equal(~Bitboard.LightSquares, Bitboard.DarkSquares);
         Assert.False(Bitboard.LightSquares.Contains(Square.A1));
         Assert.True(Bitboard.LightSquares.Contains(Square.H1));
         Assert.False(Square.A1.IsLight);
         Assert.True(Square.H1.IsLight);
         Assert.Equal(Bitboard.Rank5, Bitboard.OfRank(4));
-        Assert.Equal(Bitboard.FileD, Bitboard.OfFile(3));
+        Assert.Equal(Bitboard.FileA.East().East().East(), Bitboard.OfFile(3));
         Assert.Equal(0xFFUL, Bitboard.Rank1.Value);
         Assert.Equal(0xFFUL, (ulong)Bitboard.Rank1);
         Assert.Equal("0x00000000000000FF", Bitboard.Rank1.ToString());
-        Assert.StartsWith(".......1\n", Bitboard.Of(Square.H8).ToDiagram(), StringComparison.Ordinal);
     }
 
     private static List<Square> Enumerate(Bitboard bits)

@@ -104,7 +104,7 @@ public static class Pgn
             }
         }
 
-        if (Fen.TryParse(startFen) is not Position start || !start.IsLegal)
+        if (Fen.TryParse(startFen) is not Position start || !start.IsValid)
         {
             return null;
         }

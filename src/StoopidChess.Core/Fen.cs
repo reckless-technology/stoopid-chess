@@ -62,6 +62,7 @@ public static class Fen
         // have identical keys whichever way they were reached
         position.SetEnPassantSquare(enPassant.IsValid && position.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
         position.SetClocks(halfMoveClock, fullMoveNumber);
+        position.UpdateCheckers();
         return position;
     }
 
@@ -195,11 +196,6 @@ public static class Fen
 
     private static int ParseNumber(string field, string name)
     {
-        // Digits only; anything beyond the board's clock cap is clamped rather than rejected
-        if (field.Length > 9 && field.All(char.IsAsciiDigit))
-        {
-            return int.MaxValue;
-        }
         return int.TryParse(field, NumberStyles.None, CultureInfo.InvariantCulture, out int value)
             ? value
             : throw new FormatException($"invalid {name} '{field}'");

@@ -26,8 +26,8 @@ In this order, each file standing on the one before:
 
 1. `Core/Square.cs`, `Bitboard.cs`, `Move.cs`: the value types everything is written in. A square is its bit number
    (a1 = 0 to h8 = 63), a set of squares is a `ulong`.
-2. `Core/Position.cs` with `Attacks.cs`: the board, make and unmake, and legal move generation ([BITBOARDS.md](BITBOARDS.md)
-   explains the design). Then `Game.cs`, which adds move history and "is it over?".
+2. `Core/Position.cs` with `Attacks.cs`: the board, make and unmake; then `Position.MoveGeneration.cs`, legal move
+   generation ([BITBOARDS.md](BITBOARDS.md) explains the design). Then `Game.cs`, which adds move history and "is it over?".
 3. `Engine/Evaluator.cs` ([EVALUATION.md](EVALUATION.md) says what each term is worth) and `Engine/Searcher.cs`.
 4. `Engine/Uci/UciSession.cs`: the engine side of the UCI protocol.
 5. `Play/UciEngineClient.cs`: the GUI side of the same protocol.

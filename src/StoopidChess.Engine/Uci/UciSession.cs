@@ -36,6 +36,7 @@ public sealed class UciSession : IDisposable
         this.input = input ?? throw new ArgumentNullException(nameof(input));
         this.output = output ?? throw new ArgumentNullException(nameof(output));
         searcher = new Searcher(table);
+        Attacks.Initialize();   // Before "uciok", so that the first search does not pay for it
     }
 
     public static string EngineVersion { get; } =
@@ -173,7 +174,7 @@ public sealed class UciSession : IDisposable
                 WriteLine($"info string invalid fen '{fen}'");
                 return;
             }
-            if (!parsed.IsLegal)
+            if (!parsed.IsValid)
             {
                 WriteLine($"info string illegal position '{fen}'");
                 return;

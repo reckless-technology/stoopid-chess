@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -11,7 +10,7 @@ namespace StoopidChess.Core;
 /// perft one per depth, and generating into one allocates nothing. Pass it by <c>ref</c>; a copy
 /// copies every move. It enumerates as a span for <c>foreach</c> and as a sequence for LINQ.
 /// </summary>
-public struct MoveList : IEnumerable<Move>
+public struct MoveList
 {
     /// <summary>
     /// More than the 218 moves of the most mobile known position.
@@ -74,10 +73,6 @@ public struct MoveList : IEnumerable<Move>
         }
         return array;
     }
-
-    readonly IEnumerator<Move> IEnumerable<Move>.GetEnumerator() => ((IEnumerable<Move>)ToArray()).GetEnumerator();
-
-    readonly IEnumerator IEnumerable.GetEnumerator() => ToArray().GetEnumerator();
 
     [InlineArray(Capacity)]
     private struct Buffer

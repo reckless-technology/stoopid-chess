@@ -161,7 +161,7 @@ public class UciSessionTests
         Assert.StartsWith("bestmove ", best, StringComparison.Ordinal);
         var position = Position.Start();
         position.MakeMove(BoardTestHelpers.Move(position, "e2e4"));
-        Assert.Contains(position.GenerateLegalMoves(), m => m.ToUci() == best.Split(' ')[1]);
+        Assert.Contains(position.GenerateLegalMoves().ToArray(), m => m.ToUci() == best.Split(' ')[1]);
     }
 
     [Fact]

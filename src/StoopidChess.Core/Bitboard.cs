@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace StoopidChess.Core;
 
@@ -43,15 +42,7 @@ public readonly record struct Bitboard
 
     public static Bitboard FileB => new(FileAMask << 1);
 
-    public static Bitboard FileC => new(FileAMask << 2);
-
-    public static Bitboard FileD => new(FileAMask << 3);
-
-    public static Bitboard FileE => new(FileAMask << 4);
-
     public static Bitboard FileF => new(FileAMask << 5);
-
-    public static Bitboard FileG => new(FileAMask << 6);
 
     public static Bitboard FileH => new(FileHMask);
 
@@ -72,8 +63,6 @@ public readonly record struct Bitboard
     public static Bitboard Rank8 => new(0xFFUL << 56);
 
     public static Bitboard LightSquares => new(0x55AA55AA55AA55AAUL);
-
-    public static Bitboard DarkSquares => new(~0x55AA55AA55AA55AAUL);
 
     /// <summary>
     /// The raw bits, for hashing and table lookups.
@@ -103,11 +92,6 @@ public readonly record struct Bitboard
     /// The highest square in the set (an invalid square for the empty set).
     /// </summary>
     public Square Last => Square.Unchecked(63 - BitOperations.LeadingZeroCount(bits));
-
-    /// <summary>
-    /// The set without its lowest square.
-    /// </summary>
-    public Bitboard WithoutFirst => new(bits & (bits - 1));
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Square square) => (bits & (1UL << square.Index)) != 0;
@@ -168,23 +152,6 @@ public readonly record struct Bitboard
     public Enumerator GetEnumerator() => new(bits);
 
     public override string ToString() => $"0x{bits:X16}";
-
-    /// <summary>
-    /// Text rendering for debugging: rank 8 at the top, '1' for squares in the set.
-    /// </summary>
-    public string ToDiagram()
-    {
-        var text = new StringBuilder(72);
-        for (int rank = 7; rank >= 0; rank--)
-        {
-            for (int file = 0; file < 8; file++)
-            {
-                text.Append(Contains(Square.At(file, rank)) ? '1' : '.');
-            }
-            text.Append('\n');
-        }
-        return text.ToString();
-    }
 
     /// <summary>
     /// Yields the squares of a set from the lowest up, clearing one bit per step.
