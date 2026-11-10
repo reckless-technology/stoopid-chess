@@ -58,8 +58,8 @@ public static class Fen
 
         position.SwitchSideToMove(sideToMove);
         position.ApplyCastlingRights(rights);
-        // An en passant square nobody can capture on is dropped, so that FIDE-identical positions
-        // have identical keys whichever way they were reached
+        // An en passant square no pawn stands ready to capture on is dropped, as make does, so that
+        // the key is the same whichever way the position was reached
         position.SetEnPassantSquare(enPassant.IsValid && position.IsAttackedByPawn(enPassant, sideToMove) ? enPassant : Square.None);
         position.SetClocks(halfMoveClock, fullMoveNumber);
         position.UpdateCheckers();

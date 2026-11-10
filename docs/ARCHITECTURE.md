@@ -91,7 +91,7 @@ cancels the search; the late reply is recognised as stale and dropped.
 
 `Searcher` owns the per-search state (killer moves, history tables, a move list per ply) and searches a clone of the
 caller's position. Mate scores are `±(MateScore - ply)`, converted to node-relative form across the transposition table.
-`SearchLimits` mirrors UCI's `go`, and `SearchLimits.TimeBudget` is the time manager: it shares the clock over the moves to
+`SearchLimits` mirrors UCI's `go`, and `SearchLimits.TimeAllocation` is the time manager: it shares the clock over the moves to
 go, adds most of the increment and never spends more than most of what is left. `TranspositionTable` has two tiers of
 16-byte entries, each verified by the full 64-bit key. `Evaluator` starts from the Simplified Evaluation Function and keeps
 a small cache of scores. `Bench` is the fixed set of positions behind the node-count signature that a test asserts: the

@@ -6,7 +6,7 @@ namespace StoopidChess.Tests.Core;
 /// The legal move generator against a deliberately naive reference: ray walking on the square
 /// array, every pseudo-legal move made and tested for leaving the king attacked, then unmade. The
 /// reference shares nothing with the bitboard generator except <see cref="Position"/>'s make and
-/// unmake, which the key oracle in <see cref="BoardTests"/> covers.
+/// unmake, which the key oracle in <see cref="PositionTests"/> covers.
 /// </summary>
 public class MoveGenerationTests
 {

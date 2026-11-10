@@ -40,9 +40,10 @@ public sealed class Searcher
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
-    // The heuristic tables are flat arrays with hand-rolled indexing: multi-dimensional array
-    // accesses go through a runtime helper on some shapes, which showed in the profile.
-    private readonly Move[] killers = new Move[(MaxPly + 1) * 2];   // [2 * ply] and [2 * ply + 1]
+    // The history tables are flat arrays with hand-rolled indexing (HistoryIndex and the others
+    // below): multi-dimensional array accesses go through a runtime helper on some shapes, which
+    // showed in the profile.
+    private readonly Killers[] killers = new Killers[MaxPly + 1];   // The two most recent quiet cutoff moves at each ply
     private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
     private readonly Move[] counterMoves = new Move[7 * Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
     private readonly int[] continuationHistory = new int[7 * Square.Count * 7 * Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
@@ -50,7 +51,7 @@ public sealed class Searcher
     private readonly Stopwatch stopwatch = new();
 
     private Position position = Position.Start();
-    private SearchStatistics statistics = new();
+    private long nodes;   // Searched in this search: main search and quiescence nodes alike
     private CancellationToken cancellation;
     private TimeSpan? timeBudget;
     private TimeSpan? timeCap;
@@ -62,11 +63,6 @@ public sealed class Searcher
         ArgumentNullException.ThrowIfNull(table);
         this.table = table;
     }
-
-    /// <summary>
-    /// Statistics of the most recent search.
-    /// </summary>
-    public SearchStatistics Statistics => statistics;
 
     public static bool IsMateScore(int score) => Math.Abs(score) >= MateThreshold;
 
@@ -83,7 +79,7 @@ public sealed class Searcher
     /// <summary>
     /// Search the position. The caller's board is copied and left untouched.
     /// </summary>
-    /// <param name="position">The position to search, including its move history for repetition detection.</param>
+    /// <param name="root">The position to search, including its move history for repetition detection.</param>
     /// <param name="limits">When to stop.</param>
     /// <param name="onProgress">Called after each completed depth.</param>
     /// <param name="cancellationToken">Stops the search early (the UCI "stop" command); the best move so far is returned.</param>
@@ -93,10 +89,11 @@ public sealed class Searcher
         ArgumentNullException.ThrowIfNull(limits);
 
         position = root.Clone();
-        statistics = new SearchStatistics();
+        nodes = 0;
         cancellation = cancellationToken;
-        timeBudget = limits.TimeBudget(position.SideToMove);
-        timeCap = limits.TimeCap(position.SideToMove);
+        (TimeSpan Budget, TimeSpan Cap)? allocation = limits.TimeAllocation(position.SideToMove);
+        timeBudget = allocation?.Budget;
+        timeCap = allocation?.Cap;
         bool extended = false;
         nodeLimit = limits.Infinite ? null : limits.Nodes;
         stopped = false;
@@ -145,7 +142,7 @@ public sealed class Searcher
             bestScore = score;
             completedDepth = depth;
             principalVariation = ExtractPrincipalVariation(bestMove, depth);
-            onProgress?.Invoke(new SearchResult(depth, score, statistics.Nodes, stopwatch.Elapsed, principalVariation));
+            onProgress?.Invoke(new SearchResult(depth, score, nodes, stopwatch.Elapsed, principalVariation));
 
             if (IsMateScore(score) && MateScore - Math.Abs(score) <= depth && !limits.Infinite && limits.Depth is null)
             {
@@ -158,7 +155,7 @@ public sealed class Searcher
         }
 
         stopwatch.Stop();
-        return new SearchResult(completedDepth, bestScore, statistics.Nodes, stopwatch.Elapsed, principalVariation);
+        return new SearchResult(completedDepth, bestScore, nodes, stopwatch.Elapsed, principalVariation);
     }
 
     /// <summary>
@@ -260,7 +257,7 @@ public sealed class Searcher
     private int AlphaBeta(int alpha, int beta, int depth, int ply)
     {
         Debug.Assert(alpha < beta, "alpha must be below beta");
-        statistics.Nodes++;
+        nodes++;
         CheckLimits();
         if (stopped)
         {
@@ -285,10 +282,8 @@ public sealed class Searcher
         }
 
         bool inCheck = position.IsInCheck;
-        // The fifty-move rule draws the game unless this is checkmate, so when in check it is
-        // applied only once a legal move has been found
-        bool fiftyMoveRule = position.HalfMoveClock >= 100;
-        if (fiftyMoveRule && !inCheck)
+        // The fifty-move rule: a draw, unless the move that reached the hundredth half-move mated
+        if (position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
@@ -298,7 +293,7 @@ public sealed class Searcher
         }
         if (depth <= 0)
         {
-            depth = 1;      // Check extension: never evaluate a position statically while in check
+            depth = 1;      // In check at the horizon: search every reply rather than stand pat in quiescence
         }
 
         if (TryTableCutoff(alpha, beta, depth, ply, out Move tableMove, out int tableScore))
@@ -321,7 +316,6 @@ public sealed class Searcher
         if (depth <= ReverseFutilityMaxDepth && !inCheck && !pvNode && beta < MateThreshold
             && staticEval - (ReverseFutilityMargin * depth) >= beta)
         {
-            statistics.ReverseFutilityCutoffs++;
             return staticEval;
         }
 
@@ -338,7 +332,6 @@ public sealed class Searcher
             }
             if (razorScore <= alpha)
             {
-                statistics.RazoringCutoffs++;
                 return razorScore;
             }
         }
@@ -360,7 +353,6 @@ public sealed class Searcher
             }
             if (nullScore >= beta)
             {
-                statistics.NullMoveCutoffs++;
                 return nullScore >= MateThreshold ? beta : nullScore;   // A mate found after a null move is not trusted
             }
         }
@@ -376,10 +368,6 @@ public sealed class Searcher
         // the full 64-bit key, so a collision is beyond unlikely.
         if (!tableMove.IsNone)
         {
-            if (fiftyMoveRule)
-            {
-                return DrawScore;   // In check, but the table move proves a legal reply exists
-            }
             moveNumber = 1;
             position.MakeMove(tableMove);
             table.Prefetch(position.Key);
@@ -407,10 +395,6 @@ public sealed class Searcher
         {
             return inCheck ? -MateScore + ply : DrawScore;
         }
-        if (fiftyMoveRule)
-        {
-            return DrawScore;   // In check but not mated: the fifty-move rule stands
-        }
         OrderMoves(ref moves, ply, tableMove);
 
         foreach (Move move in moves)
@@ -424,7 +408,6 @@ public sealed class Searcher
             // so unlikely to beat the moves already searched that they are skipped altogether
             if (depth <= LateMovePruningMaxDepth && !pvNode && !inCheck && moveNumber > LateMovePruningBase + (depth * depth) && IsReducible(move, ply))
             {
-                statistics.PrunedMoves++;
                 continue;
             }
             position.MakeMove(move);
@@ -464,8 +447,7 @@ public sealed class Searcher
     /// </summary>
     private int Quiescence(int alpha, int beta, int ply)
     {
-        statistics.Nodes++;
-        statistics.QuiescenceNodes++;
+        nodes++;
         CheckLimits();
         if (stopped)
         {
@@ -477,8 +459,12 @@ public sealed class Searcher
         }
 
         bool inCheck = position.IsInCheck;
-        bool fiftyMoveRule = position.HalfMoveClock >= 100;
-        if (!inCheck && (fiftyMoveRule || position.RepetitionCount() >= 1 || position.IsInsufficientMaterial()))
+        // The fifty-move rule, as in the main search
+        if (position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
+        {
+            return DrawScore;
+        }
+        if (!inCheck && (position.RepetitionCount() >= 1 || position.IsInsufficientMaterial()))
         {
             return DrawScore;
         }
@@ -512,10 +498,6 @@ public sealed class Searcher
             {
                 return -MateScore + ply;
             }
-            if (fiftyMoveRule)
-            {
-                return DrawScore;   // In check but not mated
-            }
         }
         else
         {
@@ -528,7 +510,6 @@ public sealed class Searcher
             // A capture that the exchange evaluation says loses material is not worth searching
             if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(position, move) < 0)
             {
-                statistics.PrunedMoves++;
                 continue;
             }
             position.MakeMove(move);
@@ -546,7 +527,6 @@ public sealed class Searcher
             }
             if (score >= beta)
             {
-                statistics.BetaCutoffs++;
                 table.Store(position.Key, move, ScoreToTable(score, ply), 0, NodeType.LowerBound);
                 return score;
             }
@@ -583,14 +563,27 @@ public sealed class Searcher
             _ => false,
         };
         score = tableScore;
-        if (cutoff)
-        {
-            statistics.TranspositionCutoffs++;
-        }
         return cutoff;
     }
 
     private int Evaluate() => evaluator.Evaluate(position);
+
+    /// <summary>
+    /// The static evaluation of a position by this searcher's evaluator, for the UCI "eval" command.
+    /// </summary>
+    public int Evaluate(Position position) => evaluator.Evaluate(position);
+
+    /// <summary>
+    /// Does the side to move have a legal move? Generated into the ply's move list, which the node
+    /// fills again before it uses it.
+    /// </summary>
+    private bool HasLegalMove(int ply)
+    {
+        ref MoveList moves = ref moveLists[ply];
+        moves.Clear();
+        position.GenerateLegalMoves(ref moves);
+        return moves.Count > 0;
+    }
 
     /// <summary>
     /// Forget what was learnt in the previous game: the evaluation cache.
@@ -606,12 +599,12 @@ public sealed class Searcher
         {
             return;
         }
-        if (nodeLimit is not null && statistics.Nodes >= nodeLimit.Value)
+        if (nodeLimit is not null && nodes >= nodeLimit.Value)
         {
             stopped = true;
             return;
         }
-        if (statistics.Nodes % NodesBetweenTimeChecks == 0
+        if (nodes % NodesBetweenTimeChecks == 0
             && (cancellation.IsCancellationRequested || (timeBudget is not null && stopwatch.Elapsed >= timeBudget.Value)))
         {
             stopped = true;
@@ -681,11 +674,11 @@ public sealed class Searcher
         {
             return score;
         }
-        if (move == killers[2 * ply])
+        if (move == killers[ply].First)
         {
             return 90_000;
         }
-        if (move == killers[(2 * ply) + 1])
+        if (move == killers[ply].Second)
         {
             return 80_000;
         }
@@ -706,7 +699,7 @@ public sealed class Searcher
     /// </summary>
     private bool IsReducible(Move move, int ply)
     {
-        return !move.IsCapture && !move.IsPromotion && move != killers[2 * ply] && move != killers[(2 * ply) + 1] && move != counterAtPly[ply];
+        return !move.IsCapture && !move.IsPromotion && move != killers[ply].First && move != killers[ply].Second && move != counterAtPly[ply];
     }
 
     /// <summary>
@@ -720,12 +713,11 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// The bookkeeping of a fail-high: count it, and remember a quiet cutoff move in the killer,
-    /// history, countermove and continuation tables.
+    /// The bookkeeping of a fail-high: remember a quiet cutoff move in the killer, history,
+    /// countermove and continuation tables.
     /// </summary>
     private void RecordCutoff(Move move, int ply, int depth)
     {
-        statistics.BetaCutoffs++;
         if (move.IsCapture)
         {
             return;
@@ -742,10 +734,9 @@ public sealed class Searcher
 
     private void RecordKiller(int ply, Move move)
     {
-        if (killers[2 * ply] != move)
+        if (killers[ply].First != move)
         {
-            killers[(2 * ply) + 1] = killers[2 * ply];
-            killers[2 * ply] = move;
+            killers[ply] = new Killers(move, killers[ply].First);
         }
     }
 
@@ -812,4 +803,9 @@ public sealed class Searcher
         }
         return line;
     }
+
+    /// <summary>
+    /// The killer moves of one ply: the last quiet move to cause a cutoff there, and the one before.
+    /// </summary>
+    private readonly record struct Killers(Move First, Move Second);
 }

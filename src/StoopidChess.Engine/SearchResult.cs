@@ -28,23 +28,3 @@ public sealed record SearchResult(int Depth, int Score, long Nodes, TimeSpan Ela
     /// </summary>
     public static long Rate(long nodes, TimeSpan elapsed) => elapsed > TimeSpan.Zero ? (long)(nodes / elapsed.TotalSeconds) : 0;
 }
-
-/// <summary>
-/// Counters describing the work done by a search, for diagnostics and tuning.
-/// </summary>
-public sealed class SearchStatistics
-{
-    public long Nodes { get; internal set; }
-    public long QuiescenceNodes { get; internal set; }
-    public long TranspositionCutoffs { get; internal set; }
-    public long BetaCutoffs { get; internal set; }
-    public long NullMoveCutoffs { get; internal set; }
-    public long ReverseFutilityCutoffs { get; internal set; }
-    public long RazoringCutoffs { get; internal set; }
-    public long PrunedMoves { get; internal set; }
-
-    public override string ToString()
-    {
-        return $"nodes {Nodes} qnodes {QuiescenceNodes} ttcuts {TranspositionCutoffs} betacuts {BetaCutoffs} nullcuts {NullMoveCutoffs} rfpcuts {ReverseFutilityCutoffs} razorcuts {RazoringCutoffs} pruned {PrunedMoves}";
-    }
-}

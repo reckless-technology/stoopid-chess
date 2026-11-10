@@ -12,7 +12,7 @@ public sealed record SearchLimits
     /// <summary>Stop after completing this many plies of iterative deepening.</summary>
     public int? Depth { get; init; }
 
-    /// <summary>Spend exactly this long on the move.</summary>
+    /// <summary>Think for at most this long: no new iteration starts after half of it, and the one running stops when it is up.</summary>
     public TimeSpan? MoveTime { get; init; }
 
     /// <summary>Stop after roughly this many nodes.</summary>
@@ -45,20 +45,22 @@ public sealed record SearchLimits
     public static SearchLimits ForMoveTime(TimeSpan time) => new() { MoveTime = time };
 
     /// <summary>
-    /// How long the side to move should think, or null when the search is not time limited.
-    /// Clock time is shared out over the moves to go (assumed to be 30 when not given) with most of
-    /// the increment added, less a small allowance for communication overhead, and never more than
-    /// most of the clock.
+    /// How long the side to move should think (the budget), and the most a move may take when the
+    /// search is extended (the cap), or null when the search is not time limited. A fixed move time
+    /// is both. On a clock, the time left is shared out over the moves to go (assumed to be 20 when
+    /// not given) with most of the increment added; the cap is most of the clock, so that a move
+    /// never flags, and the budget never exceeds it. Both lose a small allowance for communication
+    /// overhead.
     /// </summary>
-    public TimeSpan? TimeBudget(Color sideToMove)
+    public (TimeSpan Budget, TimeSpan Cap)? TimeAllocation(Color sideToMove)
     {
         if (Infinite)
         {
             return null;
         }
-        if (MoveTime is not null)
+        if (MoveTime is TimeSpan moveTime)
         {
-            return MoveTime;
+            return (moveTime, moveTime);
         }
         TimeSpan? remaining = sideToMove == Color.White ? WhiteTime : BlackTime;
         if (remaining is null)
@@ -68,37 +70,16 @@ public sealed record SearchLimits
         TimeSpan clock = AtLeastZero(remaining.Value);
         TimeSpan increment = AtLeastZero((sideToMove == Color.White ? WhiteIncrement : BlackIncrement) ?? TimeSpan.Zero);
         int movesToGo = MovesToGo is > 0 ? MovesToGo.Value : 20;
+        TimeSpan mostOfTheClock = clock * 0.8;
         TimeSpan budget = (clock / movesToGo) + (increment * 0.8);
-        TimeSpan cap = clock * 0.8;
-        if (budget > cap)
+        if (budget > mostOfTheClock)
         {
-            budget = cap;
+            budget = mostOfTheClock;
         }
-        budget -= MoveOverhead;
-        return budget < MinimumThinkingTime ? MinimumThinkingTime : budget;
+        return (AtLeastMinimum(budget - MoveOverhead), AtLeastMinimum(mostOfTheClock - MoveOverhead));
     }
 
-    /// <summary>
-    /// The most a single move may take when the search is extended: most of the clock, so that it never flags.
-    /// </summary>
-    public TimeSpan? TimeCap(Color sideToMove)
-    {
-        if (Infinite)
-        {
-            return null;
-        }
-        if (MoveTime is not null)
-        {
-            return MoveTime;
-        }
-        TimeSpan? remaining = sideToMove == Color.White ? WhiteTime : BlackTime;
-        if (remaining is null)
-        {
-            return null;
-        }
-        TimeSpan cap = (AtLeastZero(remaining.Value) * 0.8) - MoveOverhead;
-        return cap < MinimumThinkingTime ? MinimumThinkingTime : cap;
-    }
+    private static TimeSpan AtLeastMinimum(TimeSpan time) => time < MinimumThinkingTime ? MinimumThinkingTime : time;
 
     private static TimeSpan AtLeastZero(TimeSpan time) => time < TimeSpan.Zero ? TimeSpan.Zero : time;
 }

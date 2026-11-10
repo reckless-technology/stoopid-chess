@@ -390,8 +390,10 @@ public sealed partial class Position
 
     /// <summary>
     /// Does a pawn of the given color attack the square? Also decides whether an en passant square
-    /// is worth recording: only if a pawn could actually capture there, so that positions that are
-    /// identical under the rules have identical keys.
+    /// is worth recording: only if an enemy pawn stands ready to capture there. A double push no
+    /// pawn can answer then leaves the same key as any other move to that position, which is what
+    /// repetition detection needs. (A capture that a pin would forbid still records the square, so
+    /// keys match in nearly every case the rules call identical, not quite all.)
     /// </summary>
     internal bool IsAttackedByPawn(Square square, Color by) => (Attacks.Pawn(by.Opponent(), square) & Pieces(by, Piece.Pawn)).IsNotEmpty;
 

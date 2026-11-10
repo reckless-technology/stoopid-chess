@@ -2,7 +2,7 @@ using StoopidChess.Core;
 
 namespace StoopidChess.Tests.Core;
 
-public class BoardTests
+public class PositionTests
 {
     [Fact]
     public void KeysAreMaintainedIncrementallyThroughRandomPlay()

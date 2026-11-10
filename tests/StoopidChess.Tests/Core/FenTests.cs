@@ -38,21 +38,21 @@ public class FenTests
         Assert.Equal(Position.FromFen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2").Key, dropped.Key);
         // The same applies to double pushes made on the board
         var position = Position.Start();
-        position.MakeMove(BoardTests.FindMove(position, "e2e4")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "e2e4")!.Value);
         Assert.Equal(Square.None, position.EnPassantSquare);
-        position.MakeMove(BoardTests.FindMove(position, "d7d5")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "d7d5")!.Value);
         Assert.Equal(Square.None, position.EnPassantSquare);
-        position.MakeMove(BoardTests.FindMove(position, "e4e5")!.Value);
-        position.MakeMove(BoardTests.FindMove(position, "f7f5")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "e4e5")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "f7f5")!.Value);
         Assert.Equal(Square.Parse("f6"), position.EnPassantSquare);
         // Reaching the same position by a different order gives the same key
         var other = Position.Start();
         foreach (string uci in new[] { "e2e4", "g8f6", "g1f3", "f6g8", "f3g1" })
         {
-            other.MakeMove(BoardTests.FindMove(other, uci)!.Value);
+            other.MakeMove(PositionTests.FindMove(other, uci)!.Value);
         }
         var direct = Position.Start();
-        direct.MakeMove(BoardTests.FindMove(direct, "e2e4")!.Value);
+        direct.MakeMove(PositionTests.FindMove(direct, "e2e4")!.Value);
         Assert.Equal(direct.Key, other.Key);
         Assert.Equal(1, other.RepetitionCount());
     }
@@ -75,8 +75,8 @@ public class FenTests
     {
         // Each castle adds a ply to the half-move clock, and the FEN written reads back to the same position
         var position = Position.FromFen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 7 20");
-        position.MakeMove(BoardTests.FindMove(position, "e1g1")!.Value);
-        position.MakeMove(BoardTests.FindMove(position, "e8c8")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "e1g1")!.Value);
+        position.MakeMove(PositionTests.FindMove(position, "e8c8")!.Value);
         string fen = position.ToFen();
         Assert.Equal("2kr3r/8/8/8/8/8/8/R4RK1 w - - 9 21", fen);
         var read = Position.FromFen(fen);

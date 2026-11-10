@@ -213,7 +213,7 @@ only the things a change must not break.
 
 - .NET naming and idioms: PascalCase members, file-scoped namespaces, records for data,
   `ArgumentNullException.ThrowIfNull` on public entry points, `CancellationToken` last, nullable
-  returns rather than `Try`/`out` pairs. No static mutable state; counters live in `SearchStatistics`.
+  returns rather than `Try`/`out` pairs. No static mutable state; the node count lives in its `Searcher`.
 - American spelling in identifiers and comments: `Color`, not `Colour`.
 - Formatting follows `.editorconfig` (Allman braces, braces on every block, `var` only when the type
   is apparent, LF line endings). **All code is formatted with `dotnet format StoopidChess.slnx`

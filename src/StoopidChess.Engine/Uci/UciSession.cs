@@ -25,7 +25,6 @@ public sealed class UciSession : IDisposable
     private readonly Lock outputLock = new();
     private readonly TranspositionTable table = new();
     private readonly Searcher searcher;
-    private readonly Evaluator evaluator = new();
     private Position position = Position.Start();
     private Task? searchTask;
     private CancellationTokenSource? searchCancellation;
@@ -119,7 +118,7 @@ public sealed class UciSession : IDisposable
                 break;
             case "eval":
                 StopSearch();
-                WriteLine($"eval {evaluator.Evaluate(position)} cp (side to move)");
+                WriteLine($"eval {searcher.Evaluate(position)} cp (side to move)");
                 break;
             case "perft":
                 StopSearch();
