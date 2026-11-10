@@ -189,6 +189,21 @@ public class PositionTests
     }
 
     [Fact]
+    public void RepetitionsAreNotSeenAcrossANullMove()
+    {
+        // Nf3, pass, Ng1, pass is back at the start position, but only by passing
+        var position = Position.Start();
+        position.MakeMove(FindMove(position, "g1f3")!.Value);
+        position.MakeNullMove();
+        position.MakeMove(FindMove(position, "f3g1")!.Value);
+        position.MakeNullMove();
+        Assert.Equal(Position.Start().Key, position.Key);
+        Assert.Equal(0, position.RepetitionCount());
+        position.UnmakeMove();
+        Assert.Equal(1, position.HalfMoveClock);    // The clock comes back with the unmake
+    }
+
+    [Fact]
     public void NullMoveSwitchesSidesAndUnmakesExactly()
     {
         var position = Position.FromFen("rnbqkbnr/ppp1pppp/8/8/3p4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3");

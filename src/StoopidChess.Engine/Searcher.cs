@@ -35,7 +35,7 @@ public sealed class Searcher
     private const int LmrFullDepthMoves = 3;
     private const int AspirationMinimumDepth = 4;
     private const int AspirationWindow = 20;
-    private const int HistoryCap = 79_999;
+    private const int HistoryCap = 69_999;           // Quiet history orders below the killers and the countermove (70,000)
 
     private readonly TranspositionTable table;
     private readonly Evaluator evaluator = new();
