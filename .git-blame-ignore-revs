@@ -1,0 +1,6 @@
+# Commits `git blame` skips: mass reformats and renames. Use it with
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub reads this file by itself.)
+
+# Format with CSharpier and enforce .NET naming rules (PR #39)
+e434a80501d320dc1f24eed5e425ecd799cbaabf
