@@ -47,13 +47,13 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King zone attack penalties raised from 5 and 10 to 7 and 14 cp | -42 ± 58 (32 W, 44 L, 24 D) | no |
 | King zone attack penalties lowered from 5 and 10 to 4 and 8 cp, the extended zone having enlarged the linear term | +21 ± 43 then +21 ± 50, +21 ± 33 over 200 games (76 W, 64 L, 60 D) | yes |
 | One attack pass per side serving mobility, king zone pressure and weak squares (refactor, every score identical) | about 2% faster at bench depth 9, signature unchanged | yes |
-| Passed pawn races, Crafty'''s rule of the square: with no enemy pieces, a passer the king cannot catch counts 525 + 10 per rank for the side that queens first (the search already sees such races at this time control) | -17 ± 54 (30 W, 35 L, 35 D) | no |
-| Passed pawns in the endgame, after Crafty: the rank bonus times (twice the enemy king'''s distance from the square in front minus our king'''s) over 8 | +28 ± 49 then +49 ± 55, +38 ± 36 over 200 games (83 W, 61 L, 56 D) | yes |
+| Passed pawn races, Crafty's rule of the square: with no enemy pieces, a passer the king cannot catch counts 525 + 10 per rank for the side that queens first (the search already sees such races at this time control) | -17 ± 54 (30 W, 35 L, 35 D) | no |
+| Passed pawns in the endgame, after Crafty: the rank bonus times (twice the enemy king's distance from the square in front minus our king's) over 8 | +28 ± 49 then +49 ± 55, +38 ± 36 over 200 games (83 W, 61 L, 56 D) | yes |
 | Free-path passers, after Crafty: the rank bonus again when no square ahead of the passer is attacked, half when only the next square is safe | -28 ± 53 (28 W, 36 L, 36 D) | no |
-| Drawish endings after Crafty'''s winning chances: with no pawns a lone minor or a lead of at most a minor against a king off the edge scores one eighth, a pure opposite-coloured-bishop ending half | -28 ± 57 (34 W, 42 L, 24 D) | no |
+| Drawish endings after Crafty's winning chances: with no pawns a lone minor or a lead of at most a minor against a king off the edge scores one eighth, a pure opposite-coloured-bishop ending half | -28 ± 57 (34 W, 42 L, 24 D) | no |
 | Candidate passers after Crafty: no enemy pawn ahead on the file and at least as many own pawns beside or behind as enemy pawns guarding the files ahead, half the passer bonus | -7 ± 61 (38 W, 40 L, 22 D) | no |
 | Passed pawn king distance divisor 6 instead of 8 | -21 ± 49 (31 W, 37 L, 32 D) | no |
-| Endgame king activity: 6 cp per square of the king'''s distance beyond one from the nearest pawn of either colour | -42 ± 51 (24 W, 36 L, 40 D) | no |
+| Endgame king activity: 6 cp per square of the king's distance beyond one from the nearest pawn of either colour | -42 ± 51 (24 W, 36 L, 40 D) | no |
 | Tempo bonus 20 cp instead of 10 | -38 ± 54 (30 W, 41 L, 29 D) | no |
 | Mobility rates 5/4/3/1 cp per square instead of 4/3/2/1 | +67 ± 59 (48 W, 29 L, 23 D) | yes |
 | Mobility rates 6/5/4/2 | +14 ± 42 then +53 ± 47, +33 ± 31 over 200 games (74 W, 55 L, 71 D) | yes |
@@ -70,7 +70,7 @@ change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 | King zone attack penalties 3 and 6 cp | -3 ± 51 (31 W, 32 L, 37 D) | no |
 | Evaluation cache: 65,536 entries of 48-bit key and 16-bit score, always replaced, cleared on a new game (exact, every score identical) | about 10% faster at bench depth 10 with JIT tiering off; 512 KB measured best of 128 KB to 8 MB | yes |
 | King tropism after Crafty: knight 6/6/6/4/2, bishop 4/4/4/2, rook 8/8/6/4/2/2/2, queen 12/12/10/8/6/4/4 cp by distance from the enemy king, middlegame only | -31 ± 51 (28 W, 37 L, 35 D) | no |
-| Bad bishop after Crafty: 4 cp per own pawn on the bishop'''s colour | -31 ± 55 (31 W, 40 L, 29 D) | no |
+| Bad bishop after Crafty: 4 cp per own pawn on the bishop's colour | -31 ± 55 (31 W, 40 L, 29 D) | no |
 | Queen 950 instead of 900 | +49 ± 44 (38 W, 24 L, 38 D) | yes |
 | Queen 1000 | +45 ± 44 (39 W, 26 L, 35 D) | yes |
 | Queen 1050 | +10 ± 50 (34 W, 31 L, 35 D) | no |

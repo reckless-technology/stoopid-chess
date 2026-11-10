@@ -108,7 +108,7 @@ Modelled on the sibling engines pawnstar and trebuchet:
 
 - **Perft** against the 128 standard positions (Ethereal's `standard.epd`, embedded in Core) is the
   move generation gate. The unit tests run each position to the deepest depth under 300k nodes;
-  `stoopid-chess perft [max million nodes]` runs the full set (about 80 million nodes per second).
+  `stoopid-chess perft [max million nodes]` runs the full set (about 120 million nodes per second: 122 million with `perft 3` on an i9-13900HX, Windows, 2026-11-09).
 - **Move generation** is also cross-checked against a deliberately naive reference generator on the
   standard positions, their children and random games, with the awkward cases (en passant that
   exposes the king along the rank, pinned pawns, double check, castling through attacked squares)
@@ -159,7 +159,7 @@ The version is `MAJOR.MINOR.BUILD`, from git alone, the rule all of reckless-tec
 - `BUILD` is the number of commits since that tag, the tagged commit itself being 0.
 
 `Directory.Build.targets` works it out at build time (`git describe --tags --match 'v*.*' --exclude 'v*.*.*'`) and
-stamps every assembly with it. The engine reports it (`id name Stoopid Chess 3.0.0`), and so does the GUI: in its
+stamps every assembly with it. The engine reports it (`id name Stoopid Chess 4.1.0`), and so does the GUI: in its
 Help box, its `--version`, the Windows .exe's version resource and the macOS app's Info.plist. Nothing
 in the tree holds a version to edit. A tree with no mark reachable (a source tarball, a shallow clone, a fork without
 the tags) builds as `0.0.0`, with a warning.
