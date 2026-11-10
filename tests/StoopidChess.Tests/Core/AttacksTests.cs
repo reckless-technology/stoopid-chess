@@ -43,10 +43,10 @@ public class AttacksTests
         var random = new Random(2026);
         foreach (Square square in Square.All)
         {
-            Assert.Equal(Attacks.SlowBishop(Bitboard.Empty, square), Attacks.Bishop(Bitboard.Empty, square));
-            Assert.Equal(Attacks.SlowRook(Bitboard.Empty, square), Attacks.Rook(Bitboard.Empty, square));
-            Assert.Equal(Attacks.SlowBishop(Bitboard.Full, square), Attacks.Bishop(Bitboard.Full, square));
-            Assert.Equal(Attacks.SlowRook(Bitboard.Full, square), Attacks.Rook(Bitboard.Full, square));
+            Assert.Equal(Attacks.BishopAttacksByWalking(Bitboard.Empty, square), Attacks.Bishop(Bitboard.Empty, square));
+            Assert.Equal(Attacks.RookAttacksByWalking(Bitboard.Empty, square), Attacks.Rook(Bitboard.Empty, square));
+            Assert.Equal(Attacks.BishopAttacksByWalking(Bitboard.Full, square), Attacks.Bishop(Bitboard.Full, square));
+            Assert.Equal(Attacks.RookAttacksByWalking(Bitboard.Full, square), Attacks.Rook(Bitboard.Full, square));
             for (int i = 0; i < 200; i++)
             {
                 // Random occupancies of varying density, with the slider's own square sometimes occupied too
@@ -55,8 +55,8 @@ public class AttacksTests
                 {
                     occupied |= RandomBits(random);
                 }
-                Assert.Equal(Attacks.SlowBishop(occupied, square), Attacks.Bishop(occupied, square));
-                Assert.Equal(Attacks.SlowRook(occupied, square), Attacks.Rook(occupied, square));
+                Assert.Equal(Attacks.BishopAttacksByWalking(occupied, square), Attacks.Bishop(occupied, square));
+                Assert.Equal(Attacks.RookAttacksByWalking(occupied, square), Attacks.Rook(occupied, square));
                 Assert.Equal(Attacks.Bishop(occupied, square) | Attacks.Rook(occupied, square), Attacks.Queen(occupied, square));
             }
         }
@@ -72,9 +72,9 @@ public class AttacksTests
             | Bitboard.Of(Square.Parse("e4")) | Bitboard.Of(Square.Parse("f4"))
             | Bitboard.Of(Square.Parse("d3")) | Bitboard.Of(Square.Parse("d2")) | Bitboard.Of(Square.Parse("d1"))
             | Bitboard.Of(Square.Parse("c4")) | Bitboard.Of(Square.Parse("b4")) | Bitboard.Of(Square.Parse("a4"));
-        Assert.Equal(expected, Attacks.SlowRook(occupied, d4));
-        Assert.Equal(13, Attacks.SlowBishop(Bitboard.Empty, d4).Count);
-        Assert.Equal(7, Attacks.SlowBishop(Bitboard.Empty, Square.A1).Count);
+        Assert.Equal(expected, Attacks.RookAttacksByWalking(occupied, d4));
+        Assert.Equal(13, Attacks.BishopAttacksByWalking(Bitboard.Empty, d4).Count);
+        Assert.Equal(7, Attacks.BishopAttacksByWalking(Bitboard.Empty, Square.A1).Count);
     }
 
     [Fact]
