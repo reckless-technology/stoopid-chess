@@ -122,8 +122,7 @@ Modelled on the sibling engines pawnstar and trebuchet:
 Core, Engine, Play, the Uci console and the Desktop GUI. Left out (`tests/coverage.runsettings`): the test
 assembly; the GUI's SDL host (`src/StoopidChess.Desktop/Sdl/`: the windows, the event loop, presenting, the native
 file dialogs, the clipboard), which only calls SDL and needs a display, while every view and the main view's wiring
-are gated; the code generated into `obj/`; and `WindowsConsole.cs`, Win32 console calls that run only on Windows when
-the GUI is asked for its version or its smoke check from a command prompt. The two commands under "Build and test" measure it locally; `--uncovered`
+are gated; and the code generated into `obj/`. The two commands under "Build and test" measure it locally; `--uncovered`
 lists every line no test runs.
 
 CI (`.github/workflows/ci.yml`) runs on GitHub-hosted runners, each image pinned by version (`ubuntu-24.04`,

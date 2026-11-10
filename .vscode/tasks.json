@@ -91,20 +91,10 @@
     },
     {
       "label": "selfplay vs baseline",
-      "detail": "100 paired games at 12+0.12 against the published baseline (tools/selfplay)",
+      "detail": "100 paired games at 12+0.12 against the published baseline (tools/match.cs --baseline)",
       "type": "process",
-      "linux": {
-        "command": "${workspaceFolder}/tools/selfplay.sh",
-        "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
-      },
-      "osx": {
-        "command": "${workspaceFolder}/tools/selfplay.sh",
-        "args": ["--pgn", "${workspaceFolder}/selfplay.pgn"]
-      },
-      "windows": {
-        "command": "powershell",
-        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/selfplay.ps1", "-PgnOut", "${workspaceFolder}/selfplay.pgn"]
-      },
+      "command": "dotnet",
+      "args": ["run", "${workspaceFolder}/tools/match.cs", "--", "--baseline", "--pgn", "${workspaceFolder}/selfplay.pgn"],
       "problemMatcher": [],
       "presentation": { "reveal": "always", "clear": true }
     },
@@ -112,31 +102,10 @@
       "label": "match vs pawnstar",
       "detail": "40 paired games at 12+0.12 against the reference pawnstar setup-dev --tuning installs (none for Intel Macs)",
       "type": "process",
-      "linux": {
-        "command": "${workspaceFolder}/tools/match.sh",
-        "args": [
-          "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-linux-x86_64",
-          "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false",
-          "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn"
-        ]
-      },
-      "osx": {
-        "command": "${workspaceFolder}/tools/match.sh",
-        "args": [
-          "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-macos-arm64",
-          "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false",
-          "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn"
-        ]
-      },
-      "windows": {
-        "command": "powershell",
-        "args": [
-          "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/match.ps1",
-          "-Opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe",
-          "-OpponentOptions", "option.Threads=1,option.OwnBook=false",
-          "-Rounds", "20", "-TimeControl", "12+0.12", "-PgnOut", "${workspaceFolder}/match.pgn"
-        ]
-      },
+      "command": "dotnet",
+      "linux": { "args": [ "run", "${workspaceFolder}/tools/match.cs", "--", "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-linux-x86_64", "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false", "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn" ] },
+      "osx": { "args": [ "run", "${workspaceFolder}/tools/match.cs", "--", "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-macos-arm64", "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false", "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn" ] },
+      "windows": { "args": [ "run", "${workspaceFolder}/tools/match.cs", "--", "--opponent", "${userHome}/tools/pawnstar/pawnstar-0.13.593-windows-x86_64.exe", "--opponent-option", "option.Threads=1", "--opponent-option", "option.OwnBook=false", "--rounds", "20", "--tc", "12+0.12", "--pgn", "${workspaceFolder}/match.pgn" ] },
       "problemMatcher": [],
       "presentation": { "reveal": "always", "clear": true }
     },

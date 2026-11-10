@@ -83,8 +83,7 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    `tools/coverage-gate.cs` (the one place the threshold lives; it also fails when a gated assembly is missing
    from the report). Gated: Core, Engine, Play, the Uci console and the Desktop GUI. Left out, in
    `tests/coverage.runsettings`: the test assembly, the GUI's SDL host (`src/StoopidChess.Desktop/Sdl/`: windows,
-   event loop, presenting, file dialogs, clipboard, key codes), the code generated into `obj/`, and
-   `WindowsConsole.cs` (Windows-only console P/Invoke). So no logic goes in the SDL host: it only calls SDL and the
+   event loop, presenting, file dialogs, clipboard, key codes) and the code generated into `obj/`. So no logic goes in the SDL host: it only calls SDL and the
    views. Every view is product code, tested without a window by drawing it to a bitmap and driving it with
    synthesized events (`ViewHarness`): a new widget, dialog or menu gets a test there (`WidgetTests`, `MenuTests`,
    `BoardViewTests`, `DialogTests`), and the main view's wiring is driven against `FakePlatform` and scripted engines
@@ -92,12 +91,12 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    `GameController`'s failure paths are played against scripted fake engines (`ScriptedEngine`, through the
    internal `GameController.StartExternalEngine` and `UciEngineClient.Connect`).
 5. Strength changes should be checked by self-play or a match against another engine with
-   `fastchess`: `tools/match.sh --opponent <uci engine>` (Linux/macOS) or
-   `tools/match.ps1 -Opponent <uci engine exe>` (Windows) builds the engine and runs paired
+   `fastchess`: `dotnet run tools/match.cs -- --opponent <uci engine>` (one file-based C# program for
+   Windows, Linux and macOS) builds the engine and runs paired
    games from an openings file (the repo's `tools/openings-6ply.epd`, 200 six-ply positions;
    fastchess defaults to the build `tools/setup-dev.* --tuning` installs
    under `~/tools`, `%USERPROFILE%\tools` on Windows; both engines are deterministic, so openings are essential).
-   `tools/selfplay.sh` / `tools/selfplay.ps1` plays the current build against a snapshot in
+   `dotnet run tools/match.cs -- --baseline` plays the current build against a snapshot in
    `~/tools/stoopid-baseline` (`%USERPROFILE%\tools\stoopid-baseline`) (refresh it with
    `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change);
    its defaults are the standard test setting, 100 games at 12+0.12.

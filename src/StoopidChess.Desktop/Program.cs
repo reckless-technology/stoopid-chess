@@ -10,12 +10,8 @@ internal static class Program
     {
         // "--version" prints the version and exits before SDL starts, so it needs no display: the release workflow
         // asks each shipped GUI for it. "--smoke" starts the GUI as usual and quits it ten seconds after its main
-        // window opens (SdlHost), the exit code saying whether it ran. On Windows both print to the console they were
-        // started from (WindowsConsole), or where they are redirected.
-        if (OperatingSystem.IsWindows() && args is ["--version"] or ["--smoke"])
-        {
-            WindowsConsole.AttachToParent();
-        }
+        // window opens (SdlHost), the exit code saying whether it ran. The Windows build is a GUI-subsystem
+        // executable with no console of its own, so both print only where their output is redirected.
         if (args is ["--version"])
         {
             Console.WriteLine($"Stoopid Chess {Version}");

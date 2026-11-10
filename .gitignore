@@ -6,7 +6,7 @@ TestResults/
 *.user
 *.suo
 *.pfx
-# fastchess outputs written to the repo root by tools/match.ps1 and tools/selfplay.ps1
+# fastchess outputs written to the repo root by tools/match.cs
 /match.pgn
 /selfplay.pgn
 /config.json

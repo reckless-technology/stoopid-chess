@@ -8,17 +8,14 @@
     <!-- The .exe's icon on Windows; tools/make-icons.py draws it, and the macOS app's .icns, from packaging/icon. -->
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- The P/Invoke source generator ([LibraryImport], WindowsConsole) emits unsafe code. -->
+    <!-- The SDL host and its windows call SDL's C API through pointers. -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- SkiaSharp and its native libraries, every one pinned at the same version: Windows' and macOS' come with
-         SkiaSharp itself and are named here so the pin is explicit; Linux's is the no-dependencies build (no
-         fontconfig or FreeType: the fonts are embedded). -->
+    <!-- SkiaSharp brings its Windows and macOS natives itself; Linux's is named so that it is the no-dependencies
+         build (no fontconfig or FreeType: the fonts are embedded), at the same version. -->
     <PackageReference Include="SkiaSharp" Version="4.154.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.154.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.macOS" Version="4.154.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.154.0" />
     <PackageReference Include="ppy.SDL3-CS" Version="2026.1002.1" />
   </ItemGroup>

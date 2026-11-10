@@ -11,7 +11,7 @@ namespace StoopidChess.Desktop.Sdl;
 /// The application on SDL3: the main window and any other, the event loop that hands their events to the views and
 /// redraws what changed, the UI thread's synchronization context it pumps (woken by an SDL user event), the clock's
 /// tick, and "--smoke". Everything it does is a call to SDL or to the views; the logic is the views' and MainView's.
-/// Excluded from the coverage gate, as WindowsConsole is.
+/// Excluded from the coverage gate.
 /// </summary>
 internal sealed unsafe class SdlHost : IDisposable
 {

@@ -12,8 +12,6 @@
       dialogs, the clipboard and the key codes), which only calls SDL and needs a display to run; every view, the
       main view's wiring and the UI thread's context are product code the suite drives without a window, and gated;
     - the code generated into obj/ (the P/Invoke generator's);
-    - WindowsConsole.cs, Win32 console P/Invoke that runs only on Windows and only when the GUI is started from
-      a command prompt to print its version or run its smoke check; the gate runs on Linux.
 -->
 <RunSettings>
   <DataCollectionRunSettings>
@@ -22,7 +20,7 @@
         <Configuration>
           <Format>cobertura</Format>
           <Exclude>[StoopidChess.Tests]*</Exclude>
-          <ExcludeByFile>**/Sdl/*.cs,**/obj/**/*.cs,**/WindowsConsole.cs</ExcludeByFile>
+          <ExcludeByFile>**/Sdl/*.cs,**/obj/**/*.cs</ExcludeByFile>
           <ExcludeByAttribute>GeneratedCodeAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
         </Configuration>
       </DataCollector>
