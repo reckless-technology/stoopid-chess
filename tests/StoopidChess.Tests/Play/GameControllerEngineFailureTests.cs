@@ -285,6 +285,40 @@ public class GameControllerEngineFailureTests
     }
 
     [Fact]
+    public Task TheEngineIsToldHowManyMovesRemainInThePeriod() => ControllerThread.Run(async () =>
+    {
+        var commands = new List<string>();
+        var replies = new Queue<string>(["bestmove e7e5", "bestmove b8c6", "bestmove g8f6"]);
+        using var rig = new Rig();
+        string path = rig.Register("counts", command =>
+        {
+            lock (commands)
+            {
+                commands.Add(command);
+            }
+            return command.StartsWith("go", StringComparison.Ordinal) ? [replies.Dequeue()] : [];
+        });
+        Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
+        rig.Controller.SetTimeControl(TimeControl.Periods(3, 5));
+        rig.Controller.NewGame(Color.White);
+        Assert.True(rig.Controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.True(rig.Controller.TryHumanMove(Square.Parse("g1"), Square.Parse("f3")));
+        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        Assert.True(rig.Controller.TryHumanMove(Square.Parse("f1"), Square.Parse("c4")));
+        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+        lock (commands)
+        {
+            // Black has completed none, one, then two of the period's three moves: three, two, then one to go
+            string[] goes = [.. commands.Where(command => command.StartsWith("go", StringComparison.Ordinal))];
+            Assert.Equal(3, goes.Length);
+            Assert.EndsWith("movestogo 3", goes[0], StringComparison.Ordinal);
+            Assert.EndsWith("movestogo 2", goes[1], StringComparison.Ordinal);
+            Assert.EndsWith("movestogo 1", goes[2], StringComparison.Ordinal);
+        }
+    });
+
+    [Fact]
     public Task TheEngineIsGivenTheClocksAndTheLevelsDepth() => ControllerThread.Run(async () =>
     {
         var commands = new List<string>();

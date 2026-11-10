@@ -350,7 +350,8 @@ public sealed class GameController : IDisposable
     }
 
     /// <summary>
-    /// How the engine's search is limited: it plays on the clocks ("go wtime ... btime ... winc ... binc ...")
+    /// How the engine's search is limited: it plays on the clocks ("go wtime ... btime ... winc ... binc ... movestogo ...",
+    /// the last when the control has periods)
     /// and never searches deeper than the <see cref="Level"/> allows, so the lower levels answer quickly.
     /// </summary>
     private SearchLimits CurrentLimits()
@@ -362,8 +363,14 @@ public sealed class GameController : IDisposable
             BlackTime = BlackClock,
             WhiteIncrement = TimeControl.Increment,
             BlackIncrement = TimeControl.Increment,
+            MovesToGo = TimeControl.MovesPerPeriod is int period ? period - (MovesMade(Game.SideToMove) % period) : null,
         };
     }
+
+    /// <summary>
+    /// The moves a side has completed in this game (it may have started with black to move).
+    /// </summary>
+    private int MovesMade(Color side) => (Game.Moves.Count + (Game.StartSideToMove == side ? 1 : 0)) / 2;
 
     /// <summary>
     /// Complete when the engine is not thinking (any pending reply has been handled).
@@ -475,13 +482,19 @@ public sealed class GameController : IDisposable
     {
         Color mover = Game.SideToMove;
         Game.MakeMove(move);
+        // The mover gains the increment, and the period's time again when it completes a period's moves
+        TimeSpan gained = TimeControl.Increment;
+        if (TimeControl.MovesPerPeriod is int period && MovesMade(mover) % period == 0)
+        {
+            gained += TimeControl.Base;
+        }
         if (mover == Color.White)
         {
-            WhiteClock += TimeControl.Increment;
+            WhiteClock += gained;
         }
         else
         {
-            BlackClock += TimeControl.Increment;
+            BlackClock += gained;
         }
         Resume();
     }

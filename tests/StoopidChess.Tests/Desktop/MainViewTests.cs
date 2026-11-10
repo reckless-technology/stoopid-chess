@@ -139,7 +139,7 @@ public sealed class MainViewTests : IDisposable
         Assert.Equal(660 - StatusBarView.BarHeight, view.StatusBar.Bounds.Top);
         Assert.False(view.MoveNowButton.IsEnabled);
         Assert.Equal("Stoopid Chess", rig.Platform.Title);
-        Assert.Equal(["You are playing:", "Color to move:", "Difficulty:", "White clock:", "Black clock:"],
+        Assert.Equal(["You are playing:", "Color to move:", "Difficulty:", "", "White clock:", "Black clock:"],
             view.StatusBar.Segments.Select(segment => segment.Caption));
         Assert.Equal(new SKSizeI(860, 660), MainView.DefaultSize);
         Assert.Equal(new SKSizeI(680, 540), MainView.MinimumSize);
@@ -333,10 +333,11 @@ public sealed class MainViewTests : IDisposable
         using var rig = new Rig();
         rig.Controller.SetTimeControl(TimeControl.OfMinutes(5, 0));
         rig.View.Tick(TimeSpan.FromSeconds(2));
-        StatusSegment white = rig.View.StatusBar.Segments[3];
+        Assert.Equal("5+0", rig.View.StatusBar.Segments[3].Value);
+        StatusSegment white = rig.View.StatusBar.Segments[4];
         Assert.Equal("00:04:58", white.Value);
         Assert.True(white.IsRunning);
-        Assert.False(rig.View.StatusBar.Segments[4].IsRunning);
+        Assert.False(rig.View.StatusBar.Segments[5].IsRunning);
         rig.Window.Render();
     }
 
@@ -350,6 +351,10 @@ public sealed class MainViewTests : IDisposable
         rig.Choose("Game", "Time control", "5+3");
         Assert.Equal(TimeControl.OfMinutes(5, 3), rig.Controller.TimeControl);
         Assert.Equal("5+3", timeControl.Items.Single(item => item.IsChecked).Text);
+        Assert.Equal(["40/5", "40/40", "1+0", "3+2", "5+3", "10+0", "15+10", "30+0"], timeControl.Items.Select(item => item.Text));
+        rig.Choose("Game", "Time control", "40/40");
+        Assert.Equal(TimeControl.Periods(40, 40), rig.Controller.TimeControl);
+        Assert.Equal("40/40", rig.View.StatusBar.Segments[3].Value);
     }
 
     [Fact]

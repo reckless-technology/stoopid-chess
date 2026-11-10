@@ -35,6 +35,8 @@ public class PlaySettingsTests
     {
         Assert.Equal("5+3", TimeControl.OfMinutes(5, 3).ToString());
         Assert.Equal("10+0", TimeControl.Default.ToString());
+        Assert.Equal("40/5", TimeControl.Periods(40, 5).ToString());
+        Assert.Equal("40/40", TimeControl.Periods(40, 40).ToString());
     }
 
     private static SavedGame? LoadSaved(string json)

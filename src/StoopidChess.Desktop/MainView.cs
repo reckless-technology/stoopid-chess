@@ -45,6 +45,8 @@ internal sealed class MainView : View, IDisposable
 
     private static readonly TimeControl[] TimeControls =
     [
+        TimeControl.Periods(40, 5),
+        TimeControl.Periods(40, 40),
         TimeControl.OfMinutes(1, 0),
         TimeControl.OfMinutes(3, 2),
         TimeControl.OfMinutes(5, 3),
@@ -349,6 +351,7 @@ internal sealed class MainView : View, IDisposable
             new StatusSegment("You are playing:", GameText.HumanColor(controller)),
             new StatusSegment("Color to move:", controller.SideToMove.ToString()),
             new StatusSegment("Difficulty:", GameText.Difficulty(controller)),
+            new StatusSegment("", controller.TimeControl.ToString()),
             new StatusSegment("White clock:", GameText.Clock(controller.WhiteClock), IsClock: true,
                 IsRunning: isClockRunning && controller.SideToMove == Color.White),
             new StatusSegment("Black clock:", GameText.Clock(controller.BlackClock), IsClock: true,

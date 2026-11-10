@@ -118,8 +118,10 @@ other side.
   thread; the tests give theirs a `ControllerThread`). `WaitUntilIdleAsync` completes once the engine has stopped thinking
   and its last reply has been handled.
 - **Level and clock.** `Level` is the difficulty and caps the search depth. Every game is also played against a countdown
-  `TimeControl` (base time plus increment): `Tick` runs the side to move's clock down, the mover gains the increment after
-  each move, a side that reaches zero loses on time (`TimedOut`), and the engine is told the clocks with every `go`.
+  `TimeControl` (base time plus increment, or "40 moves in 5 minutes": the base time is added again after each 40 moves a
+  side makes): `Tick` runs the side to move's clock down, the mover gains the increment after each move, a side that
+  reaches zero loses on time (`TimedOut`), and the engine is told the clocks with every `go`, with `movestogo` counting
+  down the moves left in the period.
 - **Editing.** Right-clicking a square edits the position (`EditSquare`, `SetSideToMove`, `ClearBoard`) on a `BoardSetup`,
   which may hold anything while it is edited. It is shown, but not played from, until play can proceed from it; then it
   becomes a new game.

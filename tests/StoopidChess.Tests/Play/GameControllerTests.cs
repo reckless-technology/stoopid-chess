@@ -210,6 +210,23 @@ public class GameControllerTests
     }
 
     [Fact]
+    public void ThePeriodsTimeIsAddedBackWhenASideCompletesThePeriodsMoves()
+    {
+        using var controller = new GameController();
+        controller.SetTimeControl(new TimeControl(TimeSpan.FromMinutes(5), TimeSpan.Zero, MovesPerPeriod: 2));
+        controller.NewGame(Color.White);
+        TimeSpan five = TimeSpan.FromMinutes(5);
+        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
+        controller.Game.MakeMove(controller.Game.FindMove("e7e5")!.Value);     // Black's reply, as an engine would play it
+        Assert.Equal(five, controller.WhiteClock);                               // One of two moves made: nothing added
+        Assert.True(controller.TryHumanMove(Square.Parse("g1"), Square.Parse("f3")));
+        Assert.Equal(five + five, controller.WhiteClock);                        // The second completes the period
+        controller.Game.MakeMove(controller.Game.FindMove("b8c6")!.Value);
+        Assert.True(controller.TryHumanMove(Square.Parse("f1"), Square.Parse("c4")));
+        Assert.Equal(five + five, controller.WhiteClock);                        // The new period has one move in
+    }
+
+    [Fact]
     public void RunningOutOfTimeLosesTheGame()
     {
         using var controller = new GameController();
