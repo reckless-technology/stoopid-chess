@@ -10,8 +10,7 @@ namespace StoopidChess.Desktop;
 /// The main window's content: the menu bar across the top, the board with the capture bin under it on the left, the
 /// move list with "Move now!" under it in a column at the right, and the status bar along the foot - and the wiring
 /// between them and the game. All game and engine logic lives in <see cref="GameController"/>; the view redraws
-/// whenever it raises <see cref="GameController.Changed"/>, its text from <see cref="GameText"/>, the engine list's
-/// file through <see cref="EngineRosterFile"/>. What it needs of the window system - file dialogs, the clipboard, the
+/// whenever it raises <see cref="GameController.Changed"/>, its text from <see cref="GameText"/>. What it needs of the window system - file dialogs, the clipboard, the
 /// title, another window - it asks of an <see cref="IDesktopPlatform"/>. It owns the controller and disposes it.
 /// </summary>
 internal sealed class MainView : View, IDisposable
@@ -44,16 +43,17 @@ internal sealed class MainView : View, IDisposable
     private static readonly FileFilter ChessFiles = new("Stoopid Chess games", "chess");
     private static readonly FileFilter PgnFiles = new("PGN", "pgn");
 
-    private static readonly (string Header, TimeControl? Clock)[] TimeControls =
+    private static readonly TimeControl[] TimeControls =
     [
-        ("Untimed (play by level)", null),
-        ("Standard: 40 moves in 40 minutes", TimeControl.Standard(40, 40)),
-        ("Standard: 40 moves in 5 minutes", TimeControl.Standard(40, 5)),
-        ("Standard: 40 moves in 1 minute", TimeControl.Standard(40, 1)),
-        ("Incremental: 5 minutes + 5 seconds per move", TimeControl.OfMinutes(5, 5)),
+        TimeControl.OfMinutes(1, 0),
+        TimeControl.OfMinutes(3, 2),
+        TimeControl.OfMinutes(5, 3),
+        TimeControl.OfMinutes(10, 0),
+        TimeControl.OfMinutes(15, 10),
+        TimeControl.OfMinutes(30, 0),
     ];
 
-    private static readonly (string Header, Level Level)[] Levels =
+    private static readonly (string Header, Level Level)[] LevelChoices =
     [
         ("Beginner", Level.Beginner),
         ("Easy", Level.Easy),
@@ -64,34 +64,24 @@ internal sealed class MainView : View, IDisposable
 
     private readonly IDesktopPlatform platform;
     private readonly GameController controller;
-    private readonly EngineRoster roster;
-    private readonly string rosterPath;
     private readonly SynchronizationContext? uiContext = SynchronizationContext.Current;
-    private readonly List<(MenuItem Item, TimeControl? Clock)> timeControlItems = [];
+    private readonly List<(MenuItem Item, TimeControl Clock)> timeControlItems = [];
     private readonly List<(MenuItem Item, Level Level)> levelItems = [];
-    private readonly List<(MenuItem Item, string Path)> rosterItems = [];
     private readonly MenuItem engineMenu = new("Engine");
     private readonly MenuItem builtInEngineItem;
-    private readonly MenuItem engineOptionsItem;
-    private readonly MenuItem removeEngineItem;
     private readonly MenuItem showEngineOutputItem;
     private readonly List<MenuItem> editMenu;
     private Square editSquare = Square.None;      // Square the edit menu was opened on
     private string? shownTitle;
     private IDesktopWindow? analysisWindow;
 
-    public MainView(IDesktopPlatform platform, GameController controller, EngineRoster roster, string rosterPath)
+    public MainView(IDesktopPlatform platform, GameController controller)
     {
         ArgumentNullException.ThrowIfNull(platform);
         ArgumentNullException.ThrowIfNull(controller);
-        ArgumentNullException.ThrowIfNull(roster);
         this.platform = platform;
         this.controller = controller;
-        this.roster = roster;
-        this.rosterPath = rosterPath;
         builtInEngineItem = new MenuItem("Use built-in engine", () => _ = StartEngineSafelyAsync(null));
-        engineOptionsItem = new MenuItem("Engine options (Hash, Threads)...", () => _ = EditEngineOptionsAsync());
-        removeEngineItem = new MenuItem("Remove current engine from the list", () => _ = RemoveCurrentEngineAsync());
         showEngineOutputItem = new MenuItem("Show engine output in move list", () =>
         {
             showEngineOutputItem!.IsChecked = !showEngineOutputItem.IsChecked;
@@ -236,20 +226,18 @@ internal sealed class MainView : View, IDisposable
         var newGame = new MenuItem("New Game");
         newGame.Items.AddRange(
         [
-            new MenuItem("White", () => _ = NewGameWithClockAsync(Color.White)) { Shortcut = Keys(Key.N) },
-            new MenuItem("Black", () => _ = NewGameWithClockAsync(Color.Black)) { Shortcut = Keys(Key.N, KeyModifiers.Primary | KeyModifiers.Shift) },
+            new MenuItem("White", () => controller.NewGame(Color.White)) { Shortcut = Keys(Key.N) },
+            new MenuItem("Black", () => controller.NewGame(Color.Black)) { Shortcut = Keys(Key.N, KeyModifiers.Primary | KeyModifiers.Shift) },
         ]);
         var timeControl = new MenuItem("Time control");
-        foreach ((string header, TimeControl? clock) in TimeControls)
+        foreach (TimeControl clock in TimeControls)
         {
-            var item = new MenuItem(header, () => controller.SetTimeControl(clock));
+            var item = new MenuItem(clock.ToString(), () => controller.SetTimeControl(clock));
             timeControlItems.Add((item, clock));
             timeControl.Items.Add(item);
         }
-        timeControl.Items.Add(MenuItem.Separator());
-        timeControl.Items.Add(new MenuItem("Custom...", () => _ = ChooseCustomTimeControlAsync()));
-        var level = new MenuItem("Set level (untimed play)");
-        foreach ((string header, Level value) in Levels)
+        var level = new MenuItem("Set level");
+        foreach ((string header, Level value) in LevelChoices)
         {
             var item = new MenuItem(header, () => SetLevel(value));
             levelItems.Add((item, value));
@@ -276,25 +264,12 @@ internal sealed class MainView : View, IDisposable
 
     private void BuildEngineMenu()
     {
-        engineMenu.Items.Clear();
-        rosterItems.Clear();
-        engineMenu.Items.Add(builtInEngineItem);
-        foreach (EngineEntry entry in roster.Engines)
-        {
-            EngineEntry chosen = entry;
-            var item = new MenuItem(entry.Name, () => _ = StartEngineSafelyAsync(chosen.Path, chosen.Options));
-            rosterItems.Add((item, chosen.Path));
-            engineMenu.Items.Add(item);
-        }
         engineMenu.Items.AddRange(
         [
-            MenuItem.Separator(),
-            new MenuItem("Add UCI engine...", () => _ = AddEngineAsync()),
-            engineOptionsItem,
-            removeEngineItem,
+            builtInEngineItem,
+            new MenuItem("Open UCI engine...", () => _ = OpenEngineAsync()),
             MenuItem.Separator(),
             showEngineOutputItem,
-            new MenuItem("Engine match...", () => _ = StartMatchFromDialogAsync()),
         ]);
     }
 
@@ -345,17 +320,10 @@ internal sealed class MainView : View, IDisposable
         MoveNowButton.IsEnabled = controller.IsThinking;
         UpdateMoveList();
         UpdateStatusBar();
-        builtInEngineItem.IsChecked = controller.EnginePath is null && !controller.IsMatch;
-        foreach ((MenuItem item, string path) in rosterItems)
+        builtInEngineItem.IsChecked = controller.EnginePath is null;
+        foreach ((MenuItem item, TimeControl clock) in timeControlItems)
         {
-            item.IsChecked = !controller.IsMatch && controller.EnginePath == path;
-        }
-        bool isCurrentEngineRegistered = roster.Engines.Any(e => e.Path == controller.EnginePath);
-        engineOptionsItem.IsEnabled = isCurrentEngineRegistered;
-        removeEngineItem.IsEnabled = isCurrentEngineRegistered;
-        foreach ((MenuItem item, TimeControl? clock) in timeControlItems)
-        {
-            item.IsChecked = Equals(clock, controller.TimeControl);
+            item.IsChecked = clock == controller.TimeControl;
         }
         foreach ((MenuItem item, Level level) in levelItems)
         {
@@ -375,12 +343,12 @@ internal sealed class MainView : View, IDisposable
 
     private void UpdateStatusBar()
     {
-        bool isClockRunning = controller.ActiveClock is not null && !controller.IsGameOver && !controller.IsEditing;
+        bool isClockRunning = !controller.IsGameOver && !controller.IsEditing;
         StatusBar.Segments =
         [
             new StatusSegment("You are playing:", GameText.HumanColor(controller)),
             new StatusSegment("Color to move:", controller.SideToMove.ToString()),
-            new StatusSegment(GameText.ModeAnnotation(controller).Trim(), GameText.Mode(controller)),
+            new StatusSegment("Difficulty:", GameText.Difficulty(controller)),
             new StatusSegment("White clock:", GameText.Clock(controller.WhiteClock), IsClock: true,
                 IsRunning: isClockRunning && controller.SideToMove == Color.White),
             new StatusSegment("Black clock:", GameText.Clock(controller.BlackClock), IsClock: true,
@@ -400,7 +368,7 @@ internal sealed class MainView : View, IDisposable
             {
                 case Key.C: CopyFen(); return true;
                 case Key.V: _ = PasteFenAsync(); return true;
-                case Key.N: _ = NewGameWithClockAsync(Color.White); return true;
+                case Key.N: controller.NewGame(Color.White); return true;
                 case Key.Z: controller.Undo(); return true;
                 case Key.S: _ = SaveGameAsync(); return true;
                 case Key.O: _ = LoadGameAsync(); return true;
@@ -412,7 +380,7 @@ internal sealed class MainView : View, IDisposable
         }
         if (e.Is(Key.N, KeyModifiers.Primary | KeyModifiers.Shift))
         {
-            _ = NewGameWithClockAsync(Color.Black);
+            controller.NewGame(Color.Black);
             return true;
         }
         if (e.Modifiers == KeyModifiers.Alt && e.Key is >= Key.A and <= Key.Z)
@@ -450,42 +418,6 @@ internal sealed class MainView : View, IDisposable
     // ---------------------------------------------------------------------------------------------
     // Game and view actions
     // ---------------------------------------------------------------------------------------------
-
-    /// <summary>
-    /// The clock is chosen before every new game begins; cancelling either dialog keeps the current game.
-    /// </summary>
-    private async Task NewGameWithClockAsync(Color human)
-    {
-        var dialog = new NewGameDialog(controller.TimeControl);
-        await ShowDialogAsync(dialog);
-        if (!dialog.Confirmed)
-        {
-            return;
-        }
-        TimeControl? clock = dialog.Choice;
-        if (dialog.CustomRequested)
-        {
-            var custom = new CustomTimeControlDialog(controller.TimeControl);
-            await ShowDialogAsync(custom);
-            if (custom.Choice is null)
-            {
-                return;
-            }
-            clock = custom.Choice;
-        }
-        controller.SetTimeControl(clock);
-        controller.NewGame(human);
-    }
-
-    private async Task ChooseCustomTimeControlAsync()
-    {
-        var dialog = new CustomTimeControlDialog(controller.TimeControl);
-        await ShowDialogAsync(dialog);
-        if (dialog.Choice is { } clock)
-        {
-            controller.SetTimeControl(clock);
-        }
-    }
 
     private void SetLevel(Level level)
     {
@@ -647,22 +579,14 @@ internal sealed class MainView : View, IDisposable
     }
 
     // ---------------------------------------------------------------------------------------------
-    // The engine roster: registered external UCI engines, persisted per user
+    // The opponent engine
     // ---------------------------------------------------------------------------------------------
 
-    private async Task SaveRosterAsync()
-    {
-        if (EngineRosterFile.Save(roster, rosterPath) is { } failure)
-        {
-            await ShowMessageAsync("Engines", $"The engine list could not be saved:\n{failure}");
-        }
-    }
-
-    private async Task<bool> StartEngineSafelyAsync(string? path, IReadOnlyDictionary<string, string>? options = null)
+    private async Task<bool> StartEngineSafelyAsync(string? path)
     {
         try
         {
-            return await controller.StartEngineAsync(path, options);
+            return await controller.StartEngineAsync(path);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -671,74 +595,14 @@ internal sealed class MainView : View, IDisposable
         }
     }
 
-    private async Task AddEngineAsync()
+    /// <summary>
+    /// Pick any UCI engine's executable and play against it instead of the built-in one, for this session.
+    /// </summary>
+    private async Task OpenEngineAsync()
     {
-        if (await ChooseFileAsync(() => platform.ChooseFileToOpenAsync("Choose a UCI engine", [FileFilter.All])) is not { } path)
+        if (await ChooseFileAsync(() => platform.ChooseFileToOpenAsync("Choose a UCI engine", [FileFilter.All])) is { } path)
         {
-            return;
-        }
-        if (await StartEngineSafelyAsync(path) && controller.EnginePath == path)
-        {
-            roster.Add(controller.EngineName ?? Path.GetFileName(path), path);
-            await SaveRosterAsync();
-            BuildEngineMenu();
-            Refresh();
-        }
-    }
-
-    private async Task EditEngineOptionsAsync()
-    {
-        if (roster.Engines.FirstOrDefault(e => e.Path == controller.EnginePath) is not { } entry)
-        {
-            return;
-        }
-        var dialog = new EngineOptionsDialog(entry.Name, entry.Options);
-        await ShowDialogAsync(dialog);
-        if (dialog.Saved is not { } options)
-        {
-            return;
-        }
-        entry.Options.Clear();
-        foreach ((string key, string value) in options)
-        {
-            entry.Options[key] = value;
-        }
-        await SaveRosterAsync();
-        await StartEngineSafelyAsync(entry.Path, entry.Options);   // Restart so the options apply now
-    }
-
-    private async Task RemoveCurrentEngineAsync()
-    {
-        if (controller.EnginePath is not string path)
-        {
-            return;
-        }
-        roster.Remove(path);
-        await SaveRosterAsync();
-        BuildEngineMenu();
-        await StartEngineSafelyAsync(null);
-    }
-
-    private async Task StartMatchFromDialogAsync()
-    {
-        List<string> names = ["Built-in engine", .. roster.Engines.Select(e => e.Name)];
-        var dialog = new MatchDialog(names);
-        await ShowDialogAsync(dialog);
-        if (dialog.Choice is not { } choice)
-        {
-            return;
-        }
-        (string? Path, Dictionary<string, string>? Options) Pick(int index) =>
-            index == 0 ? (null, null) : (roster.Engines[index - 1].Path, roster.Engines[index - 1].Options);
-        (string? whitePath, Dictionary<string, string>? whiteOptions) = Pick(choice.White);
-        (string? blackPath, Dictionary<string, string>? blackOptions) = Pick(choice.Black);
-        try
-        {
-            await controller.StartMatchAsync(whitePath, blackPath, whiteOptions, blackOptions);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            await ShowMessageAsync("Engine match", $"The match could not be started:\n{ex.Message}");
+            await StartEngineSafelyAsync(path);
         }
     }
 

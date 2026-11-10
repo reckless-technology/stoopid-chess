@@ -32,20 +32,12 @@ public class GameTextTests
     };
 
     [Fact]
-    public Task TheTitleNamesTheEngineOrTheMatch() => ControllerThread.Run(async () =>
+    public Task TheTitleNamesTheEngine() => ControllerThread.Run(async () =>
     {
         using GameController controller = WithScriptedEngines();
         Assert.Equal("Stoopid Chess", GameText.Title(controller));
         Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(Timeout));
         Assert.Equal("Stoopid Chess - Alpha", GameText.Title(controller));
-        Assert.True(await controller.StartMatchAsync("Alpha", "Beta").WaitAsync(Timeout));
-        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal("Stoopid Chess - Alpha vs Beta", GameText.Title(controller));
-        Assert.Equal(("Alpha", "Beta"), GameText.PlayerNames(controller));
-        Assert.Equal("Nobody (engine vs engine)", GameText.HumanColor(controller));
-        controller.NewGame(Color.None);                 // A rematch between the same two engines
-        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal("Stoopid Chess - Alpha vs Beta", GameText.Title(controller));
     });
 
     [Fact]
@@ -58,25 +50,29 @@ public class GameTextTests
         controller.NewGame(Color.Black);
         await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
         Assert.Equal(("Alpha", "Human"), GameText.PlayerNames(controller));
-        controller.NewGame(Color.None);
-        await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        Assert.Equal(("Alpha", "Alpha"), GameText.PlayerNames(controller));
     });
 
     [Fact]
-    public void TheModeIsTheRunningClockOrTheLevelWithAPendingChangeMarked()
+    public void LosingOnTimeIsReportedAndScored()
     {
         using var controller = new GameController();
-        Assert.Equal("   Difficulty:", GameText.ModeAnnotation(controller));
-        Assert.Equal("Easy", GameText.Mode(controller));
-        controller.SetTimeControl(TimeControl.OfMinutes(5, 3));
-        Assert.Equal("   Clock:", GameText.ModeAnnotation(controller));
-        Assert.Equal("5+3", GameText.Mode(controller));
-        Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
-        controller.SetTimeControl(null);
-        Assert.Equal("5+3 (next game: untimed)", GameText.Mode(controller));
-        controller.SetTimeControl(TimeControl.Standard(40, 5));
-        Assert.Equal("5+3 (next game: 40/5)", GameText.Mode(controller));
+        controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(1), TimeSpan.Zero));
+        controller.NewGame(Color.White);
+        controller.Tick(TimeSpan.FromSeconds(2));
+        Assert.Equal("GAME OVER: White lost on time", GameText.MoveList(controller, showEngineOutput: false));
+        Assert.Equal("0-1", GameText.Result(controller));
+        controller.SetPosition(Position.FromFen("4k3/8/8/8/8/8/8/4K2R b - - 0 1"));
+        controller.Tick(TimeSpan.FromSeconds(2));
+        Assert.Equal("1-0", GameText.Result(controller));
+    }
+
+    [Fact]
+    public void TheDifficultyIsTheLevel()
+    {
+        using var controller = new GameController();
+        Assert.Equal("Easy", GameText.Difficulty(controller));
+        controller.Level = Level.Hard;
+        Assert.Equal("Hard", GameText.Difficulty(controller));
     }
 
     [Fact]
@@ -126,20 +122,6 @@ public class GameTextTests
         Assert.Equal("1-0", GameText.Result(mated));
         using GameController going = Loaded();
         Assert.Equal("*", GameText.Result(going));
-    }
-
-    [Fact]
-    public void LosingOnTimeIsReportedAndScored()
-    {
-        using var controller = new GameController();
-        controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(1), TimeSpan.Zero));
-        controller.NewGame(Color.White);
-        controller.Tick(TimeSpan.FromSeconds(2));
-        Assert.Equal("GAME OVER: White lost on time", GameText.MoveList(controller, showEngineOutput: false));
-        Assert.Equal("0-1", GameText.Result(controller));
-        controller.SetPosition(Position.FromFen("4k3/8/8/8/8/8/8/4K2R b - - 0 1"));
-        controller.Tick(TimeSpan.FromSeconds(2));
-        Assert.Equal("1-0", GameText.Result(controller));
     }
 
     [Fact]

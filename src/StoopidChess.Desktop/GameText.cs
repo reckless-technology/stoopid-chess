@@ -13,14 +13,12 @@ namespace StoopidChess.Desktop;
 internal static class GameText
 {
     /// <summary>
-    /// The window title: the program, and the engine playing or the two engines of a match.
+    /// The window title: the program, and the engine playing.
     /// </summary>
     public static string Title(GameController controller)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        return controller.IsMatch
-            ? $"Stoopid Chess - {controller.EngineName} vs {controller.OpponentName}"
-            : controller.EngineName is null ? "Stoopid Chess" : $"Stoopid Chess - {controller.EngineName}";
+        return controller.EngineName is null ? "Stoopid Chess" : $"Stoopid Chess - {controller.EngineName}";
     }
 
     /// <summary>
@@ -29,32 +27,16 @@ internal static class GameText
     public static string HumanColor(GameController controller)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        return controller.HumanColor == Color.None ? "Nobody (engine vs engine)" : controller.HumanColor.ToString();
+        return controller.HumanColor.ToString();
     }
 
     /// <summary>
-    /// The status bar's caption for <see cref="Mode"/>: the clock when the running game has one, otherwise
-    /// the difficulty.
+    /// The engine's difficulty, for the status bar.
     /// </summary>
-    public static string ModeAnnotation(GameController controller)
+    public static string Difficulty(GameController controller)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        return controller.ActiveClock is null ? "   Difficulty:" : "   Clock:";
-    }
-
-    /// <summary>
-    /// The clock the running game is actually under, or its level when it is untimed; a differing selection
-    /// for the next game is marked as pending.
-    /// </summary>
-    public static string Mode(GameController controller)
-    {
-        ArgumentNullException.ThrowIfNull(controller);
-        string mode = controller.ActiveClock?.ToString() ?? controller.Level.ToString();
-        if (!Equals(controller.TimeControl, controller.ActiveClock))
-        {
-            mode += $" (next game: {controller.TimeControl?.ToString() ?? "untimed"})";
-        }
-        return mode;
+        return controller.Level.ToString();
     }
 
     /// <summary>
@@ -133,9 +115,9 @@ internal static class GameText
                 }
                 break;
         }
-        if (controller.TimedOut != Color.None)
+        if (controller.TimedOut is { } flagged)
         {
-            text.Append(CultureInfo.InvariantCulture, $"GAME OVER: {controller.TimedOut} lost on time");
+            text.Append(CultureInfo.InvariantCulture, $"GAME OVER: {flagged} lost on time");
         }
         if (showEngineOutput && controller.LastEngineInfo.Length != 0)
         {
@@ -190,22 +172,13 @@ internal static class GameText
     }
 
     /// <summary>
-    /// The White and Black names of an exported PGN: the engines of a match, or the human and the engine.
+    /// The White and Black names of an exported PGN: the human and the engine.
     /// </summary>
     public static (string White, string Black) PlayerNames(GameController controller)
     {
         ArgumentNullException.ThrowIfNull(controller);
         string engine = controller.EngineName ?? "Engine";
-        if (controller.IsMatch)
-        {
-            return (engine, controller.OpponentName ?? "Engine");
-        }
-        return controller.HumanColor switch
-        {
-            Color.White => ("Human", engine),
-            Color.Black => (engine, "Human"),
-            _ => (engine, engine),
-        };
+        return controller.HumanColor == Color.White ? ("Human", engine) : (engine, "Human");
     }
 
     /// <summary>
@@ -214,9 +187,9 @@ internal static class GameText
     public static string Result(GameController controller)
     {
         ArgumentNullException.ThrowIfNull(controller);
-        if (controller.TimedOut != Color.None)
+        if (controller.TimedOut is { } flagged)
         {
-            return controller.TimedOut == Color.White ? "0-1" : "1-0";
+            return flagged == Color.White ? "0-1" : "1-0";
         }
         return controller.Game.Status switch
         {

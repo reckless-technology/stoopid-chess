@@ -31,7 +31,7 @@ public sealed class MainViewTests : IDisposable
     {
         private readonly Dictionary<string, Func<string, IEnumerable<string>?>> scripts = [];
 
-        public Rig(string folder, SavedGame? game = null, EngineRoster? roster = null)
+        public Rig(SavedGame? game = null)
         {
             Controller = new GameController
             {
@@ -44,19 +44,13 @@ public sealed class MainViewTests : IDisposable
             {
                 Assert.True(Controller.Load(game));
             }
-            Roster = roster ?? new EngineRoster();
-            RosterPath = Path.Combine(folder, "roster", "engines.json");
-            View = new MainView(Platform, Controller, Roster, RosterPath);
+            View = new MainView(Platform, Controller);
             Window = new ViewHarness(View);
         }
 
         public FakePlatform Platform { get; } = new();
 
         public GameController Controller { get; }
-
-        public EngineRoster Roster { get; }
-
-        public string RosterPath { get; }
 
         public MainView View { get; }
 
@@ -135,7 +129,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void TheWindowIsLaidOutAsBefore()
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         MainView view = rig.View;
         Assert.Equal(["File", "Edit", "Game", "View", "Engine", "Help"], view.MenuBar.Menus.Select(menu => menu.Text));
         Assert.Equal(MenuBarView.BarHeight, view.MenuBar.Height);
@@ -152,9 +146,8 @@ public sealed class MainViewTests : IDisposable
         Assert.Equal("Ctrl+N".Replace("Ctrl", Shortcut.PrimaryName, StringComparison.Ordinal),
             view.MenuBar.Menus[2].Items[0].Items[0].Shortcut);
         rig.Window.Render();
-        Assert.Throws<ArgumentNullException>(() => new MainView(null!, rig.Controller, rig.Roster, rig.RosterPath));
-        Assert.Throws<ArgumentNullException>(() => new MainView(rig.Platform, null!, rig.Roster, rig.RosterPath));
-        Assert.Throws<ArgumentNullException>(() => new MainView(rig.Platform, rig.Controller, null!, rig.RosterPath));
+        Assert.Throws<ArgumentNullException>(() => new MainView(null!, rig.Controller));
+        Assert.Throws<ArgumentNullException>(() => new MainView(rig.Platform, null!));
     }
 
     [Theory]
@@ -166,7 +159,7 @@ public sealed class MainViewTests : IDisposable
     [InlineData(681, 541)]      // An odd size: the board is a whole number of pixels per square
     public void TheBoardIsSquareAndTheMoveListColumnTakesTheRestOfTheWidth(int width, int height)
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         rig.Window.Root.Resize(width, height);
         MainView view = rig.View;
         BoardView board = view.Board;
@@ -197,7 +190,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void AtTheDefaultSizeTheBoardFillsTheHeightAndTheColumnTheWidth()
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         Assert.Equal(64, rig.View.Board.SquareSize);
         Assert.Equal(332, rig.View.MoveList.Width);
         Assert.Equal(0, rig.View.MoveList.Bounds.Left - rig.View.Board.Bounds.Right - MainView.Margin);
@@ -206,7 +199,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void ADraggedMoveIsPlayedAndAnIllegalOneRefused()
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         rig.Window.Drag(rig.Square("e2"), rig.Square("e5"));
         Assert.Equal(("Illegal move", "That move is not permitted."), rig.TakeMessage());
         rig.Window.Drag(rig.Square("e2"), rig.Square("e4"));
@@ -219,7 +212,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void APromotionAsksForThePiece()
     {
-        using var rig = new Rig(folder, new SavedGame { StartFen = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1" });
+        using var rig = new Rig(new SavedGame { StartFen = "8/4P3/8/8/8/8/k7/4K3 w - - 0 1" });
         rig.Window.Drag(rig.Square("e7"), rig.Square("e8"));
         PromotionDialog dialog = rig.Dialog<PromotionDialog>();
         Assert.Equal(Piece.Queen, dialog.Choice);
@@ -230,7 +223,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void TheEditMenuEditsThePosition()
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         rig.Window.Click(rig.Square("e4"), PointerButton.Right);
         MenuPopup menu = Assert.IsType<MenuPopup>(rig.Window.Root.Overlays.Single());
         rig.ChooseIn(menu, "Black", "Queen");
@@ -259,7 +252,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public void TheShortcutsReachTheirActions()
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         rig.Window.Key(Key.C, KeyModifiers.Primary);
         Assert.Equal(Position.StartFen, rig.Platform.Clipboard);
         rig.Platform.Clipboard = "4k3/8/8/8/8/8/8/4K3 w - - 0 1";
@@ -286,61 +279,25 @@ public sealed class MainViewTests : IDisposable
     }
 
     [Fact]
-    public void ANewGameAsksForItsClockFirst()
+    public void ANewGameStartsAtOnceAsTheChosenSide()
     {
-        using var rig = new Rig(folder, new SavedGame { Moves = ["e2e4"] });
-        rig.Window.Key(Key.N, KeyModifiers.Primary);
-        NewGameDialog dialog = rig.Dialog<NewGameDialog>();
-        rig.Window.Click(dialog.Buttons[1]);                      // Cancel: the game goes on
-        Assert.Single(rig.Controller.Game.Moves);
-
+        using var rig = new Rig(new SavedGame { Moves = ["e2e4"] });
         rig.Window.Key(Key.N, KeyModifiers.Primary | KeyModifiers.Shift);
-        rig.Window.Key(Key.Return);                               // The default clock, 40 moves in 5 minutes
         Assert.Empty(rig.Controller.Game.Moves);
         Assert.Equal(Color.Black, rig.Controller.HumanColor);
-        Assert.Equal(TimeControl.Standard(40, 5), rig.Controller.TimeControl);
-        Assert.Equal("Clock:", rig.View.StatusBar.Segments[2].Caption);
+        Assert.Empty(rig.Window.Root.Overlays);
 
         rig.Choose("Game", "New Game", "White");
-        dialog = rig.Dialog<NewGameDialog>();
-        rig.Window.Click(dialog.Choices.ToRoot(dialog.Choices.RowCentre(4)));   // Custom...
-        rig.Window.Click(dialog.Buttons[0]);
-        CustomTimeControlDialog custom = rig.Dialog<CustomTimeControlDialog>();
-        custom.Minutes.Value = 15;
-        custom.Increment.Value = 10;
-        custom.MovesPerSession.Value = 0;
-        rig.Window.Key(Key.Return);
-        Assert.Equal(TimeControl.OfMinutes(15, 10), rig.Controller.TimeControl);
         Assert.Equal(Color.White, rig.Controller.HumanColor);
-
         rig.Window.Key(Key.N, KeyModifiers.Primary);
-        rig.Window.Key(Key.Return);                               // Custom again, from the current clock
-        rig.Window.Key(Key.Escape);                               // Cancelled: no new game
-        Assert.Empty(rig.Window.Root.Overlays);
-        Assert.Equal(TimeControl.OfMinutes(15, 10), rig.Controller.TimeControl);
+        Assert.Equal(Color.White, rig.Controller.HumanColor);
     }
 
     [Fact]
-    public void TheGameMenuSetsClocksLevelsAndSides()
+    public void TheGameMenuSetsLevelsAndSides()
     {
-        using var rig = new Rig(folder, new SavedGame { Moves = ["e2e4"] });
-        rig.Choose("Game", "Time control", "Incremental: 5 minutes + 5 seconds per move");
-        Assert.Equal(TimeControl.OfMinutes(5, 5), rig.Controller.TimeControl);
-        MenuItem timeControl = rig.View.MenuBar.Menus[2].Items[3];
-        Assert.True(timeControl.Items[4].IsChecked);
-        Assert.False(timeControl.Items[0].IsChecked);
-        rig.Choose("Game", "Time control", "Custom...");
-        CustomTimeControlDialog custom = rig.Dialog<CustomTimeControlDialog>();
-        Assert.Equal(5, custom.Minutes.Value);
-        Assert.Equal(5, custom.Increment.Value);
-        rig.Window.Click(custom.Buttons[1]);                      // Cancel
-        Assert.Equal(TimeControl.OfMinutes(5, 5), rig.Controller.TimeControl);
-        rig.Choose("Game", "Time control", "Custom...");
-        rig.Dialog<CustomTimeControlDialog>().MovesPerSession.Value = 40;
-        rig.Window.Key(Key.Return);
-        Assert.Equal(new TimeControl(TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(5), 40), rig.Controller.TimeControl);
-
-        rig.Choose("Game", "Set level (untimed play)", "Hard");
+        using var rig = new Rig(new SavedGame { Moves = ["e2e4"] });
+        rig.Choose("Game", "Set level", "Hard");
         Assert.Equal(Level.Hard, rig.Controller.Level);
         Assert.True(rig.View.MenuBar.Menus[2].Items[4].Items[3].IsChecked);
         rig.Choose("Game", "Undo last move");
@@ -359,11 +316,10 @@ public sealed class MainViewTests : IDisposable
     }
 
     [Fact]
-    public void TheClockTicksInTheStatusBar()
+    public void TheClocksCountDownInTheStatusBar()
     {
-        using var rig = new Rig(folder);
-        rig.Controller.SetTimeControl(TimeControl.Standard(40, 5));
-        rig.Controller.NewGame(Color.White);
+        using var rig = new Rig();
+        rig.Controller.SetTimeControl(TimeControl.OfMinutes(5, 0));
         rig.View.Tick(TimeSpan.FromSeconds(2));
         StatusSegment white = rig.View.StatusBar.Segments[3];
         Assert.Equal("00:04:58", white.Value);
@@ -373,9 +329,21 @@ public sealed class MainViewTests : IDisposable
     }
 
     [Fact]
+    public void TheTimeControlMenuChoosesTheClock()
+    {
+        using var rig = new Rig();
+        MenuItem timeControl = rig.View.MenuBar.Menus[2].Items[3];
+        Assert.Equal("Time control", timeControl.Text);
+        Assert.Equal(TimeControl.Default.ToString(), timeControl.Items.Single(item => item.IsChecked).Text);
+        rig.Choose("Game", "Time control", "5+3");
+        Assert.Equal(TimeControl.OfMinutes(5, 3), rig.Controller.TimeControl);
+        Assert.Equal("5+3", timeControl.Items.Single(item => item.IsChecked).Text);
+    }
+
+    [Fact]
     public async Task TheAnalysisWindowOpensOnceAndShowsTheEnginesLines() => await ControllerThread.Run(async () =>
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         string engine = rig.Register("analyst", command => command.StartsWith("go", StringComparison.Ordinal)
             ? ["info depth 1 score cp 12 nodes 20 pv e7e5", "info string not shown", "bestmove e7e5"]
             : []);
@@ -405,11 +373,10 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public async Task TheEngineIsStartedAndItsFailuresAreSaid() => await ControllerThread.Run(async () =>
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         await rig.View.StartAsync();
         Assert.StartsWith("Stoopid Chess - Stoopid Chess ", rig.Platform.Title, StringComparison.Ordinal);
         Assert.True(rig.View.EngineMenuItems[0].IsChecked);
-        Assert.False(rig.View.EngineMenuItems.Single(item => item.Text.StartsWith("Engine options", StringComparison.Ordinal)).IsEnabled);
 
         string illegal = rig.Register("illegal", ScriptedEngine.Plays("a1a8"));
         Assert.True(await rig.Controller.StartEngineAsync(illegal));
@@ -430,100 +397,33 @@ public sealed class MainViewTests : IDisposable
     });
 
     [Fact]
-    public async Task EnginesAreAddedConfiguredAndRemoved() => await ControllerThread.Run(async () =>
+    public async Task AnotherUciEngineIsOpenedByItsPath() => await ControllerThread.Run(async () =>
     {
-        using var rig = new Rig(folder);
+        using var rig = new Rig();
         string path = rig.Register(Path.Combine(folder, "pawnstar"), ScriptedEngine.Plays("e7e5"));
         rig.Platform.FileAnswers.Enqueue(path);
-        rig.Choose("Engine", "Add UCI engine...");
-        await rig.SettleAsync(() => rig.Roster.Engines.Count == 1);
-        Assert.Equal("pawnstar", rig.Roster.Engines[0].Name);
-        Assert.True(File.Exists(rig.RosterPath));
-        MenuItem added = Assert.Single(rig.View.EngineMenuItems, item => item.Text == "pawnstar");
-        Assert.True(added.IsChecked);
-
-        rig.Choose("Engine", "Engine options (Hash, Threads)...");
-        EngineOptionsDialog options = rig.Dialog<EngineOptionsDialog>();
-        Assert.Equal("pawnstar options", options.Title);
-        options.Hash.Value = 128;
-        rig.Window.Key(Key.Return);
+        rig.Choose("Engine", "Open UCI engine...");
         await rig.SettleAsync(() => rig.Controller.EnginePath == path && rig.Controller.HasEngine);
-        Assert.Equal("128", rig.Roster.Engines[0].Options["Hash"]);
-        rig.Choose("Engine", "Engine options (Hash, Threads)...");
-        rig.Window.Key(Key.Escape);                               // Cancelled: nothing changes
-        Assert.Equal("128", rig.Roster.Engines[0].Options["Hash"]);
+        Assert.Equal("pawnstar", rig.Controller.EngineName);
+        Assert.False(rig.View.EngineMenuItems[0].IsChecked);
 
         rig.Choose("Engine", "Use built-in engine");
         await rig.SettleAsync(() => rig.Controller.EnginePath is null && rig.Controller.HasEngine);
-        rig.Choose("Engine", "pawnstar");
-        await rig.SettleAsync(() => rig.Controller.EnginePath == path && rig.Controller.HasEngine);
-        rig.Choose("Engine", "Remove current engine from the list");
-        await rig.SettleAsync(() => rig.Roster.Engines.Count == 0 && rig.Controller.EnginePath is null && rig.Controller.HasEngine);
-        Assert.DoesNotContain(rig.View.EngineMenuItems, item => item.Text == "pawnstar");
-        rig.Choose("Engine", "Remove current engine from the list");   // Disabled for the built-in: nothing
-        Assert.NotNull(rig.View.MenuBar.Popup);                    // And the menu stays open
-        rig.Window.Key(Key.Escape);
+        Assert.True(rig.View.EngineMenuItems[0].IsChecked);
 
         rig.Platform.FileAnswers.Enqueue(Path.Combine(folder, "missing"));
-        rig.Choose("Engine", "Add UCI engine...");
+        rig.Choose("Engine", "Open UCI engine...");
         await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
         Assert.StartsWith("The engine could not be started:", rig.TakeMessage().Text, StringComparison.Ordinal);
-        rig.Choose("Engine", "Add UCI engine...");                // Cancelled
-        Assert.Empty(rig.Roster.Engines);
-    });
-
-    [Fact]
-    public async Task AnUnsavableEngineListIsSaid() => await ControllerThread.Run(async () =>
-    {
-        using var rig = new Rig(folder);
-        File.WriteAllText(Path.Combine(folder, "roster"), "a file where the folder should be");
-        string path = rig.Register("engine", ScriptedEngine.Plays("e7e5"));
-        rig.Platform.FileAnswers.Enqueue(path);
-        rig.Choose("Engine", "Add UCI engine...");
-        await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
-        (string title, string text) = rig.TakeMessage();
-        Assert.Equal("Engines", title);
-        Assert.StartsWith("The engine list could not be saved:", text, StringComparison.Ordinal);
-    });
-
-    [Fact]
-    public async Task AnEngineMatchIsChosenAndStarted() => await ControllerThread.Run(async () =>
-    {
-        var roster = new EngineRoster();
-        roster.Add("white engine", "white");
-        using var rig = new Rig(folder, roster: roster);
-        rig.Register("white", ScriptedEngine.Plays("e2e4"));
-        rig.Choose("Engine", "Engine match...");
-        MatchDialog dialog = rig.Dialog<MatchDialog>();
-        Assert.Equal(["Built-in engine", "white engine"], dialog.White.Choices);
-        dialog.White.SelectedIndex = 1;
-        dialog.Black.SelectedIndex = 0;
-        rig.Window.Click(dialog.Buttons[0]);
-        await rig.SettleAsync(() => rig.Controller.IsMatch && rig.Controller.Game.Moves.Count > 0);
-        Assert.StartsWith("Stoopid Chess - white vs Stoopid Chess ", rig.Platform.Title, StringComparison.Ordinal);
-        Assert.False(rig.View.EngineMenuItems[0].IsChecked);
-        rig.Controller.NewGame(Color.White);                      // A human game ends the match
-        await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
-        while (rig.Window.Root.Overlays.Count > 0)
-        {
-            rig.TakeMessage();                                    // The scripted engine's second e2e4 was illegal
-        }
-
-        rig.Choose("Engine", "Engine match...");
-        rig.Window.Key(Key.Escape);                               // Cancelled
-        roster.Add("broken", "broken");
-        rig.Choose("Engine", "Engine match...");
-        dialog = rig.Dialog<MatchDialog>();
-        dialog.White.SelectedIndex = 2;
-        rig.Window.Click(dialog.Buttons[0]);
-        await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
-        Assert.Equal("Engine", rig.TakeMessage().Title);         // The controller says the engine would not start
+        await rig.SettleAsync(() => rig.Controller.EnginePath is null && rig.Controller.HasEngine);   // The fallback
+        rig.Choose("Engine", "Open UCI engine...");               // Cancelled: the engine stays
+        Assert.True(rig.Controller.HasEngine);
     });
 
     [Fact]
     public async Task GamesAreSavedAndLoaded() => await ControllerThread.Run(async () =>
     {
-        using var rig = new Rig(folder, new SavedGame { Moves = ["e2e4", "e7e5"] });
+        using var rig = new Rig(new SavedGame { Moves = ["e2e4", "e7e5"] });
         string saved = Path.Combine(folder, "game");
         rig.Platform.FileAnswers.Enqueue(saved);
         rig.Window.Key(Key.S, KeyModifiers.Primary);
@@ -562,7 +462,7 @@ public sealed class MainViewTests : IDisposable
     [Fact]
     public async Task PgnIsImportedAndExported() => await ControllerThread.Run(async () =>
     {
-        using var rig = new Rig(folder, new SavedGame { Moves = ["e2e4", "e7e5", "g1f3"] });
+        using var rig = new Rig(new SavedGame { Moves = ["e2e4", "e7e5", "g1f3"] });
         string exported = Path.Combine(folder, "game");
         rig.Platform.FileAnswers.Enqueue(exported);
         rig.Choose("File", "Export PGN...");

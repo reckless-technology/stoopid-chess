@@ -14,9 +14,9 @@ and was itself replaced by the GUI drawn with SkiaSharp in an SDL3 window, in th
 |---|---|
 | `src/StoopidChess.Core` | The rules of chess: the `Square`, `Bitboard`, `Move` and `MoveList` value types (a colored piece is a `(Color, Piece)` pair), `Position` (bitboards plus a square array, with incremental Zobrist keys), `Attacks` (attack tables and magic bitboards), FEN, legal move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
 | `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
-| `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, engine lifecycle, thinking, editing, clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
+| `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, the one engine it plays against, thinking, editing, chess clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
-| `src/StoopidChess.Desktop` | The GUI for Linux, macOS and Windows, drawn with SkiaSharp in an SDL3 window: drawing, mouse, keyboard and menus over `GameController`, talking to the engine only through UCI, and a small UCI host — registered external engines and Fischer time controls with flagging. |
+| `src/StoopidChess.Desktop` | The GUI for Linux, macOS and Windows, drawn with SkiaSharp in an SDL3 window: drawing, mouse, keyboard and menus over `GameController`, talking to the engine only through UCI. It plays the built-in engine, or any UCI engine opened by its path; running matches between engines is what Amphitheater is for. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |
 
 Everything builds and runs on Linux, macOS and Windows.
@@ -125,15 +125,13 @@ Modelled on the sibling engines pawnstar and trebuchet:
 - **UCI**: the session driven through in-memory streams, and the client talking to the engine over
   pipes exactly as the GUI does; the `stoopid-chess` console's command line, UCI loop, bench and perft.
 - **Play**: `GameController` against the in-process engine and against scripted fake engines (an illegal
-  reply, an engine dying mid-game, an engine match whose engines will not start or stop answering), the
-  clocks and time controls, saved games and the engine roster.
+  reply, an engine dying mid-game, an engine that will not start), the clocks and time controls, and saved games.
 - **GUI**, with no window: every view is drawn to a bitmap and driven by synthesized pointer, wheel, key and text
-  events - the widgets (plates, menus, fields, lists, the dialog frame), the board drawn in every state and its drags
-  and right clicks turned into squares, the capture bin, each dialog's fields, OK and Cancel, and the main view's
-  wiring (its menus, shortcuts, files, clipboard, engines and matches) against a fake window system and scripted
+  events - the widgets (plates, menus, lists, the dialog frame), the board drawn in every state and its drags
+  and right clicks turned into squares, the capture bin, each dialog's OK and Cancel, and the main view's
+  wiring (its menus, shortcuts, files, clipboard and engines) against a fake window system and scripted
   engines - and the window's text (`GameText`: the move list, the status bar, the analysis lines, the PGN names and
-  result). With `STOOPID_CHESS_SCREENSHOTS` naming a folder, `ScreenshotTests` also writes the main window, a menu, two
-  dialogs, a drag and the Analysis window there as PNGs.
+  result).
 - **Bench signature**.
 
 **Coverage.** CI fails the Linux job when the line coverage of the product code falls under 90%

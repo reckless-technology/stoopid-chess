@@ -26,6 +26,16 @@ internal sealed class TestPanel : View
 }
 
 /// <summary>
+/// A blank view that can take the keyboard focus, standing in for an entry field.
+/// </summary>
+internal sealed class FocusableView : View
+{
+    public override bool CanFocus => true;
+
+    public override bool OnPointerDown(PointerEvent e) => true;
+}
+
+/// <summary>
 /// The widgets the window and its dialogs are made of, drawn to a bitmap and worked by synthesized pointer, wheel, key
 /// and text events: what each one shows and what it does.
 /// </summary>
@@ -71,175 +81,6 @@ public class WidgetTests
         Assert.NotEqual(Theme.Plate, window.ColorAt(186, 56));   // The queen's middle, not the plate
         picture.IsEnabled = false;
         window.Render();
-    }
-
-    [Fact]
-    public void ATextFieldTakesTypingAndEditing()
-    {
-        var panel = new TestPanel();
-        using var window = new ViewHarness(panel, 300, 200);
-        var field = panel.Place(new TextField { IsAccepted = char.IsAsciiLetter, MaximumLength = 8 }, 10, 10, 200, 30);
-        int changes = 0;
-        field.TextChanged += () => changes++;
-        window.Click(field);
-        Assert.True(field.IsFocused);
-        Assert.True(window.Root.WantsTextInput);
-        window.Type("abc1d");                       // The digit is refused
-        Assert.Equal("abcd", field.Text);
-        window.Key(Key.Left);
-        window.Key(Key.Left, KeyModifiers.Shift);
-        Assert.Equal((2, 3), field.Selection);
-        window.Type("XY");                           // Replaces the selection
-        Assert.Equal("abXYd", field.Text);
-        window.Key(Key.Backspace);
-        window.Key(Key.Home);
-        window.Key(Key.Delete);
-        Assert.Equal("bXd", field.Text);
-        window.Key(Key.End);
-        Assert.Equal(3, field.Caret);
-        window.Key(Key.Right);
-        window.Key(Key.Delete);                      // Nothing after the caret
-        window.Key(Key.Home);
-        window.Key(Key.Backspace);                   // Nothing before it
-        Assert.Equal("bXd", field.Text);
-        window.Key(Key.Right, KeyModifiers.Shift);
-        window.Key(Key.Right);                       // Collapses the selection to its end
-        Assert.Equal((1, 1), field.Selection);
-        window.Key(Key.Left, KeyModifiers.Shift);
-        window.Key(Key.Left);                        // And to its start
-        Assert.Equal((0, 0), field.Selection);
-        window.Key(Key.A, KeyModifiers.Primary);
-        Assert.Equal((0, 3), field.Selection);
-        window.Type("abcdefghijk");                  // Held to the most it takes
-        Assert.Equal("abcdefgh", field.Text);
-        window.Type("z");
-        Assert.Equal("abcdefgh", field.Text);
-        window.Key(Key.Escape);                      // Not the field's
-        Assert.Contains(panel.UnhandledKeys, key => key.Key == Key.Escape);
-        Assert.True(changes > 0);
-        window.Render();
-        Assert.Throws<ArgumentNullException>(() => field.Text = null!);
-        Assert.Throws<ArgumentNullException>(() => field.OnTextInput(null!));
-    }
-
-    [Fact]
-    public void ATextFieldPlacesItsCaretWhereItIsPressedAndScrollsToIt()
-    {
-        var panel = new TestPanel();
-        using var window = new ViewHarness(panel, 300, 200);
-        var field = panel.Place(new TextField { MaximumLength = 200 }, 10, 10, 120, 30);
-        bool lost = false;
-        field.FocusLost += () => lost = true;
-        window.Click(field);
-        window.Type(new string('m', 40));            // Wider than the field: it scrolls to the caret
-        window.Render();
-        window.Key(Key.Home);
-        window.Render();
-        window.Click(new SKPoint(18, 25));           // Near the start
-        Assert.InRange(field.Caret, 0, 1);
-        window.Click(new SKPoint(18, 25), modifiers: KeyModifiers.Shift);
-        window.Press(new SKPoint(18, 25));
-        window.Move(new SKPoint(126, 25));           // Dragged across: a selection
-        window.Release(new SKPoint(126, 25));
-        Assert.True(field.Selection.End > field.Selection.Start);
-        Assert.False(field.OnPointerDown(new PointerEvent(new SKPoint(5, 5), PointerButton.Right)));
-        window.Root.Focus(null);
-        Assert.True(lost);
-        Assert.False(window.Root.WantsTextInput);
-        window.Render();
-    }
-
-    [Fact]
-    public void ANumberFieldIsHeldToItsRange()
-    {
-        var panel = new TestPanel();
-        using var window = new ViewHarness(panel, 300, 200);
-        var number = panel.Place(new NumberField(1, 180, 5), 10, 10, 160, 30);
-        Assert.Equal(1, number.Value);
-        number.Value = 500;
-        Assert.Equal(180, number.Value);
-        Assert.Equal("180", number.Field.Text);
-        window.Click(number.StepDown);
-        Assert.Equal(175, number.Value);
-        window.Click(number.StepUp);
-        window.Click(number.StepUp);
-        Assert.Equal(180, number.Value);
-        window.Click(number.Field);
-        window.Key(Key.Down);
-        Assert.Equal(175, number.Value);
-        window.Key(Key.Up);
-        Assert.Equal(180, number.Value);
-        window.Type("0");                            // Selected by the step, so replaced
-        Assert.Equal("0", number.Field.Text);
-        Assert.Equal(1, number.Value);               // Read held to the range
-        window.Root.Focus(null);
-        Assert.Equal("1", number.Field.Text);        // And written so once the keyboard goes
-        window.Click(number.Field);
-        window.Key(Key.Backspace);
-        Assert.Equal(1, number.Value);               // No number: the last one held
-        window.Wheel(ViewHarness.Centre(number), -2);
-        Assert.Equal(6, number.Value);
-        window.Wheel(ViewHarness.Centre(number), 1);
-        Assert.Equal(1, number.Value);
-        window.Wheel(ViewHarness.Centre(number), 0, 1);
-        Assert.Equal(1, number.Value);
-        window.Key(Key.Tab);
-        Assert.False(number.OnKeyDown(new KeyEvent(Key.Left)));
-        window.Render();
-    }
-
-    [Fact]
-    public void AChoiceListChoosesByPressAndByKey()
-    {
-        var panel = new TestPanel();
-        using var window = new ViewHarness(panel, 400, 300);
-        var list = panel.Place(new ChoiceList(["One", "Two", "Three"]), 10, 10, 300, 3 * ChoiceList.RowHeight);
-        Assert.Equal(3 * ChoiceList.RowHeight, list.PreferredHeight);
-        Assert.Equal(-1, list.SelectedIndex);
-        window.Click(list.ToRoot(list.RowCentre(1)));
-        Assert.Equal(1, list.SelectedIndex);
-        Assert.True(list.IsFocused);
-        window.Key(Key.Down);
-        window.Key(Key.Down);
-        Assert.Equal(2, list.SelectedIndex);
-        window.Key(Key.Up);
-        Assert.Equal(1, list.SelectedIndex);
-        window.Click(list.ToRoot(list.RowCentre(0)), PointerButton.Right);
-        Assert.Equal(1, list.SelectedIndex);
-        list.SelectedIndex = 7;
-        Assert.Equal(2, list.SelectedIndex);
-        window.Key(Key.Escape);
-        Assert.Single(panel.UnhandledKeys);
-        window.Render();
-    }
-
-    [Fact]
-    public void AChoiceButtonOpensAMenuOfItsChoices()
-    {
-        var panel = new TestPanel();
-        using var window = new ViewHarness(panel, 400, 300);
-        var choice = panel.Place(new ChoiceButton(["Built-in engine", "Pawnstar"]) { SelectedIndex = 0 }, 10, 10, 220, 30);
-        window.Click(choice);
-        MenuPopup menu = Assert.IsType<MenuPopup>(window.Root.Overlays.Single());
-        Assert.Same(menu, choice.Menu);
-        window.Click(menu.RowCentre(0, 1));
-        Assert.Equal(1, choice.SelectedIndex);
-        Assert.Null(choice.Menu);
-        Assert.Empty(window.Root.Overlays);
-        window.Root.Focus(choice);
-        window.Key(Key.Up);
-        Assert.Equal(0, choice.SelectedIndex);
-        window.Key(Key.Down);
-        Assert.Equal(1, choice.SelectedIndex);
-        window.Key(Key.Escape);
-        Assert.Single(panel.UnhandledKeys);
-        choice.SelectedIndex = -1;
-        window.Render();
-        window.Click(ViewHarness.Centre(choice), PointerButton.Right);
-        Assert.Empty(window.Root.Overlays);
-        var empty = new ChoiceButton([]);
-        empty.OpenMenu();                            // In no window, and with nothing to choose
-        Assert.Null(empty.Menu);
     }
 
     [Fact]
@@ -332,10 +173,10 @@ public class WidgetTests
     {
         var panel = new TestPanel();
         using var window = new ViewHarness(panel, 400, 300);
-        var first = panel.Place(new TextField(), 10, 10, 100, 30);
-        var second = panel.Place(new TextField(), 10, 50, 100, 30);
-        var hidden = panel.Place(new TextField { IsVisible = false }, 10, 90, 100, 30);
-        panel.Place(new TextField { IsEnabled = false }, 10, 130, 100, 30);
+        var first = panel.Place(new FocusableView(), 10, 10, 100, 30);
+        var second = panel.Place(new FocusableView(), 10, 50, 100, 30);
+        var hidden = panel.Place(new FocusableView { IsVisible = false }, 10, 90, 100, 30);
+        panel.Place(new FocusableView { IsEnabled = false }, 10, 130, 100, 30);
         window.Key(Key.Tab);
         Assert.True(first.IsFocused);
         window.Key(Key.Tab);
@@ -362,7 +203,6 @@ public class WidgetTests
         window.Root.PointerLeave();
         window.Press(new SKPoint(-5, -5));           // Outside the window
         window.Type("ignored");
-        Assert.Equal("", second.Text);
         window.Root.Content = new TestPanel();       // Content replaced
         window.Key(Key.Tab);                         // Nothing to focus
         window.Root.Content = null;

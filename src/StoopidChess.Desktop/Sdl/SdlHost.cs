@@ -73,8 +73,7 @@ internal sealed unsafe class SdlHost : IDisposable
     {
         var platform = new SdlPlatform(this);
         var root = new ViewRoot();
-        using var mainView = new MainView(platform, new GameController(),
-            EngineRosterFile.Load(EngineRosterFile.DefaultPath), EngineRosterFile.DefaultPath);
+        using var mainView = new MainView(platform, new GameController());
         root.Content = mainView;
         MainWindow = new SdlWindow("Stoopid Chess", MainView.DefaultSize, MainView.MinimumSize, root);
         windows.Add(MainWindow);

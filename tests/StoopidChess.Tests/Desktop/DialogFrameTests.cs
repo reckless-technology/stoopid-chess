@@ -31,9 +31,9 @@ public class DialogFrameTests
             }
         }
 
-        public TextField First { get; } = new();
+        public FocusableView First { get; } = new();
 
-        public TextField Second { get; } = new();
+        public FocusableView Second { get; } = new();
 
         public string? Answer { get; private set; }
 
@@ -60,7 +60,6 @@ public class DialogFrameTests
         Assert.NotEqual(Theme.Window, window.ColorAt(5, 5));                     // The veil darkens the rest
         window.Key(Key.Tab);
         Assert.True(dialog.Second.IsFocused);
-        window.Type("text");
         window.Key(Key.Tab, KeyModifiers.Shift);
         Assert.True(dialog.First.IsFocused);
         window.Click(new SKPoint(5, 5));                                         // The veil: nothing happens
@@ -72,7 +71,6 @@ public class DialogFrameTests
         Assert.Equal("ok", dialog.Answer);
         Assert.True(dialog.IsClosed);
         Assert.Empty(window.Root.Overlays);
-        Assert.Equal("text", dialog.Second.Text);
     }
 
     [Fact]

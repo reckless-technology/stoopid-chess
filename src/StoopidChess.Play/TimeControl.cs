@@ -3,43 +3,27 @@ using System.Globalization;
 namespace StoopidChess.Play;
 
 /// <summary>
-/// A time control. With <paramref name="MovesPerSession"/> null it is a Fischer control: each side
-/// starts with the base time and gains the increment after every move it completes. With a session
-/// ("40 moves in 5 minutes") each side gains the base time again whenever it completes a session's
-/// worth of moves, unused time carrying over. Where a nullable <see cref="TimeControl"/> appears,
-/// null means untimed play, with the engine limited by <see cref="Level"/> instead of a clock.
+/// A chess clock's setting, the Fischer control: each side starts with the base time, the clock of the
+/// side to move counts down, and a side gains the increment after every move it completes. A side whose
+/// clock reaches zero loses on time.
 /// </summary>
-public sealed record TimeControl(TimeSpan Base, TimeSpan Increment, int? MovesPerSession = null)
+public sealed record TimeControl(TimeSpan Base, TimeSpan Increment)
 {
+    /// <summary>
+    /// The control every game starts under: ten minutes each, no increment.
+    /// </summary>
+    public static readonly TimeControl Default = OfMinutes(10, 0);
+
     public static TimeControl OfMinutes(int baseMinutes, int incrementSeconds)
     {
         return new TimeControl(TimeSpan.FromMinutes(baseMinutes), TimeSpan.FromSeconds(incrementSeconds));
     }
 
     /// <summary>
-    /// The classic repeating control: the given number of moves in the given minutes, again and again.
-    /// </summary>
-    public static TimeControl Standard(int movesPerSession, int minutes)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(movesPerSession, 1);
-        return new TimeControl(TimeSpan.FromMinutes(minutes), TimeSpan.Zero, movesPerSession);
-    }
-
-    /// <summary>
-    /// The customary short forms: "40/5" for forty moves in five minutes, "5+3" for five minutes
-    /// with a three second increment.
+    /// The customary short form: "5+3" is five minutes with a three second increment.
     /// </summary>
     public override string ToString()
     {
-        string baseTime = Base.TotalMinutes >= 1 && Base.Seconds == 0
-            ? ((int)Base.TotalMinutes).ToString(CultureInfo.InvariantCulture)
-            : Base.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture) + "s";
-        string increment = Increment.TotalSeconds.ToString("0.##", CultureInfo.InvariantCulture);
-        if (MovesPerSession is int moves)
-        {
-            string session = $"{moves.ToString(CultureInfo.InvariantCulture)}/{baseTime}";
-            return Increment > TimeSpan.Zero ? $"{session}+{increment}" : session;
-        }
-        return $"{baseTime}+{increment}";
+        return string.Create(CultureInfo.InvariantCulture, $"{(int)Base.TotalMinutes}+{(int)Increment.TotalSeconds}");
     }
 }

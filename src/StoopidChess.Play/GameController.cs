@@ -6,9 +6,15 @@ using StoopidChess.Engine.Uci;
 namespace StoopidChess.Play;
 
 /// <summary>
-/// Everything a chess GUI needs except the drawing: the game, whose turn it is, the engine that
-/// plays the other side (any UCI engine, the built-in one by default), position editing, clocks and
-/// saving. The GUI calls the methods and redraws on <see cref="Changed"/>.
+/// Everything a chess GUI needs except the drawing: the game, whose turn it is, the one engine that
+/// plays the other side (the built-in engine by default, or any UCI engine started from its path),
+/// position editing, the move clocks and saving. The GUI calls the methods and redraws on
+/// <see cref="Changed"/>.
+///
+/// The controller is the teaching example of how a GUI holds an engine. It never searches itself: it
+/// sends the game's moves to a <see cref="UciEngineClient"/> ("position ... moves ..."), asks it to
+/// think ("go"), and when the answer ("bestmove") arrives it plays that move on its <see cref="Game"/>.
+/// While the engine thinks the controller keeps answering the GUI, so a search never freezes the window.
 ///
 /// Not thread safe: call it from one thread. Engine replies arrive through async continuations,
 /// which run on the <see cref="SynchronizationContext"/> of that thread: call it from a thread with a
@@ -21,7 +27,6 @@ public sealed class GameController : IDisposable
     private static readonly TimeSpan EngineStartTimeout = TimeSpan.FromSeconds(10);
 
     private UciEngineClient? engine;
-    private UciEngineClient? opponent;      // Plays black in an engine match; null outside one
     private bool startingEngine;
     private CancellationTokenSource? thinking;
     private Task? thinkingTask;
@@ -37,24 +42,11 @@ public sealed class GameController : IDisposable
     public Position? Editing { get; private set; }
 
     /// <summary>
-    /// The side the human plays; <see cref="Color.None"/> when the engine plays itself.
+    /// The side the human plays; the engine plays the other.
     /// </summary>
     public Color HumanColor { get; private set; } = Color.White;
 
     public Level Level { get; set; } = Level.Easy;
-
-    /// <summary>
-    /// The chosen clock for games, or null for untimed play. With a time control the clocks count
-    /// down, a side that reaches zero loses on time (<see cref="TimedOut"/>), and the engine
-    /// budgets its thinking from the clocks instead of <see cref="Level"/>. A game in progress
-    /// finishes under the clock it started with (<see cref="ActiveClock"/>).
-    /// </summary>
-    public TimeControl? TimeControl { get; private set; }
-
-    /// <summary>
-    /// The clock the current game is being played under; null when it is untimed.
-    /// </summary>
-    public TimeControl? ActiveClock { get; private set; }
 
     /// <summary>
     /// Display preference carried with saved games; the controller does not use it.
@@ -62,24 +54,21 @@ public sealed class GameController : IDisposable
     public bool IsBoardFlipped { get; set; }
 
     /// <summary>
-    /// Time remaining (with a time control) or time used (without) for white.
+    /// The clock setting for games. Every game is played against the clock: the clock of the side to move
+    /// counts down, the mover gains the increment after each move, and a side that reaches zero loses on
+    /// time (<see cref="TimedOut"/>).
     /// </summary>
-    public TimeSpan WhiteClock { get; private set; }
+    public TimeControl TimeControl { get; private set; } = TimeControl.Default;
 
     /// <summary>
-    /// Time remaining (with a time control) or time used (without) for black.
+    /// Time white has left: it runs down while it is white's turn.
     /// </summary>
-    public TimeSpan BlackClock { get; private set; }
+    public TimeSpan WhiteClock { get; private set; } = TimeControl.Default.Base;
 
     /// <summary>
-    /// The side that ran out of clock, or <see cref="Color.None"/> while nobody has.
+    /// Time black has left: it runs down while it is black's turn.
     /// </summary>
-    public Color TimedOut { get; private set; } = Color.None;
-
-    /// <summary>
-    /// Whether play has ended, over the board or on the clock.
-    /// </summary>
-    public bool IsGameOver => Game.IsOver || TimedOut != Color.None;
+    public TimeSpan BlackClock { get; private set; } = TimeControl.Default.Base;
 
     /// <summary>
     /// Path of the external UCI engine in use, or null for the built-in engine.
@@ -92,15 +81,14 @@ public sealed class GameController : IDisposable
     public string? EngineName { get; private set; }
 
     /// <summary>
-    /// The name of the engine playing black in an engine match, or null outside a match. The main
-    /// engine (<see cref="EngineName"/>) plays white.
+    /// The side that ran out of time, or null while nobody has.
     /// </summary>
-    public string? OpponentName { get; private set; }
+    public Color? TimedOut { get; private set; }
 
     /// <summary>
-    /// Whether two engines are playing each other (started by <see cref="StartMatchAsync"/>).
+    /// Whether play has ended, over the board (checkmate or a draw) or on the clock.
     /// </summary>
-    public bool IsMatch => opponent is not null;
+    public bool IsGameOver => Game.IsOver || TimedOut is not null;
 
     public bool HasEngine => engine is not null;
 
@@ -124,7 +112,7 @@ public sealed class GameController : IDisposable
 
     public bool IsEditing => Editing is not null;
 
-    public bool IsEngineTurn => !IsEditing && !IsGameOver && (HumanColor == Color.None || Game.SideToMove != HumanColor);
+    public bool IsEngineTurn => !IsEditing && !IsGameOver && Game.SideToMove != HumanColor;
 
     public bool IsHumanTurn => !IsEditing && !IsGameOver && Game.SideToMove == HumanColor && !IsThinking;
 
@@ -159,13 +147,12 @@ public sealed class GameController : IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Connect to an engine, replacing any current one (and ending any engine match): an external
-    /// executable, or the built-in engine when <paramref name="path"/> is null. The options are set
-    /// after the UCI handshake. If an external engine fails to start the built-in one is used
-    /// instead and <see cref="EngineFailed"/> is raised. Returns whether the requested engine is
-    /// now in use.
+    /// Connect to an engine, replacing any current one: an external UCI executable, or the built-in
+    /// engine when <paramref name="path"/> is null. If an external engine fails to start the built-in
+    /// one is used instead and <see cref="EngineFailed"/> is raised. Returns whether the requested
+    /// engine is now in use.
     /// </summary>
-    public async Task<bool> StartEngineAsync(string? path, IReadOnlyDictionary<string, string>? options = null)
+    public async Task<bool> StartEngineAsync(string? path)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (startingEngine)
@@ -175,14 +162,14 @@ public sealed class GameController : IDisposable
         startingEngine = true;
         try
         {
+            // Throw away any search in progress and wait for it to unwind before the old engine goes
             CancelThinking(discardResult: true);
             await WaitUntilIdleAsync();
-            DropOpponent();
             DropEngine();
             EnginePath = path;
             RaiseChanged();
 
-            (UciEngineClient? client, string? failure) = await ConnectAsync(path, options);
+            (UciEngineClient? client, string? failure) = await ConnectAsync(path);
             if (client is null)
             {
                 if (disposed)
@@ -209,86 +196,10 @@ public sealed class GameController : IDisposable
     }
 
     /// <summary>
-    /// Start an engine match: white's engine against black's, each null for the built-in engine,
-    /// with each engine's UCI options set after its handshake. A fresh game begins under the chosen
-    /// time control. If either engine fails to start, <see cref="EngineFailed"/> is raised and the
-    /// controller falls back to the built-in engine with no match running.
+    /// Start the client (the built-in engine in this process, or an external executable) and complete
+    /// the UCI handshake, returning null and the reason on failure.
     /// </summary>
-    public async Task<bool> StartMatchAsync(
-        string? whitePath, string? blackPath,
-        IReadOnlyDictionary<string, string>? whiteOptions = null, IReadOnlyDictionary<string, string>? blackOptions = null)
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        if (startingEngine)
-        {
-            return false;
-        }
-        startingEngine = true;
-        try
-        {
-            CancelThinking(discardResult: true);
-            await WaitUntilIdleAsync();
-            DropOpponent();
-            DropEngine();
-            EnginePath = whitePath;
-            RaiseChanged();
-
-            (UciEngineClient? white, string? whiteFailure) = await ConnectAsync(whitePath, whiteOptions);
-            if (white is null)
-            {
-                startingEngine = false;
-                await FailMatchAsync($"White's engine could not be started: {whiteFailure}");
-                return false;
-            }
-            engine = white;
-            EngineName = white.Name ?? Path.GetFileName(whitePath) ?? "engine";
-
-            (UciEngineClient? black, string? blackFailure) = await ConnectAsync(blackPath, blackOptions);
-            if (black is null)
-            {
-                startingEngine = false;
-                await FailMatchAsync($"Black's engine could not be started: {blackFailure}");
-                return false;
-            }
-            opponent = black;
-            OpponentName = black.Name ?? Path.GetFileName(blackPath) ?? "engine";
-
-            Game = new Game();
-            Editing = null;
-            HumanColor = Color.None;
-            ResetClocks();
-            TryEngine(() => engine?.NewGame());
-            try
-            {
-                opponent?.NewGame();
-            }
-            catch (InvalidOperationException)
-            {
-                // The reply handler notices a dead opponent when it first has to think
-            }
-        }
-        finally
-        {
-            startingEngine = false;
-        }
-        Resume();
-        return true;
-    }
-
-    private async Task FailMatchAsync(string message)
-    {
-        if (disposed)
-        {
-            return;
-        }
-        EngineFailed?.Invoke(this, message);
-        await StartEngineAsync(null);
-    }
-
-    /// <summary>
-    /// Create, initialise and configure a client, returning null and the reason on failure.
-    /// </summary>
-    private async Task<(UciEngineClient? Client, string? Failure)> ConnectAsync(string? path, IReadOnlyDictionary<string, string>? options)
+    private async Task<(UciEngineClient? Client, string? Failure)> ConnectAsync(string? path)
     {
         UciEngineClient? client = null;
         try
@@ -297,13 +208,6 @@ public sealed class GameController : IDisposable
             client.InfoReceived += OnEngineInfo;
             using var timeout = new CancellationTokenSource(EngineStartTimeout);
             await client.InitialiseAsync(timeout.Token);
-            if (options is not null)
-            {
-                foreach ((string name, string value) in options)
-                {
-                    client.SetOption(name, value);
-                }
-            }
             return (client, null);
         }
         catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException or Win32Exception)
@@ -329,20 +233,20 @@ public sealed class GameController : IDisposable
         {
             return;
         }
-        // In a match the main engine plays white and the opponent black; otherwise the main engine
-        // plays every engine turn
-        UciEngineClient? client = opponent is not null && Game.SideToMove == Color.Black ? opponent : engine;
+        UciEngineClient? client = engine;
         if (client is null)
         {
             return;
         }
         try
         {
+            // The whole game goes with every search ("position startpos moves e2e4 ..."): the engine
+            // is told the game afresh each time rather than "and now this move"
             client.SetPosition(Game.StartFen, Game.UciMoves);
         }
         catch (InvalidOperationException ex)
         {
-            LoseClient(client, ex.Message);
+            LoseEngine(ex.Message);
             return;
         }
         thinking = new CancellationTokenSource();
@@ -382,9 +286,9 @@ public sealed class GameController : IDisposable
         }
         if (failure is not null)
         {
-            if (ReferenceEquals(engine, client) || ReferenceEquals(opponent, client))
+            if (ReferenceEquals(engine, client))
             {
-                LoseClient(client, failure);        // Otherwise the engine was replaced deliberately
+                LoseEngine(failure);        // Otherwise the engine was replaced deliberately
             }
             RaiseChanged();
             return;
@@ -409,32 +313,19 @@ public sealed class GameController : IDisposable
     }
 
     /// <summary>
-    /// With a time control the engine plays on the clocks; otherwise the level decides.
+    /// How the engine's search is limited: it plays on the clocks ("go wtime ... btime ... winc ... binc ...")
+    /// and never searches deeper than the <see cref="Level"/> allows, so the lower levels answer quickly.
     /// </summary>
     private SearchLimits CurrentLimits()
     {
-        if (ActiveClock is { } clock)
+        return new SearchLimits
         {
-            return new SearchLimits
-            {
-                WhiteTime = WhiteClock,
-                BlackTime = BlackClock,
-                WhiteIncrement = clock.Increment,
-                BlackIncrement = clock.Increment,
-                MovesToGo = clock.MovesPerSession is int session
-                    ? session - (MovesMade(Game.SideToMove) % session)
-                    : null,
-            };
-        }
-        return LimitsFor(Level);
-    }
-
-    /// <summary>
-    /// Moves the side has completed in this game (the game may have started with black to move).
-    /// </summary>
-    private int MovesMade(Color side)
-    {
-        return (Game.Moves.Count + (Game.StartSideToMove == side ? 1 : 0)) / 2;
+            Depth = LimitsFor(Level).Depth,
+            WhiteTime = WhiteClock,
+            BlackTime = BlackClock,
+            WhiteIncrement = TimeControl.Increment,
+            BlackIncrement = TimeControl.Increment,
+        };
     }
 
     /// <summary>
@@ -477,20 +368,6 @@ public sealed class GameController : IDisposable
         EngineFailed?.Invoke(this, $"The engine stopped responding: {message}");
     }
 
-    private void LoseClient(UciEngineClient client, string message)
-    {
-        if (ReferenceEquals(opponent, client))
-        {
-            string name = OpponentName ?? "the opponent engine";
-            DropOpponent();
-            EngineFailed?.Invoke(this, $"{name} stopped responding: {message}");
-        }
-        else
-        {
-            LoseEngine(message);
-        }
-    }
-
     private void DropEngine()
     {
         engine?.Dispose();
@@ -498,42 +375,23 @@ public sealed class GameController : IDisposable
         EngineName = null;
     }
 
-    private void DropOpponent()
-    {
-        opponent?.Dispose();
-        opponent = null;
-        OpponentName = null;
-    }
-
     // ---------------------------------------------------------------------------------------------
     // Playing
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Start a fresh game with the human playing <paramref name="human"/>; the engine plays the other side.
+    /// </summary>
     public void NewGame(Color human)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         CancelThinking(discardResult: true);
-        if (human != Color.None)
-        {
-            DropOpponent();     // A human game ends any engine match; NewGame(None) is a rematch
-        }
         Game = new Game();
         Editing = null;
         HumanColor = human;
         IsBoardFlipped = human == Color.Black;
         ResetClocks();
         TryEngine(() => engine?.NewGame());
-        if (opponent is not null)
-        {
-            try
-            {
-                opponent.NewGame();
-            }
-            catch (InvalidOperationException)
-            {
-                // The reply handler notices a dead opponent when it first has to think
-            }
-        }
         Resume();
     }
 
@@ -567,23 +425,13 @@ public sealed class GameController : IDisposable
     {
         Color mover = Game.SideToMove;
         Game.MakeMove(move);
-        if (ActiveClock is { } clock)
+        if (mover == Color.White)
         {
-            // The mover gains the increment after completing any move, and the base time again
-            // after completing a session's worth of moves ("40 moves in 5 minutes", repeating)
-            TimeSpan gained = clock.Increment;
-            if (clock.MovesPerSession is int session && MovesMade(mover) % session == 0)
-            {
-                gained += clock.Base;
-            }
-            if (mover == Color.White)
-            {
-                WhiteClock += gained;
-            }
-            else
-            {
-                BlackClock += gained;
-            }
+            WhiteClock += TimeControl.Increment;
+        }
+        else
+        {
+            BlackClock += TimeControl.Increment;
         }
         Resume();
     }
@@ -609,22 +457,32 @@ public sealed class GameController : IDisposable
         }
         CancelThinking(discardResult: true);
         Game.UndoMove();
-        if (HumanColor != Color.None && Game.SideToMove != HumanColor)
+        if (Game.SideToMove != HumanColor)
         {
             Game.UndoMove();
+        }
+        if (TimedOut is Color flagged)
+        {
+            // Taking back moves after a loss on time reopens the game: the side that flagged gets its base
+            // time again. (The clocks are not otherwise wound back by an undo.)
+            TimedOut = null;
+            if (flagged == Color.White)
+            {
+                WhiteClock = TimeControl.Base;
+            }
+            else
+            {
+                BlackClock = TimeControl.Base;
+            }
         }
         Resume();
     }
 
     /// <summary>
-    /// The human takes over the other color. Nothing happens in an engine-versus-engine game.
+    /// The human takes over the other color.
     /// </summary>
     public void SwitchSides()
     {
-        if (HumanColor == Color.None)
-        {
-            return;
-        }
         HumanColor = HumanColor.Opponent();
         IsBoardFlipped = HumanColor == Color.Black;
         if (IsEngineTurn)
@@ -710,28 +568,21 @@ public sealed class GameController : IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Choose the clock the next games are played under (null for untimed play). A game with no
-    /// moves yet picks it up at once — a search already running for the first move is restarted on
-    /// the new clock — while a game in progress finishes under its old clock.
+    /// Choose the clock setting. The clocks start again under it, and the game goes on from where it stands.
     /// </summary>
-    public void SetTimeControl(TimeControl? timeControl)
+    public void SetTimeControl(TimeControl timeControl)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        ArgumentNullException.ThrowIfNull(timeControl);
         TimeControl = timeControl;
-        if (!IsEditing && Game.Moves.Count == 0)
-        {
-            CancelThinking(discardResult: true);
-            ResetClocks();
-            Resume();
-            return;
-        }
-        RaiseChanged();
+        CancelThinking(discardResult: true);     // A search under the old clock is restarted under the new
+        ResetClocks();
+        Resume();
     }
 
     /// <summary>
-    /// Advance the clock of the side to move. Call regularly from a timer; nothing happens while
-    /// editing or after the game has ended. Under a time control the clocks run down, and a side
-    /// reaching zero loses on time.
+    /// Run down the clock of the side to move. Call regularly from a timer; nothing happens while editing
+    /// or after the game has ended. A clock reaching zero ends the game: that side loses on time.
     /// </summary>
     public void Tick(TimeSpan elapsed)
     {
@@ -740,18 +591,6 @@ public sealed class GameController : IDisposable
             return;
         }
         Color side = Game.SideToMove;
-        if (ActiveClock is null)
-        {
-            if (side == Color.White)
-            {
-                WhiteClock += elapsed;
-            }
-            else
-            {
-                BlackClock += elapsed;
-            }
-            return;
-        }
         TimeSpan remaining = (side == Color.White ? WhiteClock : BlackClock) - elapsed;
         if (remaining <= TimeSpan.Zero)
         {
@@ -767,7 +606,7 @@ public sealed class GameController : IDisposable
         {
             BlackClock = remaining;
         }
-        if (TimedOut != Color.None)
+        if (TimedOut is not null)
         {
             RaiseChanged();
         }
@@ -775,10 +614,9 @@ public sealed class GameController : IDisposable
 
     private void ResetClocks()
     {
-        ActiveClock = TimeControl;
-        TimedOut = Color.None;
-        WhiteClock = ActiveClock?.Base ?? TimeSpan.Zero;
-        BlackClock = ActiveClock?.Base ?? TimeSpan.Zero;
+        TimedOut = null;
+        WhiteClock = TimeControl.Base;
+        BlackClock = TimeControl.Base;
     }
 
     /// <summary>
@@ -801,10 +639,9 @@ public sealed class GameController : IDisposable
             return false;
         }
         CancelThinking(discardResult: true);
-        DropOpponent();
         Game = loaded;
         Editing = null;
-        HumanColor = saved.HumanColor;
+        HumanColor = saved.HumanColor == Color.None ? Color.White : saved.HumanColor;   // An old engine-match save
         IsBoardFlipped = saved.IsBoardFlipped;
         Level = saved.Level;
         ResetClocks();
@@ -823,7 +660,6 @@ public sealed class GameController : IDisposable
         }
         disposed = true;
         CancelThinking(discardResult: true);
-        DropOpponent();
         DropEngine();
         thinking?.Dispose();
     }

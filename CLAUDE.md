@@ -88,7 +88,7 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    views. Every view is product code, tested without a window by drawing it to a bitmap and driving it with
    synthesized events (`ViewHarness`): a new widget, dialog or menu gets a test there (`WidgetTests`, `MenuTests`,
    `BoardViewTests`, `DialogTests`), and the main view's wiring is driven against `FakePlatform` and scripted engines
-   (`MainViewTests`). The window's text is `GameText`, the roster file `EngineRosterFile`.
+   (`MainViewTests`). The window's text is `GameText`.
    `GameController`'s failure paths are played against scripted fake engines (`ScriptedEngine`, through the
    internal `GameController.StartExternalEngine` and `UciEngineClient.Connect`).
 5. Strength changes should be checked by self-play or a match against another engine with
@@ -225,10 +225,11 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
   ever uses the client, so the built-in and external engines share one code path.
   `src/StoopidChess.Uci/Program.cs` is a thin entry point that dispatches to the session, `bench` or
   `perft`.
-- **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the engine client,
+- **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the one engine client,
   whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
-  position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), clocks and save/load, and raises `Changed`,
-  `EngineFailed` and `EngineIllegalMove`. It is single-threaded: engine replies continue on the
+  position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), the chess
+  clocks and save/load, and raises `Changed`, `EngineFailed` and `EngineIllegalMove`. The human always
+  plays White or Black and the engine the other side. It is single-threaded: engine replies continue on the
   caller's `SynchronizationContext` (the GUI's UI thread). The tests drive it on a `ControllerThread`, a
   single-threaded context of their own, so a reply is handled between a test's steps and never beside
   them (on xunit's own context a reply ran on another worker while the test read the controller), and
@@ -237,17 +238,13 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
   answered before the await (`ConfigureAwaitOptions.ForceYielding`): handled inline it would start the
   next search before the first was stored, and the controller would wait on the wrong one
   (`InstantEngine` in the tests answers that fast every time). `Level` maps
-  difficulty to `SearchLimits`; with a `TimeControl` set (`SetTimeControl`) the clocks count down
-  instead, the mover gains the increment and, under a session control ("40 moves in 5 minutes",
-  `TimeControl.Standard`), the base time again whenever it completes a session, the engine budgets
-  from the clocks (wtime/btime/winc/binc, movestogo) rather than the level, a side reaching zero
-  loses on time (`TimedOut`, `IsGameOver`), and a running game finishes under the clock it started
-  with (`ActiveClock`).
-  `StartEngineAsync(path, options)` sets each UCI option after the handshake;
-  `StartMatchAsync(whitePath, blackPath, ...)` runs an engine match (white on the main engine,
-  black on `OpponentName`'s; `NewGame(Color.None)` is a rematch, a human game or `Load` ends the
-  match). `EngineRoster` is the JSON-persisted list of registered external engines with their
-  options (the GUI chooses the file); `SavedGame` is JSON with FEN + UCI moves.
+  difficulty to a search depth cap; every game is played against a countdown `TimeControl` (base time plus
+  increment, `TimeControl.Default` is 10+0, chosen from the Game menu): the side to move's clock runs down in
+  `Tick`, the mover gains the increment after each move, a side reaching zero loses on time (`TimedOut`,
+  `IsGameOver`), and the engine plays on the clocks (wtime/btime/winc/binc) within the level's depth.
+  `Undo` after a loss on time reopens the game. `StartEngineAsync(path)` connects the built-in engine (null) or any UCI
+  executable; engine-vs-engine matches and a registry of engines are not here, Amphitheater does that.
+  `SavedGame` is JSON with FEN + UCI moves.
 - **Desktop.** The GUI, the only one, drawn with SkiaSharp (4.154.0, pinned with its Linux natives, the
   no-dependencies build - no fontconfig, only the C and C++ runtimes; paths are built with `SKPathBuilder`, since v4
   makes `SKPath`'s own mutators obsolete) in
@@ -263,35 +260,28 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
     (which then has the pointer until the release) and keys to the focused view and up, the top overlay first, so a
     dialog is modal. Widgets: `PlateButton`, `MenuBarView` (drawn on every OS, as the toolkit's Linux
     `app/MenuBarView.h`; `KeyModifiers.Primary` is Cmd on macOS, Ctrl elsewhere), `MenuPopup` (submenus, ticks,
-    shortcuts, keyboard), `TextField`, `NumberField`, `ChoiceList` (lamps, for radio choices), `ChoiceButton` (a plate
-    opening a menu), `LabelView`, `TextListView` (scrolls both ways) and `DialogView` (the veil and card; Return and
+    shortcuts, keyboard), `LabelView`, `TextListView` (scrolls both ways) and `DialogView` (the veil and card; Return and
     Escape press its default and cancel buttons, Tab moves between fields; `ShowAsync` completes on close, inline).
   - **The app**: `MainView` (the layout - the board as large as fits beside a right column of at least 290 px, the
     capture bin under it as wide, the column taking all the rest of the width - and the menus, status bar, dialogs
     and the wiring: everything the Avalonia `MainWindow` did; it
-    redraws on `Changed`, its text from `GameText`, the engine list's file through `EngineRosterFile`, and asks the
+    redraws on `Changed`, its text from `GameText`, and asks the
     window system only through `IDesktopPlatform`: file dialogs, clipboard, title, another window, quit), `BoardView`
     and `CaptureBinView` (drawing and pointer input), `StatusBarView`, `AnalysisView`, `PieceImages` (the PNGs in
-    `Assets/`), `Dialogs/` (message, promotion, new game, custom time control, engine options, engine match) and
+    `Assets/`), `Dialogs/` (message, promotion) and
     `UiSynchronizationContext` (the UI thread's queue; engine replies continue there). `Sdl/` is the host: `SdlHost`
     (the event loop, the clock's 100 ms tick, `--smoke`), `SdlWindow` (Skia draws into a raster bitmap at the window's
     physical pixels, presented through an SDL streaming texture - no GL context of the app's own; logical pixels are
     physical over the window's display scale), `SdlPlatform` (SDL's native file dialogs, whose answers are posted to
     the UI context, and its clipboard) and `SdlKeys`.
 
-  Beyond the original Windows Forms GUI's feature set (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it is a
-  small UCI host: registered engines (the Engine menu is built from `EngineRoster`, persisted at
-  `ApplicationData/StoopidChess/engines.json`, engines added by picking the executable and named by their UCI reply),
-  per-engine Hash/Threads options (`EngineOptionsDialog`, applied at engine start), time controls (a new game opens
-  `NewGameDialog` to pick its clock — the standard 40-move sessions, the 5+5 incremental, or
-  `CustomTimeControlDialog` with minutes, increment and moves per session; clock play with flagging) and engine
-  matches (`MatchDialog`: any two registered engines or the built-in play each other on the clock). The move list is
+  Beyond the original Windows Forms GUI's feature set (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it can
+  open any UCI engine by its path ("Open UCI engine...", for the session) in place of the built-in one, and Game > Time control picks the clock. The move list is
   SAN, View > Analysis window shows the engine's info lines (depth, score, nodes, PV) in a window of its own, File
   imports and exports PGN, and Ctrl+C / Ctrl+V copy and paste the position as FEN (pasting behaves like a finished
   board edit). The board draws coordinates, the last move, the checked king and the dragged piece's legal
   destinations; the common menu actions have keyboard shortcuts, and Alt with a title's first letter opens its menu.
-  `ScreenshotTests` renders the main window, a menu, two dialogs, a drag and the Analysis window, and writes them as
-  PNGs to the folder `STOOPID_CHESS_SCREENSHOTS` names. The application icon (the Windows .ico, the window's PNG, the
+  The application icon (the Windows .ico, the window's PNG, the
   macOS app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a rounded square of
   the board's light colour: run it again, and commit what it writes, when either changes. Keep the square's corners
   circular: macOS 26+ put a superellipse-cornered icon on their grey square.
