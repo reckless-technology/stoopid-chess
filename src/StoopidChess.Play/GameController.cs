@@ -41,9 +41,9 @@ public sealed class GameController : IDisposable
     public Game Game { get; private set; } = new();
 
     /// <summary>
-    /// The position being edited while it is not yet legal; null otherwise.
+    /// The board being edited while play cannot yet proceed from it; null otherwise.
     /// </summary>
-    public Position? Editing { get; private set; }
+    public BoardSetup? Editing { get; private set; }
 
     /// <summary>
     /// The side the human plays; the engine plays the other.
@@ -557,11 +557,11 @@ public sealed class GameController : IDisposable
 
     /// <summary>
     /// Put a piece on a square (the default tuple clears it), starting an edit if none is under way. The edit
-    /// becomes a new game as soon as the position is legal.
+    /// becomes a new game as soon as play can proceed from it.
     /// </summary>
     public void EditSquare(Square square, (Color Color, Piece Type) piece)
     {
-        Position editing = Editing ?? Position.Setup(Game.Position);
+        BoardSetup editing = Editing ?? BoardSetup.From(Game.Position);
         editing.Place(square, piece);
         ApplyEdit(editing);
     }
@@ -575,8 +575,8 @@ public sealed class GameController : IDisposable
         {
             return;
         }
-        Position editing = Editing ?? Position.Setup(Game.Position);
-        editing.SetSideToMove(color);
+        BoardSetup editing = Editing ?? BoardSetup.From(Game.Position);
+        editing.SideToMove = color;
         ApplyEdit(editing);
     }
 
@@ -585,41 +585,51 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void ClearBoard()
     {
-        Position empty = Position.Empty();
-        empty.SetSideToMove(SideToMove);
-        ApplyEdit(empty);
+        ApplyEdit(BoardSetup.Empty(SideToMove));
     }
 
     /// <summary>
-    /// Make the given position the game, exactly as finishing a board edit does: a legal position
-    /// starts a fresh game from it (with fresh clocks); one that is not yet legal appears on the
+    /// Make the given position the game, exactly as finishing a board edit does: a position play
+    /// can proceed from starts a fresh game from it (with fresh clocks); any other appears on the
     /// board for editing.
     /// </summary>
     public void SetPosition(Position position)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentNullException.ThrowIfNull(position);
-        ApplyEdit(position);
+        if (position.IsValid)
+        {
+            StartFrom(position);
+        }
+        else
+        {
+            ApplyEdit(BoardSetup.From(position));
+        }
     }
 
     /// <summary>
     /// The FEN of what the board shows: the position being edited, or the game's.
     /// </summary>
-    public string CurrentFen => (Editing ?? Game.Position).ToFen();
+    public string CurrentFen => Editing?.ToFen() ?? Game.Position.ToFen();
 
-    private void ApplyEdit(Position editing)
+    private void ApplyEdit(BoardSetup editing)
+    {
+        if (editing.ToPosition() is Position position)
+        {
+            StartFrom(position);
+            return;
+        }
+        CancelThinking(discardResult: true);
+        Editing = editing;
+        Resume();
+    }
+
+    private void StartFrom(Position position)
     {
         CancelThinking(discardResult: true);
-        if (editing.IsValid)
-        {
-            Game = new Game(editing);
-            Editing = null;
-            ResetClocks();      // A new position is a new game as far as the clocks are concerned
-        }
-        else
-        {
-            Editing = editing;
-        }
+        Game = new Game(position);
+        Editing = null;
+        ResetClocks();      // A new position is a new game as far as the clocks are concerned
         Resume();
     }
 

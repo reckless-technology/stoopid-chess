@@ -165,10 +165,9 @@ public class GameTests
     }
 
     [Fact]
-    public void RejectsPositionsWithoutKings()
+    public void RejectsPositionsPlayCannotProceedFrom()
     {
-        Position edited = Position.Setup(Position.Start());
-        edited.Clear(Square.E8);
-        Assert.Throws<ArgumentException>(() => new Game(edited));
+        // White to move with the black king already in check
+        Assert.Throws<ArgumentException>(() => new Game(Position.FromFen("4k3/4R3/8/8/8/8/8/4K3 w - - 0 1")));
     }
 }

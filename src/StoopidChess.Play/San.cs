@@ -1,6 +1,7 @@
 using System.Text;
+using StoopidChess.Core;
 
-namespace StoopidChess.Core;
+namespace StoopidChess.Play;
 
 /// <summary>
 /// Standard Algebraic Notation, the move text of PGN: "Nf3", "exd5", "O-O", "e8=Q+", "Nbd2#".

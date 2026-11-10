@@ -1,7 +1,7 @@
 namespace StoopidChess.Core;
 
-// Position, part 2 of 3: legal move generation. Part 1 (Position.cs) holds the board and makes
-// and unmakes moves; part 3 (Position.Editing.cs) edits a position before play.
+// Position, part 2 of 2: legal move generation. Part 1 (Position.cs) holds the board and makes
+// and unmakes moves.
 public sealed partial class Position
 {
     /// <summary>

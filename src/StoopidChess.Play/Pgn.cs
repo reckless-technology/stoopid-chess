@@ -1,7 +1,8 @@
 using System.Globalization;
 using System.Text;
+using StoopidChess.Core;
 
-namespace StoopidChess.Core;
+namespace StoopidChess.Play;
 
 /// <summary>
 /// Portable Game Notation: one game as tag pairs and SAN move text. Writing produces the seven tag

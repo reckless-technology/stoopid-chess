@@ -81,10 +81,11 @@ cancels the search; the late reply is recognised as stale and dropped.
   and `UnmakeMove` (strictly last in, first out), Zobrist keys for the position and for the pawn structure, castling
   rights, the en-passant square and the move clocks. Move generation is part of it and produces *legal* moves only, working
   out pins, check masks, en passant and castling as it goes instead of making each move to see whether it was legal.
-  Position editing (`Empty`, `Setup`, `Place`, `SetSideToMove`) lives there too, usable only before a move is made.
+  A position comes from FEN; the GUI sets boards up by hand in Play's `BoardSetup` and turns them into FEN.
 - **`Attacks`** holds the knight, king and pawn tables and the magic-bitboard tables for sliders, built at startup.
 - **`Game`** wraps a position with its history and a `GameStatus` (checkmate, stalemate, the draws), and is what the
-  controller holds. `Fen`, `Pgn`, `San` and `Move.ParseUci` turn text into these and back.
+  controller holds. `Fen` and `Move.ParseUci` turn text into these and back (SAN and PGN, which only the GUI needs, are in
+  Play).
 
 ## Engine: the search
 
@@ -119,10 +120,11 @@ other side.
 - **Level and clock.** `Level` is the difficulty and caps the search depth. Every game is also played against a countdown
   `TimeControl` (base time plus increment): `Tick` runs the side to move's clock down, the mover gains the increment after
   each move, a side that reaches zero loses on time (`TimedOut`), and the engine is told the clocks with every `go`.
-- **Editing.** Right-clicking a square edits the position (`EditSquare`, `SetSideToMove`, `ClearBoard`). The edited position
-  is shown, but not played from, until it is legal; then it becomes a new game.
+- **Editing.** Right-clicking a square edits the position (`EditSquare`, `SetSideToMove`, `ClearBoard`) on a `BoardSetup`,
+  which may hold anything while it is edited. It is shown, but not played from, until play can proceed from it; then it
+  becomes a new game.
 - **Saving.** `SavedGame` is JSON holding the starting FEN, the moves in UCI notation and the settings. PGN import and export
-  are `Core/Pgn` and `Core/San`.
+  are `Play/Pgn` and `Play/San`.
 - **Failure.** An engine that cannot start, dies, or plays an illegal move is reported through the events, and the controller
   falls back to the built-in engine or to none.
 

@@ -19,13 +19,11 @@ namespace StoopidChess.Core;
 /// <item>a history of made moves so that they can be unmade in strict last-in first-out order, and
 /// so that repetitions can be detected.</item>
 /// </list>
-/// A position is created from FEN (<see cref="FromFen"/>, <see cref="Start"/>) or edited into shape
-/// (<see cref="Empty"/>, <see cref="Setup"/>, <see cref="Place"/>) before any move is made, and may then be
-/// changed only by <see cref="MakeMove"/> and <see cref="UnmakeMove"/>.
+/// A position is created from FEN (<see cref="FromFen"/>, <see cref="Start"/>) and is then changed
+/// only by <see cref="MakeMove"/> and <see cref="UnmakeMove"/>.
 ///
-/// The class is in three files: this one holds the board and makes and unmakes moves,
-/// Position.MoveGeneration.cs generates the legal moves, and Position.Editing.cs edits a position
-/// before play.
+/// The class is in two files: this one holds the board and makes and unmakes moves, and
+/// Position.MoveGeneration.cs generates the legal moves.
 /// </summary>
 public sealed partial class Position
 {
@@ -132,8 +130,8 @@ public sealed partial class Position
     internal Piece At(Square square) => squares[square];
 
     /// <summary>
-    /// True when each side has exactly one king, which every rule of chess assumes.
-    /// A position that has been edited may violate this.
+    /// True when each side has exactly one king, which every rule of chess assumes. FEN parsing
+    /// refuses a board without, so every position has them.
     /// </summary>
     public bool HasValidKings => Pieces(Color.White, Piece.King).IsSingle && Pieces(Color.Black, Piece.King).IsSingle;
 
@@ -159,7 +157,7 @@ public sealed partial class Position
 
     /// <summary>
     /// The enemy pieces attacking the side to move's king; empty when not in check. Worked out once
-    /// whenever the position changes (at the end of every move, by FEN parsing and by editing), and
+    /// whenever the position changes (at the end of every move, and by FEN parsing), and
     /// restored from the undo record when a move is unmade.
     /// </summary>
     public Bitboard Checkers => checkers;
@@ -194,12 +192,11 @@ public sealed partial class Position
     public bool IsAttacked(Square square, Color by) => (AttackersTo(square, occupied) & byColor[(int)by]).IsNotEmpty;
 
     /// <summary>
-    /// Work out <see cref="Checkers"/> for the side to move. A position being edited may have no king.
+    /// Work out <see cref="Checkers"/> for the side to move.
     /// </summary>
     internal void UpdateCheckers()
     {
-        Bitboard king = Pieces(SideToMove, Piece.King);
-        checkers = king.IsEmpty ? Bitboard.Empty : AttackersTo(king.First, occupied) & byColor[(int)SideToMove.Opponent()];
+        checkers = AttackersTo(KingSquare(SideToMove), occupied) & byColor[(int)SideToMove.Opponent()];
     }
 
     public string ToFen() => Fen.Write(this);

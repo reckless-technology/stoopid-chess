@@ -183,9 +183,9 @@ only the things a change must not break.
   256 moves inline: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`). No `int` squares or raw
   `ulong` sets appear in any public API, Play and the GUI included. There is no coloured-piece type; where a caller wants
   both, it is a `(Color Color, Piece Type)` tuple whose default is an empty square.
-- **`Position`'s editing methods** (`Empty`, `Setup`, `Place`, `Clear`, `SetSideToMove`, `SetCastlingRights`) work only
-  before a move is made. `Position` is one partial class in three files: `Position.cs` (the board, make/unmake),
-  `Position.MoveGeneration.cs` (the legal generator) and `Position.Editing.cs`. `Checkers` is worked out once per move
+- **`Position` comes only from FEN** and changes only by make/unmake; the GUI edits a Play `BoardSetup` and builds the
+  position from its FEN. `Position` is one partial class in two files: `Position.cs` (the board, make/unmake) and
+  `Position.MoveGeneration.cs` (the legal generator). `Checkers` is worked out once per move
   and kept in the undo record, so every mutator must leave it right.
 - **`Searcher` searches a clone** of the caller's position. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary; a draw scores 0. `Evaluator` is an instance with a 512 KB

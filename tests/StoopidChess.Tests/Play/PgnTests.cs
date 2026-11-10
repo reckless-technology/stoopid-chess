@@ -1,6 +1,7 @@
 using StoopidChess.Core;
+using StoopidChess.Play;
 
-namespace StoopidChess.Tests.Core;
+namespace StoopidChess.Tests.Play;
 
 public class PgnTests
 {
