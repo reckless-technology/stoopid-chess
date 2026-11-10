@@ -473,14 +473,10 @@ public sealed class Evaluator
 
     private static Bitboard[][] BuildPassedPawnSpans()
     {
-        Bitboard[][] spans = new Bitboard[3][];
-        for (int color = 0; color < 3; color++)
+        Bitboard[][] spans = new Bitboard[2][];
+        for (int color = 0; color < 2; color++)
         {
             spans[color] = new Bitboard[Square.Count];
-            if (color == (int)Color.None)
-            {
-                continue;
-            }
             foreach (Square square in Square.All)
             {
                 Bitboard files = Bitboard.OfFile(square.File)
@@ -611,15 +607,15 @@ public sealed class Evaluator
             (KingTable, 0),                         // Kings are always present, so they carry no material value
             (KingEndgameTable, 0),
         ];
-        int[][][] values = new int[3][][];
-        for (int color = 0; color < 3; color++)
+        int[][][] values = new int[2][][];
+        for (int color = 0; color < 2; color++)
         {
             values[color] = new int[source.Length][];
             for (int type = 0; type < source.Length; type++)
             {
                 values[color][type] = new int[Square.Count];
                 (int[] table, int material) = source[type];
-                if (table.Length == 0 || color == (int)Color.None)
+                if (table.Length == 0)
                 {
                     continue;
                 }

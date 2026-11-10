@@ -286,7 +286,7 @@ internal sealed class MainView : View, IDisposable
         }
         return
         [
-            new MenuItem("Clear square", () => controller.EditSquare(editSquare, (Color.None, Piece.None))),
+            new MenuItem("Clear square", () => controller.EditSquare(editSquare, default)),
             PieceSubmenu(Color.White),
             PieceSubmenu(Color.Black),
             new MenuItem("Clear entire position", controller.ClearBoard),

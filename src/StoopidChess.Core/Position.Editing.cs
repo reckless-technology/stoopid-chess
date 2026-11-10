@@ -37,7 +37,8 @@ public sealed partial class Position
     }
 
     /// <summary>
-    /// Put a piece on a square, replacing whatever stood there; the default pair empties the square.
+    /// Put a piece on a square, replacing whatever stood there; a type of <see cref="Piece.None"/>
+    /// (whatever the color, as in the default pair) empties the square.
     /// </summary>
     public void Place(Square square, (Color Color, Piece Type) piece)
     {
@@ -47,8 +48,7 @@ public sealed partial class Position
             throw new ArgumentOutOfRangeException(nameof(square));
         }
         bool valid = piece.Type == Piece.None
-            ? piece.Color == Color.None
-            : piece.Color is Color.White or Color.Black && piece.Type is >= Piece.Pawn and <= Piece.King;
+            || (piece.Color is Color.White or Color.Black && piece.Type is >= Piece.Pawn and <= Piece.King);
         if (!valid)
         {
             throw new ArgumentException($"'{piece.Color} {piece.Type}' is not a valid piece", nameof(piece));

@@ -3,13 +3,13 @@ using System.Runtime.CompilerServices;
 namespace StoopidChess.Core;
 
 /// <summary>
-/// The color of a piece or of the side to move.
+/// The color of a piece or of the side to move. White is 0 and black 1, so a color indexes a
+/// two-entry table directly and the opponent is the other bit.
 /// </summary>
 public enum Color : byte
 {
-    None = 0,
-    White = 1,
-    Black = 2,
+    White = 0,
+    Black = 1,
 }
 
 public static class ColorExtensions
@@ -20,13 +20,8 @@ public static class ColorExtensions
     public static ReadOnlySpan<Color> Sides => [Color.White, Color.Black];
 
     /// <summary>
-    /// The other side. <see cref="Color.None"/> is returned unchanged.
+    /// The other side.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Color Opponent(this Color color) => color switch
-    {
-        Color.White => Color.Black,
-        Color.Black => Color.White,
-        _ => Color.None,
-    };
+    public static Color Opponent(this Color color) => (Color)((int)color ^ 1);
 }

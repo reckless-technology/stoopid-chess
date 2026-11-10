@@ -27,6 +27,7 @@ public sealed class SavedGame
 
     public IList<string> Moves { get; init; } = [];
 
+    [JsonConverter(typeof(HumanColorConverter))]
     public Color HumanColor { get; set; } = Color.White;
 
     public bool IsBoardFlipped { get; set; }
@@ -68,7 +69,7 @@ public sealed class SavedGame
             {
                 return null;
             }
-            if (saved.HumanColor is not (Color.White or Color.Black or Color.None) || !Enum.IsDefined(saved.Level))
+            if (saved.HumanColor is not (Color.White or Color.Black) || !Enum.IsDefined(saved.Level))
             {
                 return null;
             }
@@ -98,5 +99,29 @@ public sealed class SavedGame
             }
         }
         return game;
+    }
+
+    /// <summary>
+    /// Reads the human's color by name. A game saved while engine matches existed may name "None"
+    /// (an engine played both sides): it loads with the human as white.
+    /// </summary>
+    private sealed class HumanColorConverter : JsonConverter<Color>
+    {
+        public override Color Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? name = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+            return name?.ToUpperInvariant() switch
+            {
+                "WHITE" or "NONE" => Color.White,
+                "BLACK" => Color.Black,
+                _ => throw new JsonException($"invalid color '{name}'"),
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, Color value, JsonSerializerOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(writer);
+            writer.WriteStringValue(value.ToString());
+        }
     }
 }

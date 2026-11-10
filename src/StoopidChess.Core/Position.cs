@@ -31,7 +31,7 @@ public sealed partial class Position
 {
     public const string StartFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-    private const int Colors = 3;
+    private const int Colors = 2;
     private const int PieceTypes = 7;
 
     private readonly Bitboard[] byType = new Bitboard[PieceTypes];
@@ -86,8 +86,8 @@ public sealed partial class Position
     public Move? LastMove => history.Count == 0 ? null : history[^1].Move;
 
     /// <summary>
-    /// The piece on a square as its color and type; (<see cref="Color.None"/>,
-    /// <see cref="Piece.None"/>) for an empty square.
+    /// The piece on a square as its color and type. An empty square's type is
+    /// <see cref="Piece.None"/>, and its color means nothing (it is the default, white).
     /// </summary>
     public (Color Color, Piece Type) this[Square square]
     {
@@ -298,19 +298,14 @@ public sealed partial class Position
     }
 
     /// <summary>
-    /// The color of the piece on a valid square, or <see cref="Color.None"/> if it is empty.
+    /// The color of the piece on a valid square; white for an empty one.
     /// </summary>
-    private Color ColorAt(Square square)
-    {
-        return byColor[(int)Color.White].Contains(square) ? Color.White
-            : byColor[(int)Color.Black].Contains(square) ? Color.Black
-            : Color.None;
-    }
+    private Color ColorAt(Square square) => byColor[(int)Color.Black].Contains(square) ? Color.Black : Color.White;
 
     internal void PutPiece(Square square, Color color, Piece type)
     {
         Debug.Assert(squares[square] == Piece.None, "square must be empty");
-        Debug.Assert(type != Piece.None && color != Color.None, "cannot put an empty piece");
+        Debug.Assert(type != Piece.None, "cannot put an empty piece");
         var bit = Bitboard.Of(square);
         byType[(int)type] |= bit;
         byColor[(int)color] |= bit;
@@ -461,7 +456,7 @@ public sealed partial class Position
             typeUnion |= byType[type];
         }
         return all == occupied && typeUnion == occupied && (byColor[(int)Color.White] | byColor[(int)Color.Black]) == occupied
-            && byColor[(int)Color.None].IsEmpty && byType[(int)Piece.None].IsEmpty;
+            && (byColor[(int)Color.White] & byColor[(int)Color.Black]).IsEmpty && byType[(int)Piece.None].IsEmpty;
     }
 
     // Making and unmaking moves. After a move is made and unmade the position, including every key,

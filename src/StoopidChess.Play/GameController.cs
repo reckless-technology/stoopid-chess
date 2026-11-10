@@ -701,7 +701,7 @@ public sealed class GameController : IDisposable
         CancelThinking(discardResult: true);
         Game = loaded;
         Editing = null;
-        HumanColor = saved.HumanColor == Color.None ? Color.White : saved.HumanColor;   // An old engine-match save
+        HumanColor = saved.HumanColor;
         IsBoardFlipped = saved.IsBoardFlipped;
         Level = saved.Level;
         ResetClocks();

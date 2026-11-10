@@ -90,7 +90,7 @@ public class NotationTests
             Assert.Equal(c, type.ToChar(char.IsUpper(c) ? Color.White : Color.Black));
         }
         Assert.Equal(Piece.None, PieceExtensions.FromChar('x'));
-        Assert.Equal('.', Piece.None.ToChar(Color.None));
+        Assert.Equal('.', Piece.None.ToChar(Color.White));
         Assert.Equal('.', Piece.None.ToChar());
     }
 }

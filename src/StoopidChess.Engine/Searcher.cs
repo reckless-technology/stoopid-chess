@@ -46,7 +46,7 @@ public sealed class Searcher
     private readonly Move[] counterAtPly = new Move[MaxPly + 1];   // The countermove ordered at each ply, exempt from reductions like the killers
     private readonly Move[] counterMoves = new Move[7 * Square.Count];   // [piece, to] of the opponent's last move: the quiet reply that last refuted it
     private readonly int[] continuationHistory = new int[7 * Square.Count * 7 * Square.Count];   // [previous piece, previous to, piece, to]: cutoffs by a quiet move after that reply
-    private readonly int[] history = new int[3 * Square.Count * Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
+    private readonly int[] history = new int[2 * Square.Count * Square.Count];   // [color, from, to]: how often a quiet move caused a cutoff
     private readonly Stopwatch stopwatch = new();
 
     private Position position = Position.Start();

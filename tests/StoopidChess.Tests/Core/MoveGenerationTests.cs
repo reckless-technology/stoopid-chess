@@ -226,7 +226,7 @@ public class MoveGenerationTests
             foreach (Square from in Square.All)
             {
                 (Color Color, Piece Type) piece = position[from];
-                if (piece.Color != us)
+                if (piece.Type == Piece.None || piece.Color != us)
                 {
                     continue;
                 }
@@ -336,7 +336,7 @@ public class MoveGenerationTests
                 }
                 var to = Square.At(captureFile, forwardRank);
                 (Color Color, Piece Type) target = position[to];
-                if (target.Color == them)
+                if (target.Type != Piece.None && target.Color == them)
                 {
                     if (promotes)
                     {

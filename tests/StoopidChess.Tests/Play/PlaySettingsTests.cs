@@ -1,4 +1,5 @@
 using System.Text;
+using StoopidChess.Core;
 using StoopidChess.Engine;
 using StoopidChess.Play;
 
@@ -65,6 +66,15 @@ public class PlaySettingsTests
     public void ASavedGameMissingAnythingIsRefused(string field, string replacement)
     {
         Assert.Null(LoadSaved(ValidGame.Replace(field, replacement, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void AnOldEngineMatchSaveLoadsWithTheHumanAsWhite()
+    {
+        SavedGame? saved = LoadSaved(ValidGame.Replace("\"HumanColor\": \"White\"", "\"HumanColor\": \"None\"", StringComparison.Ordinal));
+        Assert.NotNull(saved);
+        Assert.Equal(Color.White, saved.HumanColor);
+        Assert.Equal(Color.Black, LoadSaved(ValidGame.Replace("\"White\"", "\"Black\"", StringComparison.Ordinal))!.HumanColor);
     }
 
     [Fact]

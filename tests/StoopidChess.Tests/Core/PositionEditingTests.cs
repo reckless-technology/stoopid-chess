@@ -64,7 +64,7 @@ public class PositionEditingTests
         edited.SetSideToMove(Color.Black);
         Assert.Equal(Color.Black, edited.SideToMove);
         Assert.Equal(Position.FromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1").Key, edited.Key);
-        Assert.Throws<ArgumentOutOfRangeException>(() => edited.SetSideToMove(Color.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => edited.SetSideToMove((Color)2));
     }
 
     [Fact]
@@ -105,8 +105,7 @@ public class PositionEditingTests
         Position edited = Position.Empty();
         Assert.Throws<ArgumentException>(() => edited.Place(Square.Parse("e4"), ((Color)5, Piece.Pawn)));
         Assert.Throws<ArgumentException>(() => edited.Place(Square.Parse("e4"), (Color.White, (Piece)9)));
-        Assert.Throws<ArgumentException>(() => edited.Place(Square.Parse("e4"), (Color.None, Piece.Pawn)));
-        Assert.Throws<ArgumentException>(() => edited.Place(Square.Parse("e4"), (Color.White, Piece.None)));
+        Assert.Throws<ArgumentException>(() => edited.Place(Square.Parse("e4"), ((Color)2, Piece.Pawn)));
         Assert.Throws<ArgumentOutOfRangeException>(() => edited.Place(Square.None, (Color.White, Piece.Pawn)));
         edited.Place(Square.Parse("e4"), (Color.White, Piece.Queen));
         edited.Clear(Square.Parse("e4"));

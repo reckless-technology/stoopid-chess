@@ -213,7 +213,7 @@ internal sealed class BoardView : View
             return false;
         }
         Square square = SquareAt(e.Position);
-        if (square == Square.None || !controller.IsHumanTurn || controller.PieceAt(square).Color != controller.HumanColor)
+        if (square == Square.None || !controller.IsHumanTurn || !controller.Game.Position.Pieces(controller.HumanColor).Contains(square))
         {
             return false;
         }
@@ -260,7 +260,7 @@ internal sealed class BoardView : View
             }
         }
         else if (e.Button == PointerButton.Right && Controller is { } controller
-                 && !controller.IsThinking && !(controller.IsEngineTurn && controller.HumanColor != Color.None))
+                 && !controller.IsThinking && !controller.IsEngineTurn)
         {
             Square square = SquareAt(e.Position);
             if (square != Square.None)

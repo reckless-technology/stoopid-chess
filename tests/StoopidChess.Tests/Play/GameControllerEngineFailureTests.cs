@@ -235,7 +235,7 @@ public class GameControllerEngineFailureTests
         Assert.False(controller.IsEditing);
         controller.ClearBoard();
         Assert.True(controller.IsEditing);
-        Assert.Equal((Color.None, Piece.None), controller.PieceAt(Square.E1));
+        Assert.Equal(Piece.None, controller.PieceAt(Square.E1).Type);
         controller.EditSquare(Square.E1, (Color.White, Piece.King));
         Assert.Equal((Color.White, Piece.King), controller.PieceAt(Square.E1));
         Assert.Equal("8/8/8/8/8/8/8/4K3 w - - 0 1", controller.CurrentFen);

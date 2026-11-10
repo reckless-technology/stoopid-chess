@@ -12,7 +12,7 @@ public static class Zobrist
     private const ulong Increment = 0x00000000B504F32D;
 
     private const int PieceTypes = 7;
-    private const int Colors = 3;
+    private const int Colors = 2;
 
     private static readonly ulong[] Pieces = new ulong[Colors * PieceTypes * Square.Count];
     private static readonly ulong[] CastlingKeys = new ulong[16];
