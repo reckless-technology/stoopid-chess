@@ -13,8 +13,8 @@ and was itself replaced by the GUI drawn with SkiaSharp in an SDL3 window, in th
 | Project | Purpose |
 |---|---|
 | `src/StoopidChess.Core` | The rules of chess: the `Square`, `Bitboard`, `Move` and `MoveList` value types (a colored piece is a `(Color, Piece)` pair), `Position` (bitboards plus a square array, with incremental Zobrist keys), `Attacks` (attack tables and magic bitboards), FEN, legal move generation, `Game` (move history and result detection), perft. Cross-platform, no dependencies. |
-| `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, `UciSession` (the protocol handler) and `UciEngineClient` (drives any UCI engine, in-process or external). Cross-platform. |
-| `src/StoopidChess.Play` | `GameController`: the state machine behind a chess GUI (game, the one engine it plays against, thinking, editing, chess clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
+| `src/StoopidChess.Engine` | The engine: `Evaluator`, `TranspositionTable`, `Searcher` (iterative deepening alpha-beta with quiescence), `SearchLimits`, and `UciSession` (the engine side of the UCI protocol). Cross-platform. |
+| `src/StoopidChess.Play` | `GameController` and `UciEngineClient` (the GUI side of UCI: drives any engine, in-process or external): the state machine behind a chess GUI (game, the one engine it plays against, thinking, editing, chess clocks, save/load) with no UI, so it is tested on Linux against the in-process engine. Also `Level` and `SavedGame`. |
 | `src/StoopidChess.Uci` | Console program `stoopid-chess`: the engine as a UCI executable, plus `bench` and `perft` subcommands. |
 | `src/StoopidChess.Desktop` | The GUI for Linux, macOS and Windows, drawn with SkiaSharp in an SDL3 window: drawing, mouse, keyboard and menus over `GameController`, talking to the engine only through UCI. It plays the built-in engine, or any UCI engine opened by its path; running matches between engines is what Amphitheater is for. |
 | `tests/StoopidChess.Tests` | xunit tests for everything above. |

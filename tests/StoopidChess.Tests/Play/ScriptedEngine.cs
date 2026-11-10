@@ -1,5 +1,5 @@
 using System.IO.Pipes;
-using StoopidChess.Engine.Uci;
+using StoopidChess.Play;
 
 namespace StoopidChess.Tests.Play;
 

@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
-using StoopidChess.Engine.Uci;
+using StoopidChess.Play;
 
 namespace StoopidChess.Tests.Play;
 

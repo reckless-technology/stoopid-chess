@@ -1,7 +1,6 @@
 using System.ComponentModel;
 using StoopidChess.Core;
 using StoopidChess.Engine;
-using StoopidChess.Engine.Uci;
 
 namespace StoopidChess.Play;
 

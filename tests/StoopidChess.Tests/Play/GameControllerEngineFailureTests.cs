@@ -2,7 +2,6 @@ using StoopidChess.Core;
 using StoopidChess.Engine;
 using StoopidChess.Engine.Uci;
 using StoopidChess.Play;
-using StoopidChess.Tests.Engine;
 
 namespace StoopidChess.Tests.Play;
 

@@ -217,11 +217,11 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
   through `Searcher.NewGame`; about 10% faster; terms may keep further
   caches such as a pawn hash); it starts from the Simplified Evaluation Function, see docs/EVALUATION.md.
   `Bench` is the fixed position set behind the signature.
-- **UCI lives in Engine, not in the Uci project.** `src/StoopidChess.Engine/Uci/UciSession` handles
+- **The two halves of UCI.** `src/StoopidChess.Engine/Uci/UciSession` is the engine side: it handles
   the protocol over any `TextReader`/`TextWriter`, running searches on a `Task` so `stop`/`isready`
-  work while thinking; `UciEngineClient` is the GUI side, with `StartInProcess()` (anonymous pipes to
-  a `UciSession` on a background thread) and `StartProcess(path)` for external engines. The GUI only
-  ever uses the client, so the built-in and external engines share one code path.
+  work while thinking. `src/StoopidChess.Play/UciEngineClient` is the GUI side, with `StartInProcess()`
+  (anonymous pipes to a `UciSession` on a background thread) and `StartProcess(path)` for external
+  engines. The GUI only ever uses the client, so the built-in and external engines share one code path.
   `src/StoopidChess.Uci/Program.cs` is a thin entry point that dispatches to the session, `bench` or
   `perft`.
 - **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the one engine client,

@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO.Pipes;
 using StoopidChess.Core;
+using StoopidChess.Engine;
+using StoopidChess.Engine.Uci;
 
-namespace StoopidChess.Engine.Uci;
+namespace StoopidChess.Play;
 
 /// <summary>
 /// The GUI side of the Universal Chess Interface: drives any UCI engine, either an external

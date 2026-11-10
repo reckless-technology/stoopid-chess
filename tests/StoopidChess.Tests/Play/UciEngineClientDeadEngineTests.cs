@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using StoopidChess.Core;
 using StoopidChess.Engine;
-using StoopidChess.Engine.Uci;
+using StoopidChess.Play;
 
-namespace StoopidChess.Tests.Engine;
+namespace StoopidChess.Tests.Play;
 
 /// <summary>
 /// An engine that dies between two commands: the command that meets its death fails as the client documents

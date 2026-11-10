@@ -1,8 +1,8 @@
 using System.IO.Pipes;
 using Microsoft.Win32.SafeHandles;
-using StoopidChess.Engine.Uci;
+using StoopidChess.Play;
 
-namespace StoopidChess.Tests.Engine;
+namespace StoopidChess.Tests.Play;
 
 /// <summary>
 /// A fake engine that dies in two steps, each when the test says: first it stops listening (the read end of its

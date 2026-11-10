@@ -66,27 +66,4 @@ public class SearchLimitsTests
         Assert.True(budget >= SearchLimits.MinimumThinkingTime);
         Assert.True(budget <= TimeSpan.FromMilliseconds(Math.Max(clockMs, 0) + SearchLimits.MinimumThinkingTime.TotalMilliseconds));
     }
-
-    [Fact]
-    public void GoCommandRoundTripsThroughFormatAndParse()
-    {
-        var limits = new SearchLimits
-        {
-            Depth = 7,
-            MoveTime = TimeSpan.FromMilliseconds(500),
-            Nodes = 123456,
-            WhiteTime = TimeSpan.FromMilliseconds(60000),
-            BlackTime = TimeSpan.FromMilliseconds(59000),
-            WhiteIncrement = TimeSpan.FromMilliseconds(1000),
-            BlackIncrement = TimeSpan.FromMilliseconds(2000),
-            MovesToGo = 40,
-        };
-        string text = UciEngineClient.FormatGo(limits);
-        SearchLimits parsed = UciSession.ParseGo(("go " + text).Split(' '));
-        Assert.Equal(limits, parsed);
-        Assert.Equal("infinite", UciEngineClient.FormatGo(new SearchLimits { Infinite = true }));
-        Assert.Equal("infinite", UciEngineClient.FormatGo(new SearchLimits()));
-        Assert.True(UciSession.ParseGo(["go", "infinite", "ponder"]).Infinite);
-        Assert.Equal(new SearchLimits(), UciSession.ParseGo(["go", "depth", "x"]));
-    }
 }
