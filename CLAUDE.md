@@ -212,9 +212,8 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
   searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
   node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
   mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
-  with 16-byte entries verified by the full 64-bit key. `Evaluator` reads its tunable values from an `EvaluationParameters` instance (33 named values defaulting to
-  the constants in `Evaluator`; every one is a UCI spin option, and `tools/spsa.py` tunes them by SPSA over fastchess
-  games); it rebuilds its material tables and empties its cache when they change. `Evaluator` is an instance and keeps a 512 KB evaluation cache (Zobrist key to score, exact, cleared by `ucinewgame`
+  with 16-byte entries verified by the full 64-bit key. `Evaluator`'s weights are named constants (SPSA-tuned in
+  September 2026; the tuner and its UCI options were removed once that was done, docs/EVALUATION.md). `Evaluator` is an instance and keeps a 512 KB evaluation cache (Zobrist key to score, exact, cleared by `ucinewgame`
   through `Searcher.NewGame`; about 10% faster; terms may keep further
   caches such as a pawn hash); it starts from the Simplified Evaluation Function, see docs/EVALUATION.md.
   `Bench` is the fixed position set behind the signature.

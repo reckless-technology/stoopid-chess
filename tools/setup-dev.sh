@@ -10,7 +10,7 @@
 #   - the .NET SDK of the TargetFramework in Directory.Build.props (net10.0: a 10.0 SDK); when no such SDK is on the
 #     PATH, Microsoft's dotnet-install script puts one in ~/.dotnet, and DOTNET_ROOT and the PATH point at it
 #   - the repo's git hooks (core.hooksPath .githooks) and the VS Code extensions .vscode/extensions.json recommends
-#   - with --tuning, what tools/match.sh, tools/selfplay.sh and tools/spsa.py play with, under ~/tools: fastchess and
+#   - with --tuning, what tools/match.sh and tools/selfplay.sh play with, under ~/tools: fastchess and
 #     the reference pawnstar engine, the release binaries tools/tuning-tools.txt pins by version and SHA-256, and the
 #     self-play baseline (stoopid-baseline), published from this checkout when there is none. The openings they play
 #     from are the repo's own, tools/openings-6ply.epd.

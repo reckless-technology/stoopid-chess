@@ -1,5 +1,5 @@
 # The match and self-play tools, pinned: tools/setup-dev.ps1 -Tuning and tools/setup-dev.sh --tuning install them
-# under ~/tools (%USERPROFILE%\tools on Windows), and tools/match.*, tools/selfplay.* and tools/spsa.py look for them
+# under ~/tools (%USERPROFILE%\tools on Windows), and tools/match.* and tools/selfplay.* look for them
 # there. One line a download:
 #
 #   tool  version  platform  executable  download  sha256  url

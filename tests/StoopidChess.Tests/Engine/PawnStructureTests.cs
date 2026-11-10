@@ -4,33 +4,44 @@ using StoopidChess.Engine;
 namespace StoopidChess.Tests.Engine;
 
 /// <summary>
-/// Each pawn-structure term is pinned by turning only its parameter up and measuring the change:
-/// the difference is the term's weight times the white-minus-black count of the pattern.
+/// Each pawn-structure term is pinned by the pawns it finds: the exact squares each pattern picks
+/// out, for both sides.
 /// </summary>
 public class PawnStructureTests
 {
-    private static int Delta(string fen, string parameter, int increase)
+    private static (Evaluator.PawnPatterns White, Evaluator.PawnPatterns Black) Patterns(string fen)
     {
         var position = Position.FromFen(fen);
-        var parameters = new EvaluationParameters();
-        var evaluator = new Evaluator(parameters);
-        int before = evaluator.Evaluate(position);
-        Assert.True(parameters.TrySet(parameter, parameters.Get(parameter)!.Value + increase));
-        return evaluator.Evaluate(position) - before;
+        return (Evaluator.FindPawnPatterns(position, Color.White), Evaluator.FindPawnPatterns(position, Color.Black));
+    }
+
+    private static Bitboard Squares(params string[] names)
+    {
+        Bitboard set = Bitboard.Empty;
+        foreach (string name in names)
+        {
+            set |= Bitboard.Of(Square.Parse(name));
+        }
+        return set;
     }
 
     [Fact]
     public void AnIsolatedPawnIsCounted()
     {
         // White's a-pawn has no neighbours; black's pawns are all connected
-        Assert.Equal(-10, Delta("4k3/5ppp/8/8/8/8/P4PPP/4K3 w - - 0 1", "IsolatedPawnPenalty", 10));
+        (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/5ppp/8/8/8/8/P4PPP/4K3 w - - 0 1");
+        Assert.Equal(Squares("a2"), white.Isolated);
+        Assert.True(black.Isolated.IsEmpty);
     }
 
     [Fact]
     public void ADoubledPawnIsCountedOncePerExtraPawn()
     {
-        // White has doubled e-pawns (and both are isolated, which is the isolated term's business)
-        Assert.Equal(-10, Delta("4k3/5ppp/8/8/4P3/8/4P3/4K3 w - - 0 1", "DoubledPawnPenalty", 10));
+        // White has doubled e-pawns (and both are isolated, which is the isolated term's business):
+        // the one with an own pawn behind it is counted
+        (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/5ppp/8/8/4P3/8/4P3/4K3 w - - 0 1");
+        Assert.Equal(Squares("e4"), white.Doubled);
+        Assert.True(black.Doubled.IsEmpty);
     }
 
     [Fact]
@@ -39,22 +50,27 @@ public class PawnStructureTests
         // White's e3 pawn: its stop square e4 is covered by the black d5 pawn, and the white d4
         // pawn stands ahead of it, so no neighbour can ever step up beside it. Black's d5 is not
         // backward: d4 blocks its stop, but nothing controls it.
-        Assert.Equal(-10, Delta("4k3/8/8/3p4/3P4/4P3/8/4K3 w - - 0 1", "BackwardPawnPenalty", 10));
+        (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/8/8/3p4/3P4/4P3/8/4K3 w - - 0 1");
+        Assert.Equal(Squares("e3"), white.Backward);
+        Assert.True(black.Backward.IsEmpty);
     }
 
     [Fact]
     public void ConnectedPawnsAreCounted()
     {
         // White's e4 and f4 stand side by side: two connected pawns, and black has none
-        Assert.Equal(20, Delta("4k3/8/8/8/4PP2/8/8/4K3 w - - 0 1", "ConnectedPawnBonus", 10));
+        (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/8/8/8/4PP2/8/8/4K3 w - - 0 1");
+        Assert.Equal(Squares("e4", "f4"), white.Connected);
+        Assert.True(black.Connected.IsEmpty);
     }
 
     [Fact]
     public void TheStartingPositionIsBalanced()
     {
-        foreach (string parameter in new[] { "IsolatedPawnPenalty", "DoubledPawnPenalty", "BackwardPawnPenalty", "ConnectedPawnBonus" })
-        {
-            Assert.Equal(0, Delta(Position.StartFen, parameter, 10));
-        }
+        (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns(Position.StartFen);
+        Assert.True(white.Isolated.IsEmpty && white.Doubled.IsEmpty && white.Backward.IsEmpty);
+        Assert.True(black.Isolated.IsEmpty && black.Doubled.IsEmpty && black.Backward.IsEmpty);
+        Assert.Equal(Bitboard.Rank2, white.Connected);
+        Assert.Equal(Bitboard.Rank7, black.Connected);
     }
 }

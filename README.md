@@ -75,32 +75,15 @@ figure; update it (and CLAUDE.md) whenever a change to search or evaluation is i
 
 ## UCI options
 
-The engine advertises 34 options in answer to `uci`, all of type `spin`. A value outside its range
-is clamped to it, and an unknown option is ignored.
+The engine advertises one option in answer to `uci`. A value outside its range is clamped to it, and
+an unknown option is ignored.
 
 | Option | Default | Min | Max | What it does |
 |---|---|---|---|---|
 | `Hash` | 64 | 1 | 1024 | Transposition table size in megabytes |
 
-The other 33 are the evaluation's tunable values, in centipawns. They exist so that the SPSA tuner
-(`tools/spsa.py`) can reach them, and the defaults are the tuned ones; there is seldom a reason to
-change them in play. Each is a bonus or a penalty applied for the term it is named after.
-
-| Option | Default | Range |
-|---|---|---|
-| `KnightValue`, `BishopValue`, `RookValue`, `QueenValue` | 324, 328, 510, 1016 | 200-500, 200-500, 350-750, 700-1400 |
-| `KnightMobility`, `BishopMobility`, `RookMobility`, `QueenMobility` | 5, 6, 7, 3 | 0-20 |
-| `KingZoneAttackPenalty`, `KingZoneQueenAttackPenalty`, `WeakKingSquarePenalty` | 4, 8, 16 | 0-20, 0-30, 0-50 |
-| `BishopPairBonus`, `TempoBonus`, `KnightOutpostBonus` | 43, 10, 27 | 0-120, 0-40, 0-60 |
-| `RookOpenFileBonus`, `RookSemiOpenFileBonus` | 15, 8 | 0-60 |
-| `IsolatedPawnPenalty`, `DoubledPawnPenalty`, `BackwardPawnPenalty`, `ConnectedPawnBonus` | 9, 11, 7, 6 | 0-40 |
-| `ShelterRank2`, `ShelterRank3`, `ShelterRank4` | 15, 11, 1 | 0-60 |
-| `ShelterMissing` | -16 | -80-0 |
-| `StormDistance2`, `StormDistance3`, `StormDistance4` | 19, 11, 9 | 0-60 |
-| `PassedRank2` to `PassedRank7` | 5, 6, 22, 42, 74, 124 | 0-60, 0-80, 0-120, 0-160, 0-240, 0-320 |
-
-The pawn terms are by rank from the pawn's own side (`Shelter` and `Passed`) or by the distance in
-ranks between the king and the pawn (`Storm`). `docs/EVALUATION.md` describes every term.
+The evaluation's weights are constants in `Evaluator.cs`, not options; `docs/EVALUATION.md` describes every
+term and how its value was found.
 
 ## Testing
 

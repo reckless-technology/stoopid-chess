@@ -12,6 +12,11 @@ the build before it (80 games at 10+0.1, single thread, six-ply openings, `fastc
 on a positive result, recorded here either way. The bench signature changes with every evaluation
 change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
 
+Several rows below are SPSA retunes, made by `tools/spsa.py` over fastchess games through one UCI option per
+evaluation weight. Tuning finished in September 2026, and on 2026-11-10 the tuner, its run archives
+(`tools/spsa-runs/`) and the options were removed: the values it found are the plain constants in `Evaluator.cs`.
+The script and the archives the rows cite are in the git history, last present at commit `32e2961`.
+
 ## Log
 
 | Change | Self-play vs previous | Kept |

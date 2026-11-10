@@ -14,7 +14,7 @@
       PATH, Microsoft's dotnet-install script puts one in %LOCALAPPDATA%\Microsoft\dotnet, and DOTNET_ROOT and the
       PATH point at it
     - the repo's git hooks (core.hooksPath .githooks) and the VS Code extensions .vscode/extensions.json recommends
-    - with -Tuning, what tools\match.ps1, tools\selfplay.ps1 and tools\spsa.py play with, under %USERPROFILE%\tools:
+    - with -Tuning, what tools\match.ps1 and tools\selfplay.ps1 play with, under %USERPROFILE%\tools:
       fastchess and the reference pawnstar engine, the release binaries tools\tuning-tools.txt pins by version and
       SHA-256, and the self-play baseline (stoopid-baseline), published from this checkout when there is none. The
       openings they play from are the repo's own, tools\openings-6ply.epd.

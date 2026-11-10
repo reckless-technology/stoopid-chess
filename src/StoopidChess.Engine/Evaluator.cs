@@ -12,7 +12,7 @@ namespace StoopidChess.Engine;
 public sealed class Evaluator
 {
     // Material values from the Simplified Evaluation Function, minor and rook values and everything
-    // below down to the passed pawn ladder retuned by SPSA (tools/spsa-runs/2026-09-20-complete).
+    // below down to the passed pawn ladder retuned by SPSA in September 2026 (docs/EVALUATION.md).
     // The king carries no value: both kings are always present.
     public const int PawnValue = 100;
     public const int KnightValue = 324;
@@ -61,12 +61,12 @@ public sealed class Evaluator
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    internal static readonly int[] DefaultShelterByRank = [0, 15, 11, 1, 0, 0, 0, 0];      // Pawn rank from its own side
+    private static readonly int[] ShelterByRank = [0, 15, 11, 1, 0, 0, 0, 0];      // Pawn rank from its own side
     public const int ShelterMissing = -16;
-    internal static readonly int[] DefaultStormByDistance = [0, 0, 19, 11, 9, 0, 0, 0];   // Ranks between the king and the pawn
+    private static readonly int[] StormByDistance = [0, 0, 19, 11, 9, 0, 0, 0];   // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
-    internal static readonly int[] DefaultPassedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
+    private static readonly int[] PassedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
 
     // The squares ahead of a pawn on its own file and the two beside it, indexed [color][square]:
     // an enemy pawn there stops it being passed
@@ -163,25 +163,8 @@ public sealed class Evaluator
     // Material plus piece-square value of each piece type on each square, from white's point of
     // view: positive for white pieces, negative (and vertically mirrored) for black pieces.
     // Indexed [color][type][square]; the king is stored twice, for the middle game and the endgame.
-    private readonly EvaluationParameters parameters;
-    private int[][][] pieceSquareValues = [];
-    private int builtVersion = -1;
-
-    public Evaluator() : this(new EvaluationParameters())
-    {
-    }
-
-    public Evaluator(EvaluationParameters parameters)
-    {
-        ArgumentNullException.ThrowIfNull(parameters);
-        this.parameters = parameters;
-    }
-
-    /// <summary>
-    /// The tunable values this evaluator reads; set them through <see cref="EvaluationParameters.TrySet"/>.
-    /// </summary>
-    public EvaluationParameters Parameters => parameters;
     private const int KingEndgameIndex = 7;
+    private static readonly int[][][] PieceSquareValues = BuildPieceSquareValues();
 
     // The evaluation cache: one 64-bit word per entry holding the top 48 bits of the Zobrist key and
     // the 16-bit score, always replaced. Positions reached again by transposition, by a re-search or
@@ -200,14 +183,6 @@ public sealed class Evaluator
     public int Evaluate(Position position)
     {
         ArgumentNullException.ThrowIfNull(position);
-        if (builtVersion != parameters.Version)
-        {
-            // The parameters changed: rebuild the material tables and forget every cached score
-            pieceSquareValues = BuildPieceSquareValues();
-            builtVersion = parameters.Version;
-            Array.Clear(cache);
-            Array.Clear(pawnCache);
-        }
         ulong key = position.Key;
         ref ulong entry = ref cache[key & ((1UL << CacheBits) - 1)];
         if ((entry >> 16) == (key >> 16))
@@ -240,7 +215,7 @@ public sealed class Evaluator
         SideAttacks black = PieceAttacks(position, Color.Black, whiteZone);
         foreach (Color color in ColorExtensions.Sides)
         {
-            int[][] tables = pieceSquareValues[(int)color];
+            int[][] tables = PieceSquareValues[(int)color];
             for (Piece type = Piece.Pawn; type <= Piece.Queen; type++)
             {
                 int[] table = tables[(int)type];
@@ -255,20 +230,20 @@ public sealed class Evaluator
                 + RookFiles(position, color);
             if (position.Pieces(color, Piece.Bishop).Count >= 2)
             {
-                own += parameters.BishopPairBonus;
+                own += BishopPairBonus;
             }
             if (!endgame)
             {
                 // The pressure on the king: enemy piece attacks into the zone, and the zone squares the
                 // enemy attacks that nothing but the king defends, where an attack breaks through
-                own -= them.KingZoneAttack + (parameters.WeakKingSquarePenalty * (zone & them.Attacks & ~us.Attacks).Count);
+                own -= them.KingZoneAttack + (WeakKingSquarePenalty * (zone & them.Attacks & ~us.Attacks).Count);
                 own += ShelterAndStorm(position, color);
             }
             score += color == Color.White ? own : -own;
         }
         score += PawnStructure(position);
         score = ScaleDrawishness(position, score);
-        return parameters.TempoBonus + (position.SideToMove == Color.White ? score : -score);
+        return TempoBonus + (position.SideToMove == Color.White ? score : -score);
     }
 
     /// <summary>
@@ -287,13 +262,23 @@ public sealed class Evaluator
         return score;
     }
 
-    private int PawnStructure(Position position, Color color)
+    private static int PawnStructure(Position position, Color color)
+    {
+        PawnPatterns patterns = FindPawnPatterns(position, color);
+        return (ConnectedPawnBonus * patterns.Connected.Count)
+            - (IsolatedPawnPenalty * patterns.Isolated.Count)
+            - (DoubledPawnPenalty * patterns.Doubled.Count)
+            - (BackwardPawnPenalty * patterns.Backward.Count);
+    }
+
+    /// <summary>
+    /// One side's pawns sorted by the structure terms that score them.
+    /// </summary>
+    internal readonly record struct PawnPatterns(Bitboard Isolated, Bitboard Doubled, Bitboard Backward, Bitboard Connected);
+
+    internal static PawnPatterns FindPawnPatterns(Position position, Color color)
     {
         Bitboard pawns = position.Pieces(color, Piece.Pawn);
-        if (pawns.IsEmpty)
-        {
-            return 0;
-        }
         Bitboard enemyPawns = position.Pieces(color.Opponent(), Piece.Pawn);
         Bitboard fileFill = FileFill(pawns);
         Bitboard isolated = pawns & ~(fileFill.East() | fileFill.West());
@@ -308,10 +293,7 @@ public sealed class Evaluator
         Bitboard enemyControl = Attacks.Pawns(color.Opponent(), enemyPawns);
         Bitboard stopControlled = color == Color.White ? enemyControl.South() : enemyControl.North();
         Bitboard backward = pawns & ~everSupported & ~isolated & stopControlled;
-        return (parameters.ConnectedPawnBonus * connected.Count)
-            - (parameters.IsolatedPawnPenalty * isolated.Count)
-            - (parameters.DoubledPawnPenalty * doubled.Count)
-            - (parameters.BackwardPawnPenalty * backward.Count);
+        return new PawnPatterns(isolated, doubled, backward, connected);
     }
 
     private static Bitboard NorthFill(Bitboard pawns)
@@ -342,7 +324,7 @@ public sealed class Evaluator
     /// than a bishop of extra material to make progress at all, and two knights cannot force mate
     /// against a bare king.
     /// </summary>
-    private int ScaleDrawishness(Position position, int score)
+    private static int ScaleDrawishness(Position position, int score)
     {
         if (score == 0)
         {
@@ -356,33 +338,33 @@ public sealed class Evaluator
         Color loser = winner.Opponent();
         int winnerMaterial = NonPawnMaterial(position, winner);
         int loserMaterial = NonPawnMaterial(position, loser);
-        if (winnerMaterial - loserMaterial <= parameters.BishopValue)
+        if (winnerMaterial - loserMaterial <= BishopValue)
         {
             // Up at most a minor with no pawns left: a lone minor can never win, and even a rook
             // for a minor down wins only exceptionally
-            return winnerMaterial < parameters.RookValue ? score / 16 : score / 4;
+            return winnerMaterial < RookValue ? score / 16 : score / 4;
         }
         if (loserMaterial == 0 && position.Pieces(loser, Piece.Pawn).IsEmpty
-            && winnerMaterial == 2 * parameters.KnightValue && position.Count(winner, Piece.Knight) == 2)
+            && winnerMaterial == 2 * KnightValue && position.Count(winner, Piece.Knight) == 2)
         {
             return score / 16;
         }
         return score;
     }
 
-    private int NonPawnMaterial(Position position, Color color)
+    private static int NonPawnMaterial(Position position, Color color)
     {
-        return (position.Count(color, Piece.Knight) * parameters.KnightValue)
-            + (position.Count(color, Piece.Bishop) * parameters.BishopValue)
-            + (position.Count(color, Piece.Rook) * parameters.RookValue)
-            + (position.Count(color, Piece.Queen) * parameters.QueenValue);
+        return (position.Count(color, Piece.Knight) * KnightValue)
+            + (position.Count(color, Piece.Bishop) * BishopValue)
+            + (position.Count(color, Piece.Rook) * RookValue)
+            + (position.Count(color, Piece.Queen) * QueenValue);
     }
 
     /// <summary>
     /// The pawn cover in front of the king and the enemy pawns advancing on it, over the king's file
     /// and its neighbours (moved in from the edge so that a king in the corner still counts three).
     /// </summary>
-    private int ShelterAndStorm(Position position, Color color)
+    private static int ShelterAndStorm(Position position, Color color)
     {
         Square king = position.KingSquare(color);
         Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
@@ -399,18 +381,18 @@ public sealed class Evaluator
             Bitboard shelter = column & ownPawns;
             if (shelter.IsEmpty)
             {
-                score += parameters.ShelterMissing;
+                score += ShelterMissing;
             }
             else
             {
                 Square pawn = color == Color.White ? shelter.First : shelter.Last;
-                score += parameters.ShelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
+                score += ShelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
             }
             Bitboard storm = column & enemyPawns;
             if (storm.IsNotEmpty)
             {
                 Square pawn = color == Color.White ? storm.First : storm.Last;
-                int penalty = parameters.StormByDistance[Math.Abs(pawn.Rank - king.Rank)];
+                int penalty = StormByDistance[Math.Abs(pawn.Rank - king.Rank)];
                 // An enemy pawn faced by one of ours cannot advance to open lines
                 if (ownPawns.Contains(pawn - Position.PawnDirection(color.Opponent())))
                 {
@@ -426,7 +408,7 @@ public sealed class Evaluator
     /// Knights on outposts: squares in the opponent's half that an own pawn defends and that no enemy
     /// pawn can reach (none ahead on the neighbouring files, which the passed-pawn spans encode).
     /// </summary>
-    private int KnightOutposts(Position position, Color color)
+    private static int KnightOutposts(Position position, Color color)
     {
         Color them = color.Opponent();
         Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
@@ -443,7 +425,7 @@ public sealed class Evaluator
             Bitboard adjacentAhead = spans[square] & ~Bitboard.OfFile(square.File);
             if ((adjacentAhead & enemyPawns).IsEmpty)
             {
-                bonus += parameters.KnightOutpostBonus;
+                bonus += KnightOutpostBonus;
             }
         }
         return bonus;
@@ -453,7 +435,7 @@ public sealed class Evaluator
     /// Bonus for each pawn with no enemy pawn ahead of it on its own or the adjacent files, growing
     /// as it advances.
     /// </summary>
-    private int PassedPawns(Position position, Color color, bool endgame)
+    private static int PassedPawns(Position position, Color color, bool endgame)
     {
         Color them = color.Opponent();
         Bitboard enemyPawns = position.Pieces(them, Piece.Pawn);
@@ -468,7 +450,7 @@ public sealed class Evaluator
                 continue;
             }
             var next = new Square(square + (color == Color.White ? 8 : -8));
-            int rankBonus = parameters.PassedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
+            int rankBonus = PassedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
             if (position.Occupied.Contains(next))
             {
                 rankBonus /= 2;   // A blocked passer is worth half until it can move again
@@ -522,7 +504,7 @@ public sealed class Evaluator
     /// Rooks on open files (no pawns of either color) and semi-open files (no own pawn), where the
     /// rook's reach down the board makes it more than a wall.
     /// </summary>
-    private int RookFiles(Position position, Color color)
+    internal static int RookFiles(Position position, Color color)
     {
         Bitboard ownPawns = position.Pieces(color, Piece.Pawn);
         Bitboard enemyPawns = position.Pieces(color.Opponent(), Piece.Pawn);
@@ -532,7 +514,7 @@ public sealed class Evaluator
             Bitboard file = Bitboard.OfFile(square.File);
             if ((file & ownPawns).IsEmpty)
             {
-                bonus += (file & enemyPawns).IsEmpty ? parameters.RookOpenFileBonus : parameters.RookSemiOpenFileBonus;
+                bonus += (file & enemyPawns).IsEmpty ? RookOpenFileBonus : RookSemiOpenFileBonus;
             }
         }
         return bonus;
@@ -559,7 +541,7 @@ public sealed class Evaluator
     /// guarded by enemy pawns being no use to a piece), the attacks into the enemy king zone (each
     /// attacked square counted once per attacking piece) and the side's attack map, in one pass.
     /// </summary>
-    private SideAttacks PieceAttacks(Position position, Color color, Bitboard enemyZone)
+    private static SideAttacks PieceAttacks(Position position, Color color, Bitboard enemyZone)
     {
         Bitboard occupied = position.Occupied;
         Bitboard pawnGuarded = Attacks.Pawns(color.Opponent(), position.Pieces(color.Opponent(), Piece.Pawn));
@@ -571,29 +553,29 @@ public sealed class Evaluator
         {
             Bitboard reach = Attacks.Knight(square);
             attacks |= reach;
-            mobility += parameters.KnightMobility * (reach & targets).Count;
-            zoneAttack += parameters.KingZoneAttackPenalty * (reach & enemyZone).Count;
+            mobility += KnightMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in position.Pieces(color, Piece.Bishop))
         {
             Bitboard reach = Attacks.Bishop(occupied, square);
             attacks |= reach;
-            mobility += parameters.BishopMobility * (reach & targets).Count;
-            zoneAttack += parameters.KingZoneAttackPenalty * (reach & enemyZone).Count;
+            mobility += BishopMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in position.Pieces(color, Piece.Rook))
         {
             Bitboard reach = Attacks.Rook(occupied, square);
             attacks |= reach;
-            mobility += parameters.RookMobility * (reach & targets).Count;
-            zoneAttack += parameters.KingZoneAttackPenalty * (reach & enemyZone).Count;
+            mobility += RookMobility * (reach & targets).Count;
+            zoneAttack += KingZoneAttackPenalty * (reach & enemyZone).Count;
         }
         foreach (Square square in position.Pieces(color, Piece.Queen))
         {
             Bitboard reach = Attacks.Queen(occupied, square);
             attacks |= reach;
-            mobility += parameters.QueenMobility * (reach & targets).Count;
-            zoneAttack += parameters.KingZoneQueenAttackPenalty * (reach & enemyZone).Count;
+            mobility += QueenMobility * (reach & targets).Count;
+            zoneAttack += KingZoneQueenAttackPenalty * (reach & enemyZone).Count;
         }
         return new SideAttacks(mobility, zoneAttack, attacks);
     }
@@ -616,16 +598,16 @@ public sealed class Evaluator
         return true;
     }
 
-    private int[][][] BuildPieceSquareValues()
+    private static int[][][] BuildPieceSquareValues()
     {
         (int[] Table, int Material)[] source =
         [
             ([], 0),                                // None
-            (PawnTable, parameters.PawnValue),
-            (KnightTable, parameters.KnightValue),
-            (BishopTable, parameters.BishopValue),
-            (RookTable, parameters.RookValue),
-            (QueenTable, parameters.QueenValue),
+            (PawnTable, PawnValue),
+            (KnightTable, KnightValue),
+            (BishopTable, BishopValue),
+            (RookTable, RookValue),
+            (QueenTable, QueenValue),
             (KingTable, 0),                         // Kings are always present, so they carry no material value
             (KingEndgameTable, 0),
         ];

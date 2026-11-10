@@ -38,7 +38,7 @@ public sealed class Searcher
     private const int HistoryCap = 79_999;
 
     private readonly TranspositionTable table;
-    private readonly Evaluator evaluator;
+    private readonly Evaluator evaluator = new();
     private readonly MoveList[] moveLists = new MoveList[MaxPly + 1];   // One per ply, reused by every node at that ply
     // The heuristic tables are flat arrays with hand-rolled indexing: multi-dimensional array
     // accesses go through a runtime helper on some shapes, which showed in the profile.
@@ -57,22 +57,11 @@ public sealed class Searcher
     private long? nodeLimit;
     private bool stopped;
 
-    public Searcher(TranspositionTable table) : this(table, new EvaluationParameters())
-    {
-    }
-
-    public Searcher(TranspositionTable table, EvaluationParameters parameters)
+    public Searcher(TranspositionTable table)
     {
         ArgumentNullException.ThrowIfNull(table);
-        ArgumentNullException.ThrowIfNull(parameters);
         this.table = table;
-        evaluator = new Evaluator(parameters);
     }
-
-    /// <summary>
-    /// The evaluation parameters the search plays with.
-    /// </summary>
-    public EvaluationParameters Parameters => evaluator.Parameters;
 
     /// <summary>
     /// Statistics of the most recent search.
