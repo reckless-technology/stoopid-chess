@@ -188,6 +188,11 @@ internal sealed class BoardView : View
         }
     }
 
+    /// <summary>
+    /// A press: with the left button on one of the human's own pieces, on the human's turn, it starts a drag; the piece's
+    /// legal destinations are worked out now so they can be drawn as hints while it is dragged. (The right button asks
+    /// to edit the square instead, at release.)
+    /// </summary>
     public override bool OnPointerDown(PointerEvent e)
     {
         if (Controller is not { } controller)
@@ -235,6 +240,11 @@ internal sealed class BoardView : View
         }
     }
 
+    /// <summary>
+    /// A release. Ending a drag raises <see cref="MoveDropped"/> with the two squares, unless it was let go on the square
+    /// it came from or off the board, which cancels it. This view never judges legality or plays the move: the main
+    /// view hears the event and asks the controller. A right-button release asks to edit the square.
+    /// </summary>
     public override void OnPointerUp(PointerEvent e)
     {
         if (e.Button == PointerButton.Left && dragFrom != Square.None)

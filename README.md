@@ -5,8 +5,31 @@
 A chess engine and a cross-platform chess GUI in C#. The engine speaks
 [UCI](https://www.chessprogramming.org/UCI), so it can be used from any chess GUI and tested against other engines;
 the GUI can play against any UCI engine, with the built-in one as the default. Originally written in 2009 as a Windows
-Forms program, ported to .NET 10 and restructured in 2026; an Avalonia GUI replaced the Windows Forms one after 3.0.0,
-and was itself replaced by the GUI drawn with SkiaSharp in an SDL3 window, in the look of the Reckless series.
+Forms program, ported to .NET 10 and restructured in 2026. The source is meant to be read: it aims to be as simple, clean
+and canonical as it can be, so that it is useful to someone learning chess programming, and strength comes second.
+
+## Start here
+
+Three commands, from a clone, with only the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) installed:
+
+```bash
+dotnet test tests/StoopidChess.Tests -c Release                    # the test suite, a few seconds
+dotnet run --project src/StoopidChess.Uci -c Release -- bench      # the engine searches a fixed set of positions
+dotnet run --project src/StoopidChess.Desktop                      # play it
+```
+
+Then read the code in this order, each file standing on the one before ([docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the
+guided tour, with the life of a move from click to reply):
+
+1. `Core/Square.cs`, `Bitboard.cs`, `Move.cs`: the value types everything is written in.
+2. `Core/Position.cs` and `Attacks.cs`: the board, make and unmake, legal move generation
+   ([docs/BITBOARDS.md](docs/BITBOARDS.md)); then `Game.cs`.
+3. `Engine/Evaluator.cs` ([docs/EVALUATION.md](docs/EVALUATION.md)) and `Engine/Searcher.cs`.
+4. `Engine/Uci/UciSession.cs`: the engine's side of UCI.
+5. `Play/UciEngineClient.cs`: the GUI's side of UCI, and `Play/GameController.cs`: how a GUI holds an engine.
+6. `Desktop/`: the window. It is GUI plumbing, not chess: skip it on a first read.
+
+Nothing in `tools/` is needed to build, test or play; it holds the setup, match, signing and icon scripts.
 
 ## Layout
 
@@ -203,7 +226,7 @@ in the window over a veil.
 
 The engine executable works in any UCI GUI (Arena, Cute Chess, Banksia) and with tournament tools
 such as `cutechess-cli` or `fastchess`, which is how it can be measured against pawnstar or trebuchet.
-In the Stoopid Chess GUI, *Engine > Add UCI engine...* swaps the built-in engine for an external one.
+In the Stoopid Chess GUI, *Engine > Open UCI engine...* swaps the built-in engine for an external one.
 
 ## Saved games
 
@@ -213,8 +236,8 @@ settings. Files from before September 2026 used .NET binary serialisation and ca
 ## History
 
 This project lived in the `StoopidChess` directory of the `reckless-technology/software` repository
-until September 2026, when it was split out with its history. `docs/CODE_REVIEW.md` records the
-review that preceded the restructuring and `docs/ARCHITECTURE_REVIEW.md` the proposals that followed it.
+until September 2026, when it was split out with its history. `docs/history/` keeps the review that preceded the
+restructuring and the proposals that followed it; the names in them are out of date.
 
 ## License
 

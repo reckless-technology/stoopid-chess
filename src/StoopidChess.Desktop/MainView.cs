@@ -394,6 +394,12 @@ internal sealed class MainView : View, IDisposable
     // Board input
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// The board says a piece was dropped from one square onto another. Ask the controller which legal moves that is:
+    /// none is refused with a message, several (a pawn reaching the last rank) ask which piece to promote to, and one is
+    /// played. The controller then does the rest: it plays the move, redraws us through <c>Changed</c> and starts the
+    /// engine thinking.
+    /// </summary>
     private async Task OnMoveDroppedAsync(Square from, Square to)
     {
         IReadOnlyList<Move> candidates = controller.HumanMoveCandidates(from, to);

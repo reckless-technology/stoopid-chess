@@ -6,14 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Stoopid Chess: a C# chess engine (`StoopidChess.Core` rules + `StoopidChess.Engine` search and UCI
 protocol, wrapped by the `StoopidChess.Uci` console) and a GUI over the `StoopidChess.Play`
-controller that plays against any UCI engine: `StoopidChess.Desktop` (SkiaSharp in an SDL3 window, any OS; it
-replaced the Avalonia GUI, which had replaced the Windows Forms one, removed after 3.0.0). .NET 10;
-`Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every
-project. Read [README.md](README.md) for the architecture and
-[docs/CODE_REVIEW.md](docs/CODE_REVIEW.md) for why the code is shaped the way it is,
-[docs/ARCHITECTURE_REVIEW.md](docs/ARCHITECTURE_REVIEW.md) for the prioritised list of proposed improvements,
+controller that plays against the built-in engine or any UCI engine: `StoopidChess.Desktop` (SkiaSharp in an SDL3
+window, any OS). Its purpose is to be simple, clean and canonical enough that the source teaches chess programming;
+strength is secondary. Engine matches and tournaments are Amphitheater's job, not this program's. .NET 10;
+`Directory.Build.props` applies nullable, warnings-as-errors and the recommended analyzers to every project.
+Read [README.md](README.md) first (it opens with a reading order), then
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the tour and how a click becomes a move,
 [docs/BITBOARDS.md](docs/BITBOARDS.md) for the bitboard board and legal move generator, and
-[docs/EVALUATION.md](docs/EVALUATION.md) for the evaluation baseline and the log of terms tried.
+[docs/EVALUATION.md](docs/EVALUATION.md) for the evaluation baseline and the log of terms tried. The September 2026
+reviews that shaped the restructuring are kept in [docs/history/](docs/history/); their names are out of date.
 
 ## Build / test / run
 
@@ -171,118 +172,40 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
 
 ## Architecture notes
 
-- **Dependencies point one way:** Core ← Engine ← Play ← Desktop (which also references Core
-  directly), and Uci ← Engine.
-- **Core value types** (zero-cost wrappers, like pawnstar's C++ classes; the bench signature and
-  nps prove it): `Square` is a one-byte readonly record struct, a1 = 0 .. h8 = 63 so a square is its
-  bit number, with `Square.None` (index 64, `IsValid` false), `File`/`Rank`/`Name`, `Square.At`,
-  `Square.Parse`, the `A1`..`H8` constants, `square + 8` arithmetic, an implicit conversion to `int`
-  for table lookups and only an explicit one back (`new Square(i)`), so an `int` can never be
-  mistaken for a square; `Square.Unchecked` is the internal no-validation constructor for hot
-  paths. `Bitboard` is a readonly record struct over `ulong` with `& | ^ ~`, `Count`, `IsEmpty`,
-  `IsSingle`, `First`, `Contains`, the shifts (`North()`, `NorthEast()`, `Forward(color)`), the
-  file/rank/light-square constants, `Bitboard.Of(square)` and `foreach (Square s in set)` (a struct
-  enumerator the JIT inlines; `Bitboard.PopFirst(ref set)` is the explicit form). `MoveList` is a
-  fixed-capacity (256) struct holding its moves inline (an `[InlineArray]`), so generation
-  allocates nothing: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`), order
-  it through `AsSpan()`; it also implements `IEnumerable<Move>` for LINQ in tests. `Move` is a
-  readonly record struct (32 bits, `From`/`To` are `Square`s). There is no colored-piece type: the
-  engine only ever needs `Color` and `Piece` separately, so where a caller wants both at once
-  (`Position[square]`, `Position.Place`, `GameController.PieceAt`/`EditSquare`) it is a
-  `(Color Color, Piece Type)` tuple whose default is an empty square, and
-  `Piece.ToChar(color)` gives the FEN letter. No `int` squares or raw `ulong` sets appear in
-  any public API, including Play and the GUI.
-- **Core.** `Position` is a mutable position held as `Bitboard`s (per piece type and per color plus
-  the occupancy) and a 64-entry `Piece` array (a piece's color comes from the color
-  bitboards; make/unmake pass color and type explicitly), with `MakeMove`/`UnmakeMove` (strict LIFO), Zobrist
-  and pawn keys, side to move, castling rights (lost by any move from or to a king or rook home
-  square, see `CastlingRightsExtensions.LostBySquare`), en passant square, clocks, and `Checkers`
-  (the pieces giving check, computed lazily and cached until the next move). `Attacks` holds the
-  knight/king/pawn tables, `Between`/`Line` and the magic bitboard slider tables (pawnstar's magic
-  numbers; built at startup and verified). Move generation is part of `Position` (`GenerateLegalMoves`,
-  `GenerateLegalCaptures` for quiescence, `IsLegal`): deterministic, and only legal moves into a `ref MoveList`
-  (pins, check masks, en passant and castling resolved during generation, following pawnstar). Everything
-  about a position, including make/unmake and the editing methods (`Empty`, `Setup`, `Place`, `Clear`,
-  `SetSideToMove`, `SetCastlingRights`, usable only before a move is made), lives in the single file
-  `Position.cs`. `Game` layers
-  a legal-moves-only API, move history and `GameStatus` on top and is what the controller uses.
-  `Fen` does FEN text; `Move.ParseUci` and `Move.ToLongAlgebraic` do move text.
-- **Engine.** `Searcher` owns per-search state (killers, history, per-ply move lists, statistics) and
-  searches a clone of the caller's board. Mate scores are `±(MateScore - ply)` and are converted to
-  node-relative form across the transposition table boundary. Draw score is 0. `SearchLimits`
-  mirrors UCI `go`; `SearchLimits.TimeBudget` is the time manager. `TranspositionTable` is two tier
-  with 16-byte entries verified by the full 64-bit key. `Evaluator`'s weights are named constants (SPSA-tuned in
-  September 2026; the tuner and its UCI options were removed once that was done, docs/EVALUATION.md). `Evaluator` is an instance and keeps a 512 KB evaluation cache (Zobrist key to score, exact, cleared by `ucinewgame`
-  through `Searcher.NewGame`; about 10% faster; terms may keep further
-  caches such as a pawn hash); it starts from the Simplified Evaluation Function, see docs/EVALUATION.md.
-  `Bench` is the fixed position set behind the signature.
-- **The two halves of UCI.** `src/StoopidChess.Engine/Uci/UciSession` is the engine side: it handles
-  the protocol over any `TextReader`/`TextWriter`, running searches on a `Task` so `stop`/`isready`
-  work while thinking. `src/StoopidChess.Play/UciEngineClient` is the GUI side, with `StartInProcess()`
-  (anonymous pipes to a `UciSession` on a background thread) and `StartProcess(path)` for external
-  engines. The GUI only ever uses the client, so the built-in and external engines share one code path.
-  `src/StoopidChess.Uci/Program.cs` is a thin entry point that dispatches to the session, `bench` or
-  `perft`.
-- **Play.** `GameController` (cross-platform, `StoopidChess.Play`) owns the game, the one engine client,
-  whose turn it is, the thinking state and generation counter (stale engine replies are discarded),
-  position editing via `Position.Setup` and `Place` (the `Editing` position until it is legal), the chess
-  clocks and save/load, and raises `Changed`, `EngineFailed` and `EngineIllegalMove`. The human always
-  plays White or Black and the engine the other side. It is single-threaded: engine replies continue on the
-  caller's `SynchronizationContext` (the GUI's UI thread). The tests drive it on a `ControllerThread`, a
-  single-threaded context of their own, so a reply is handled between a test's steps and never beside
-  them (on xunit's own context a reply ran on another worker while the test read the controller), and
-  `await WaitUntilIdleAsync()` for the engine to finish thinking. A reply is always
-  handled after a yield, never inside the call that started the search, even when the engine has
-  answered before the await (`ConfigureAwaitOptions.ForceYielding`): handled inline it would start the
-  next search before the first was stored, and the controller would wait on the wrong one
-  (`InstantEngine` in the tests answers that fast every time). `Level` maps
-  difficulty to a search depth cap; every game is played against a countdown `TimeControl` (base time plus
-  increment, `TimeControl.Default` is 10+0, chosen from the Game menu): the side to move's clock runs down in
-  `Tick`, the mover gains the increment after each move, a side reaching zero loses on time (`TimedOut`,
-  `IsGameOver`), and the engine plays on the clocks (wtime/btime/winc/binc) within the level's depth.
-  `Undo` after a loss on time reopens the game. `StartEngineAsync(path)` connects the built-in engine (null) or any UCI
-  executable; engine-vs-engine matches and a registry of engines are not here, Amphitheater does that.
-  `SavedGame` is JSON with FEN + UCI moves.
-- **Desktop.** The GUI, the only one, drawn with SkiaSharp (4.154.0, pinned with its Linux natives, the
-  no-dependencies build - no fontconfig, only the C and C++ runtimes; paths are built with `SKPathBuilder`, since v4
-  makes `SKPath`'s own mutators obsolete) in
-  SDL3 windows (ppy.SDL3-CS, natives for every desktop platform in the package), in the Reckless series' look as
-  Amphitheater wears it. Three layers:
-  - **`Look/`**: `Theme` (Amphitheater's `src/app/Theme.h` tokens), `Fonts` (Noto Serif for the interface, Monaspace
-    Xenon for the move list, analysis lines and clocks, embedded from `Assets/Fonts` with their OFL licences),
-    `Plates` (a C# translation of reckless-toolkit's `look/LookDrawing.cpp` legend plate, arrow and lamp), `Drawing`
-    (text in a box, fitted and wrapped; pictures drawn mipmapped down or cubic up) and `Assets` (embedded resources).
-  - **`Views/`**: a small retained view tree with no window system under it. `View` draws in its own coordinates and
-    takes `PointerEvent`/`WheelEvent`/`KeyEvent`/text; `ViewRoot` is a window's top, holding the content and the
-    overlays over it (an open `MenuPopup`, a modal `DialogView`), routing a press to the topmost view that takes it
-    (which then has the pointer until the release) and keys to the focused view and up, the top overlay first, so a
-    dialog is modal. Widgets: `PlateButton`, `MenuBarView` (drawn on every OS, as the toolkit's Linux
-    `app/MenuBarView.h`; `KeyModifiers.Primary` is Cmd on macOS, Ctrl elsewhere), `MenuPopup` (submenus, ticks,
-    shortcuts, keyboard), `LabelView`, `TextListView` (scrolls both ways) and `DialogView` (the veil and card; Return and
-    Escape press its default and cancel buttons, Tab moves between fields; `ShowAsync` completes on close, inline).
-  - **The app**: `MainView` (the layout - the board as large as fits beside a right column of at least 290 px, the
-    capture bin under it as wide, the column taking all the rest of the width - and the menus, status bar, dialogs
-    and the wiring: everything the Avalonia `MainWindow` did; it
-    redraws on `Changed`, its text from `GameText`, and asks the
-    window system only through `IDesktopPlatform`: file dialogs, clipboard, title, another window, quit), `BoardView`
-    and `CaptureBinView` (drawing and pointer input), `StatusBarView`, `AnalysisView`, `PieceImages` (the PNGs in
-    `Assets/`), `Dialogs/` (message, promotion) and
-    `UiSynchronizationContext` (the UI thread's queue; engine replies continue there). `Sdl/` is the host: `SdlHost`
-    (the event loop, the clock's 100 ms tick, `--smoke`), `SdlWindow` (Skia draws into a raster bitmap at the window's
-    physical pixels, presented through an SDL streaming texture - no GL context of the app's own; logical pixels are
-    physical over the window's display scale), `SdlPlatform` (SDL's native file dialogs, whose answers are posted to
-    the UI context, and its clipboard) and `SdlKeys`.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the tour of the code and of how a click becomes a move. These are
+only the things a change must not break.
 
-  Beyond the original Windows Forms GUI's feature set (that GUI, `StoopidChess.Gui`, was removed after 3.0.0) it can
-  open any UCI engine by its path ("Open UCI engine...", for the session) in place of the built-in one, and Game > Time control picks the clock. The move list is
-  SAN, View > Analysis window shows the engine's info lines (depth, score, nodes, PV) in a window of its own, File
-  imports and exports PGN, and Ctrl+C / Ctrl+V copy and paste the position as FEN (pasting behaves like a finished
-  board edit). The board draws coordinates, the last move, the checked king and the dragged piece's legal
-  destinations; the common menu actions have keyboard shortcuts, and Alt with a title's first letter opens its menu.
-  The application icon (the Windows .ico, the window's PNG, the
-  macOS app's .icns) is drawn by `tools/make-icons.py` from `packaging/icon/BlackQueen.svg`, on a rounded square of
-  the board's light colour: run it again, and commit what it writes, when either changes. Keep the square's corners
-  circular: macOS 26+ put a superellipse-cornered icon on their grey square.
+- **Dependencies point one way:** Core <- Engine <- Play <- Desktop (which also references Core directly), and
+  Uci -> Engine. The two halves of UCI are `Engine/Uci/UciSession` (engine side) and `Play/UciEngineClient` (GUI side).
+- **Core's value types are zero-cost**, and the bench signature and nps prove it. `Square` is a one-byte struct, a1 = 0
+  to h8 = 63, with an implicit conversion to `int` for table lookups and only an explicit one back, so an `int` is never
+  mistaken for a square (`Square.Unchecked` is the internal no-validation constructor for hot paths). `MoveList` holds
+  256 moves inline: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`). No `int` squares or raw
+  `ulong` sets appear in any public API, Play and the GUI included. There is no coloured-piece type; where a caller wants
+  both, it is a `(Color Color, Piece Type)` tuple whose default is an empty square.
+- **`Position`'s editing methods** (`Empty`, `Setup`, `Place`, `Clear`, `SetSideToMove`, `SetCastlingRights`) work only
+  before a move is made; everything about a position, make/unmake included, lives in the one file `Position.cs`.
+- **`Searcher` searches a clone** of the caller's position. Mate scores are `±(MateScore - ply)` and are converted to
+  node-relative form across the transposition table boundary; a draw scores 0. `Evaluator` is an instance with a 512 KB
+  evaluation cache cleared by `ucinewgame`, and its weights are named constants (docs/EVALUATION.md).
+- **`GameController` is single-threaded**: engine replies continue on the caller's `SynchronizationContext`. The tests
+  drive it on a `ControllerThread`, a single-threaded context of their own, so a reply is handled between a test's steps
+  and never beside them, and `await WaitUntilIdleAsync()` for the engine to finish. A reply is always handled after a
+  yield, never inside the call that started the search (`ConfigureAwaitOptions.ForceYielding`): handled inline, it would
+  start the next search before the first was stored, and the controller would wait on the wrong one (`InstantEngine` in
+  the tests answers that fast every time). Stale replies are dropped by a generation counter.
+- **Desktop** is drawn with SkiaSharp (4.154.0, pinned, with its Linux natives as the no-dependencies build: no
+  fontconfig, only the C and C++ runtimes; paths are built with `SKPathBuilder`, since v4 makes `SKPath`'s own mutators
+  obsolete) in SDL3 windows (ppy.SDL3-CS, natives for every desktop platform in the package), in the Reckless series' look
+  as Amphitheater wears it: `Look/Theme` holds Amphitheater's `src/app/Theme.h` tokens, and `Look/Plates` is a C#
+  translation of reckless-toolkit's `look/LookDrawing.cpp`. The fonts are embedded from `Assets/Fonts` with their OFL
+  licences. `KeyModifiers.Primary` is Cmd on macOS and Ctrl elsewhere. `Sdl/` is the host and holds no logic: it only
+  calls SDL and the views (Skia draws into a raster bitmap at the window's physical pixels, shown through an SDL streaming
+  texture, with no GL context of the app's own).
+- **The application icon** (the Windows .ico, the window's PNG, the macOS app's .icns) is drawn by `tools/make-icons.py`
+  from `packaging/icon/BlackQueen.svg`, on a rounded square of the board's light colour: run it again, and commit what it
+  writes, when either changes. Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their
+  grey square.
 
 ## Conventions
 

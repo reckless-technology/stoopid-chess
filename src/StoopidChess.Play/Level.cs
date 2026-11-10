@@ -3,7 +3,8 @@ using StoopidChess.Engine;
 namespace StoopidChess.Play;
 
 /// <summary>
-/// Playing strength, expressed as the limits given to the engine for each move.
+/// Playing strength: how hard the engine thinks about each move. The game is played on the clock (see
+/// <see cref="TimeControl"/>); the level caps how deep the engine may search, so the lower levels answer at once.
 /// </summary>
 public enum Level
 {
@@ -14,10 +15,14 @@ public enum Level
     Best,
 }
 
+/// <summary>
+/// The search limits each <see cref="Level"/> stands for.
+/// </summary>
 public static class Levels
 {
     /// <summary>
-    /// The engine stops at whichever of the depth and time limits it reaches first.
+    /// The search limits of a level: the engine stops at whichever of the depth and time limits it reaches first.
+    /// (<see cref="GameController"/> uses the depth, and lets the clocks decide the time.)
     /// </summary>
     public static SearchLimits Limits(this Level level) => level switch
     {

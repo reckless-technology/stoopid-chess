@@ -12,6 +12,13 @@ namespace StoopidChess.Play;
 /// executable (<see cref="StartProcess"/>) or the built-in engine running on a background thread in
 /// this process (<see cref="StartInProcess"/>). Both are spoken to over exactly the same text
 /// protocol, so the GUI has no dependency on the engine's internals.
+///
+/// How it works: commands are plain text lines written to the engine (<see cref="SetPosition"/>, <see cref="GoAsync"/>,
+/// <see cref="Stop"/> ...). A reader thread, started with the client, reads the engine's lines for as long as it lives:
+/// "info" lines are passed on through <see cref="InfoReceived"/>, and "uciok", "readyok" and "bestmove" complete the task
+/// the matching command is awaiting. So the GUI writes a command and awaits its answer; nothing else about the engine
+/// reaches it. An engine that dies fails the pending tasks, and later commands throw
+/// <see cref="InvalidOperationException"/>.
 /// </summary>
 public sealed class UciEngineClient : IDisposable
 {

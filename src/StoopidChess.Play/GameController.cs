@@ -33,6 +33,11 @@ public sealed class GameController : IDisposable
     private volatile string lastEngineInfo = "";
     private bool disposed;
 
+    /// <summary>
+    /// The game being played: the position, the moves so far and how it stands. Replaced by a new game, a loaded
+    /// one, or a finished position edit; read it, but make moves through the controller so the engine and the clocks
+    /// follow.
+    /// </summary>
     public Game Game { get; private set; } = new();
 
     /// <summary>
@@ -45,6 +50,9 @@ public sealed class GameController : IDisposable
     /// </summary>
     public Color HumanColor { get; private set; } = Color.White;
 
+    /// <summary>
+    /// The difficulty: how deep the engine may search for each move. It takes effect from the next search.
+    /// </summary>
     public Level Level { get; set; } = Level.Easy;
 
     /// <summary>
@@ -89,8 +97,15 @@ public sealed class GameController : IDisposable
     /// </summary>
     public bool IsGameOver => Game.IsOver || TimedOut is not null;
 
+    /// <summary>
+    /// Whether an engine is connected. It is not while one is starting, nor after one has died and the controller has
+    /// given up on it.
+    /// </summary>
     public bool HasEngine => engine is not null;
 
+    /// <summary>
+    /// Whether a search is under way, from the moment "go" is sent until the engine's reply has been handled.
+    /// </summary>
     public bool IsThinking => thinking is not null;
 
     /// <summary>
@@ -109,14 +124,29 @@ public sealed class GameController : IDisposable
     /// </summary>
     internal Func<string, UciEngineClient> StartExternalEngine { get; set; } = UciEngineClient.StartProcess;
 
+    /// <summary>
+    /// Whether the board is being edited into a position that is not yet legal.
+    /// </summary>
     public bool IsEditing => Editing is not null;
 
+    /// <summary>
+    /// Whether the engine is to move: the game is on, and it is not the human's side that has the move.
+    /// </summary>
     public bool IsEngineTurn => !IsEditing && !IsGameOver && Game.SideToMove != HumanColor;
 
+    /// <summary>
+    /// Whether the human may move now: the game is on, it is their side's turn and the engine is not mid-search.
+    /// </summary>
     public bool IsHumanTurn => !IsEditing && !IsGameOver && Game.SideToMove == HumanColor && !IsThinking;
 
+    /// <summary>
+    /// The side to move on the board as shown (the edited position, while one is being edited).
+    /// </summary>
     public Color SideToMove => Editing?.SideToMove ?? Game.SideToMove;
 
+    /// <summary>
+    /// The piece on a square of the board as shown; the default tuple is an empty square.
+    /// </summary>
     public (Color Color, Piece Type) PieceAt(Square square) => Editing is null ? Game.Position[square] : Editing[square];
 
     /// <summary>
@@ -226,6 +256,10 @@ public sealed class GameController : IDisposable
         EngineInfo?.Invoke(this, line);
     }
 
+    /// <summary>
+    /// If it is the engine's turn and it is not already thinking, send it the game and start a search. The reply is
+    /// handled by <see cref="ThinkAsync"/>.
+    /// </summary>
     private void StartThinkingIfEngineTurn()
     {
         if (thinking is not null || !IsEngineTurn || disposed)
@@ -253,6 +287,10 @@ public sealed class GameController : IDisposable
         RaiseChanged();
     }
 
+    /// <summary>
+    /// Wait for the engine's "bestmove" and play it. This is the half of a search that runs after the engine has
+    /// answered, back on the caller's thread; the stale-reply and failure cases are decided here.
+    /// </summary>
     private async Task ThinkAsync(UciEngineClient client, CancellationTokenSource cancellation, int generation)
     {
         string bestMove = "0000";
@@ -338,6 +376,10 @@ public sealed class GameController : IDisposable
         }
     }
 
+    /// <summary>
+    /// Tell the engine to stop. With <paramref name="discardResult"/> its reply is thrown away when it comes (the game
+    /// has moved on); without, the best move it has found so far is played (<see cref="MoveNow"/>).
+    /// </summary>
     private void CancelThinking(bool discardResult)
     {
         if (discardResult)
@@ -347,6 +389,9 @@ public sealed class GameController : IDisposable
         thinking?.Cancel();
     }
 
+    /// <summary>
+    /// Send the engine a command, treating one that can no longer be sent (the engine has died) as the loss of the engine.
+    /// </summary>
     private bool TryEngine(Action command)
     {
         try
@@ -361,6 +406,9 @@ public sealed class GameController : IDisposable
         }
     }
 
+    /// <summary>
+    /// The engine has stopped responding: drop it and tell the GUI.
+    /// </summary>
     private void LoseEngine(string message)
     {
         DropEngine();
@@ -420,6 +468,9 @@ public sealed class GameController : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Play a move on the game, for either side, give the mover the increment, and carry on.
+    /// </summary>
     private void MakeMove(Move move)
     {
         Color mover = Game.SideToMove;
@@ -504,6 +555,10 @@ public sealed class GameController : IDisposable
     // Position editing
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// Put a piece on a square (the default tuple clears it), starting an edit if none is under way. The edit
+    /// becomes a new game as soon as the position is legal.
+    /// </summary>
     public void EditSquare(Square square, (Color Color, Piece Type) piece)
     {
         Position editing = Editing ?? Position.Setup(Game.Position);
@@ -511,6 +566,9 @@ public sealed class GameController : IDisposable
         ApplyEdit(editing);
     }
 
+    /// <summary>
+    /// Say whose move it is in the position being edited.
+    /// </summary>
     public void SetSideToMove(Color color)
     {
         if (SideToMove == color)
@@ -522,6 +580,9 @@ public sealed class GameController : IDisposable
         ApplyEdit(editing);
     }
 
+    /// <summary>
+    /// Take every piece off the board, to start an edit from nothing.
+    /// </summary>
     public void ClearBoard()
     {
         Position empty = Position.Empty();
