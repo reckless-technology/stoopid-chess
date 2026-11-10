@@ -542,13 +542,16 @@ public sealed partial class Position
 
     /// <summary>
     /// Pass the turn without moving, for null-move pruning in the search. Unmade like any other move
-    /// with <see cref="UnmakeMove"/>. Repetitions are not detected across a null move.
+    /// with <see cref="UnmakeMove"/>. Repetitions are not detected across a null move: the half-move
+    /// clock, which bounds how far back <see cref="RepetitionCount"/> looks, starts again from zero,
+    /// as after a capture. A position reached by passing is not a real repetition, and treating it as
+    /// one would let a null-move line score a draw that no game could reach.
     /// </summary>
     public void MakeNullMove()
     {
         history.Add(new UndoInfo(Move.None, CastlingRights, EnPassantSquare, HalfMoveClock, Key, PawnKey, checkers));
         SetEnPassantSquare(Square.None);
-        HalfMoveClock++;
+        HalfMoveClock = 0;
         SwitchSideToMove(SideToMove.Opponent());
         UpdateCheckers();
     }
