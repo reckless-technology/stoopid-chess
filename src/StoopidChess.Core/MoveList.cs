@@ -8,7 +8,7 @@ namespace StoopidChess.Core;
 /// A list of moves with room for every move a position can have, stored inline rather than on the
 /// heap: the moves live inside the struct itself (a kilobyte), so a search keeps one per ply and a
 /// perft one per depth, and generating into one allocates nothing. Pass it by <c>ref</c>; a copy
-/// copies every move. It enumerates as a span for <c>foreach</c> and as a sequence for LINQ.
+/// copies every move. It enumerates as a span for <c>foreach</c>; <c>ToArray()</c> copies the moves out.
 /// </summary>
 public struct MoveList
 {

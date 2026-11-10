@@ -5,12 +5,64 @@ using StoopidChess.Core;
 namespace StoopidChess.Engine;
 
 /// <summary>
-/// Finds the best move by iterative deepening over a principal variation search with a quiescence
-/// search at the leaves. Move ordering uses the transposition table move, then captures by most
-/// valuable victim / least valuable attacker, then killer and history moves. Searches are
-/// deterministic for a given position, table size and depth, so the bench node count acts as a
-/// signature of the search. A Searcher is not thread safe; use one per concurrent search.
+/// Finds the best move: an alpha-beta search of the game tree, deepened one ply at a time, with a
+/// quiescence search at the leaves. Searches are deterministic for a given position, table size
+/// and depth, so the bench node count acts as a signature of the search. A Searcher is not thread
+/// safe; use one per concurrent search. docs/SEARCH.md records what each technique measured.
 /// </summary>
+/// <remarks>
+/// The techniques, numbered as the comments in the code below number them.
+///
+/// Around the tree (<see cref="Search"/>):
+///  A. Iterative deepening: search to depth 1, then 2, and so on, each iteration ordering the
+///     next one's moves through the transposition table and leaving a best move should time run out.
+///     https://www.chessprogramming.org/Iterative_Deepening
+///  B. Aspiration windows: from depth 4, search in a narrow window around the last score and widen
+///     it only if the score falls outside. https://www.chessprogramming.org/Aspiration_Windows
+///  C. Time management: a budget from the clock (<see cref="SearchLimits.TimeAllocation"/>), half
+///     as much again when the score drops or the best move changes, and no new iteration once half
+///     the budget is spent. https://www.chessprogramming.org/Time_Management
+///
+/// In every node of the main search (<see cref="AlphaBeta"/>), in the order it applies them:
+///  1. Draws by repetition and insufficient material. https://www.chessprogramming.org/Repetitions
+///  2. Mate distance pruning: no mate found here can beat one already found nearer the root.
+///     https://www.chessprogramming.org/Mate_Distance_Pruning
+///  3. The fifty-move rule. https://www.chessprogramming.org/Fifty-move_Rule
+///  4. At the horizon, the quiescence search (Q below) takes over, except in check.
+///     https://www.chessprogramming.org/Quiescence_Search
+///  5. Transposition table cutoff: a stored result for this position, deep enough and with a
+///     bound that settles the window, is returned at once.
+///     https://www.chessprogramming.org/Transposition_Table
+///  6. Internal iterative reduction: a deep node with no table move is searched a ply shallower.
+///     https://www.chessprogramming.org/Internal_Iterative_Reductions
+///  7. Reverse futility pruning: far enough above beta at low depth, fail high at once.
+///     https://www.chessprogramming.org/Reverse_Futility_Pruning
+///  8. Razoring: far enough below alpha at low depth, trust the quiescence search.
+///     https://www.chessprogramming.org/Razoring
+///  9. Null-move pruning: if passing still beats beta, so would a real move.
+///     https://www.chessprogramming.org/Null_Move_Pruning
+/// 10. The table move first, before any move is generated.
+///     https://www.chessprogramming.org/Transposition_Table
+/// 11. Move ordering: captures by most valuable victim, least valuable attacker; then the two
+///     killer moves of the ply, the countermove, and the quiet moves by their history.
+///     https://www.chessprogramming.org/Move_Ordering, .../MVV-LVA, .../Killer_Heuristic,
+///     .../Countermove_Heuristic, .../History_Heuristic
+/// 12. Late move pruning: quiet moves ordered late at low depth are not searched at all.
+///     https://www.chessprogramming.org/Futility_Pruning#MoveCountBasedPruning
+/// 13. Late move reductions: quiet moves ordered late are searched shallower first.
+///     https://www.chessprogramming.org/Late_Move_Reductions
+/// 14. Principal variation search: the first move gets the full window, the rest a null window,
+///     re-searched only if they beat it (<see cref="SearchChild"/>).
+///     https://www.chessprogramming.org/Principal_Variation_Search
+/// 15. A cutoff teaches the killer, history, countermove and continuation history tables.
+/// 16. The result is stored in the transposition table, as an exact score or a bound.
+///
+/// At the leaves (<see cref="Quiescence"/>):
+///  Q. Only captures and promotions (every move when in check), until the position is quiet. The
+///     side to move may "stand pat" on the static evaluation instead of capturing, and captures that
+///     lose material by the static exchange evaluation are skipped.
+///     https://www.chessprogramming.org/Quiescence_Search, .../Static_Exchange_Evaluation
+/// </remarks>
 public sealed class Searcher
 {
     public const int MaxPly = 128;
@@ -115,6 +167,7 @@ public sealed class Searcher
         int completedDepth = 0;
         List<Move> principalVariation = [bestMove];
 
+        // A. Iterative deepening
         for (int depth = 1; depth <= maxDepth; depth++)
         {
             (int score, Move move) = SearchWithAspiration(ref rootMoves, depth, bestScore, completedDepth);
@@ -132,8 +185,8 @@ public sealed class Searcher
             if (timeBudget is not null && timeCap is not null && !extended
                 && ((completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin) || (completedDepth >= MoveChangeMinimumDepth && move != bestMove)))
             {
-                // The score fell or the best move changed: give this move half as much time again, within
-                // the clock, to sort it out
+                // C. Time management: the score fell or the best move changed, so give this move half
+                // as much time again, within the clock, to sort it out
                 extended = true;
                 TimeSpan longer = timeBudget.Value * 1.5;
                 timeBudget = longer < timeCap.Value ? longer : timeCap.Value;
@@ -159,7 +212,7 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// Aspiration windows: once a few iterations have settled the score, search the next one in a
+    /// B. Aspiration windows: once a few iterations have settled the score, search the next one in a
     /// narrow window around it, which cuts off far more, and widen and repeat if the score escapes.
     /// </summary>
     private (int Score, Move BestMove) SearchWithAspiration(ref MoveList rootMoves, int depth, int previousScore, int completedDepth)
@@ -232,7 +285,7 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// Principal variation search of a child: the first move is expected to be best and gets the
+    /// 14. Principal variation search of a child: the first move is expected to be best and gets the
     /// full window; the rest only need to prove they are not better (a null window) and are
     /// re-searched with the full window only when they are.
     /// </summary>
@@ -264,6 +317,8 @@ public sealed class Searcher
             return alpha;
         }
 
+        // 1. Draws by repetition (once is enough inside the search: a line that repeats can repeat
+        // again) and by insufficient material
         if (position.RepetitionCount() >= 1 || position.IsInsufficientMaterial())
         {
             return DrawScore;
@@ -273,7 +328,7 @@ public sealed class Searcher
             return Evaluate();
         }
 
-        // Mate distance pruning: a mate found here can be no shorter than ply
+        // 2. Mate distance pruning: a mate found here can be no shorter than ply
         alpha = Math.Max(alpha, -MateScore + ply);
         beta = Math.Min(beta, MateScore - ply - 1);
         if (alpha >= beta)
@@ -282,11 +337,12 @@ public sealed class Searcher
         }
 
         bool inCheck = position.IsInCheck;
-        // The fifty-move rule: a draw, unless the move that reached the hundredth half-move mated
+        // 3. The fifty-move rule: a draw, unless the move that reached the hundredth half-move mated
         if (position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
+        // 4. The horizon
         if (depth <= 0 && !inCheck)
         {
             return Quiescence(alpha, beta, ply);
@@ -296,12 +352,13 @@ public sealed class Searcher
             depth = 1;      // In check at the horizon: search every reply rather than stand pat in quiescence
         }
 
+        // 5. Transposition table cutoff
         if (TryTableCutoff(alpha, beta, depth, ply, out Move tableMove, out int tableScore))
         {
             return tableScore;
         }
 
-        // Internal iterative reduction: with no table move to order first, a deep node is searched a ply
+        // 6. Internal iterative reduction: with no table move to order first, a deep node is searched a ply
         // shallower; if it matters, the next iteration comes back to it with a table move in hand
         if (depth >= InternalIterativeReductionMinimumDepth && tableMove.IsNone)
         {
@@ -311,7 +368,7 @@ public sealed class Searcher
         bool pvNode = beta - alpha > 1;
         int staticEval = inCheck ? -Infinity : Evaluate();
 
-        // Reverse futility pruning: in a non-PV node at low depth, a static evaluation so far above
+        // 7. Reverse futility pruning: in a non-PV node at low depth, a static evaluation so far above
         // beta that a few plies of play cannot bring it back down is taken as a fail-high at once.
         if (depth <= ReverseFutilityMaxDepth && !inCheck && !pvNode && beta < MateThreshold
             && staticEval - (ReverseFutilityMargin * depth) >= beta)
@@ -319,7 +376,7 @@ public sealed class Searcher
             return staticEval;
         }
 
-        // Razoring: in a non-PV node at low depth, a static evaluation so far below alpha that quiet
+        // 8. Razoring: in a non-PV node at low depth, a static evaluation so far below alpha that quiet
         // play cannot recover is checked against the quiescence search, and when the captures agree
         // that alpha is out of reach the node is cut to the quiescence score.
         if (depth <= RazoringMaxDepth && !inCheck && !pvNode && alpha > -MateThreshold
@@ -336,7 +393,7 @@ public sealed class Searcher
             }
         }
 
-        // Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
+        // 9. Null-move pruning: if handing the opponent a free move still leaves us at or above beta, a
         // real move will almost certainly do so too, so the node is a fail-high. Skipped in check,
         // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
         if (depth >= NullMoveMinimumDepth && !inCheck && beta < MateThreshold && !position.LastMoveWasNull
@@ -362,8 +419,9 @@ public sealed class Searcher
         Move bestMove = Move.None;
         int moveNumber = 0;
 
-        // The table move first, before paying for move generation: it alone cuts off a large share
-        // of nodes. It is trusted without a legality check, as pawnstar trusts its table: stores
+        // 10. The table move first, before paying for move generation: it alone cuts off a large share
+        // of nodes. Searching it first also changes the order of everything after it, since its
+        // subtree has already taught the killer and history tables by the time the rest are ordered. It is trusted without a legality check, as pawnstar trusts its table: stores
         // only ever hold moves from the storing position's legal moves, and entries are verified by
         // the full 64-bit key, so a collision is beyond unlikely.
         if (!tableMove.IsNone)
@@ -395,6 +453,7 @@ public sealed class Searcher
         {
             return inCheck ? -MateScore + ply : DrawScore;
         }
+        // 11. Move ordering
         OrderMoves(ref moves, ply, tableMove);
 
         foreach (Move move in moves)
@@ -404,7 +463,7 @@ public sealed class Searcher
                 continue;       // Already searched, before anything was generated
             }
             moveNumber++;
-            // Late move pruning: at low depth in a non-PV node, quiet moves ordered this late are
+            // 12. Late move pruning: at low depth in a non-PV node, quiet moves ordered this late are
             // so unlikely to beat the moves already searched that they are skipped altogether
             if (depth <= LateMovePruningMaxDepth && !pvNode && !inCheck && moveNumber > LateMovePruningBase + (depth * depth) && IsReducible(move, ply))
             {
@@ -412,11 +471,11 @@ public sealed class Searcher
             }
             position.MakeMove(move);
             table.Prefetch(position.Key);
-            // Late move reductions: quiet moves ordered this far down are searched shallower first
+            // 13. Late move reductions: quiet moves ordered this far down are searched shallower first
             int reduction = depth >= LmrMinimumDepth && moveNumber > LmrFullDepthMoves && !inCheck && IsReducible(move, ply) && !position.IsInCheck
                 ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
                 : 0;
-            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction);
+            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction);   // 14. PVS
             position.UnmakeMove();
             if (stopped)
             {
@@ -429,6 +488,8 @@ public sealed class Searcher
             }
             if (score >= beta)
             {
+                // 15. A cutoff: the move refutes the opponent's last move, so remember it; 16. the
+                // score is a lower bound
                 RecordCutoff(move, ply, depth);
                 table.Store(position.Key, move, ScoreToTable(score, ply), depth, NodeType.LowerBound);
                 return score;
@@ -436,14 +497,17 @@ public sealed class Searcher
             alpha = Math.Max(alpha, score);
         }
 
+        // 16. No cutoff: an exact score if some move raised alpha, otherwise only an upper bound
         NodeType type = bestScore <= originalAlpha ? NodeType.UpperBound : NodeType.Exact;
         table.Store(position.Key, bestMove, ScoreToTable(bestScore, ply), depth, type);
         return bestScore;
     }
 
     /// <summary>
-    /// Search captures and promotions until the position is quiet, to avoid evaluating in the middle
-    /// of an exchange. When in check every move is considered so that mates are seen.
+    /// Q. The quiescence search: captures and promotions only, until the position is quiet, so that
+    /// the static evaluation is never taken in the middle of an exchange (the "horizon effect": a
+    /// fixed-depth search that stopped after QxP would score a pawn up without seeing PxQ). When in
+    /// check every move is considered, so that mates are seen.
     /// </summary>
     private int Quiescence(int alpha, int beta, int ply)
     {
@@ -617,7 +681,8 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// Order moves best-first to maximise cutoffs: the table move, then captures by most valuable
+    /// 11. Order moves best-first to maximise cutoffs, since alpha-beta prunes most when the best move
+    /// comes first: the table move, then captures by most valuable
     /// victim / least valuable attacker (promotions count as capturing the promoted piece), then the
     /// killer moves for this ply, then quiet moves by history. The sort is stable so that the search
     /// is deterministic.

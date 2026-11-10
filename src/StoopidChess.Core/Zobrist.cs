@@ -1,9 +1,17 @@
 namespace StoopidChess.Core;
 
 /// <summary>
-/// Zobrist hash keys for positions. See https://www.chessprogramming.org/Zobrist_Hashing
-/// The keys come from a fixed-seed 64-bit linear congruential generator, so they are identical on
-/// every run and every platform, which keeps searches reproducible.
+/// Zobrist hash keys for positions. Every (color, piece, square) has a random 64-bit number, and
+/// so do black to move, each set of castling rights and each en passant square; a position's key
+/// is the XOR of the numbers for everything in it. Because XOR undoes itself, a move updates the
+/// key by XORing out what left and XORing in what arrived (a knight from g1 to f3 is two XORs),
+/// and two positions with the same pieces, side, rights and en passant square have the same key
+/// however they were reached. The transposition table, the evaluation caches and repetition
+/// detection all compare keys instead of boards. Different positions can share a key, but with 64
+/// random bits that is rare enough to ignore. See https://www.chessprogramming.org/Zobrist_Hashing
+///
+/// The numbers come from a fixed-seed 64-bit linear congruential generator, so they are identical
+/// on every run and every platform, which keeps searches reproducible.
 /// </summary>
 public static class Zobrist
 {

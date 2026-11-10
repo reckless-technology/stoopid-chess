@@ -4,7 +4,10 @@ using StoopidChess.Core;
 namespace StoopidChess.Engine;
 
 /// <summary>
-/// What a transposition table score tells us about the true score of the node.
+/// What a transposition table score tells us about the true score of the node. Alpha-beta often
+/// learns only a bound: a move that reaches beta proves the node is worth at least that much and
+/// stops the search there (a lower bound), and a node where no move reaches alpha is worth at most
+/// alpha (an upper bound). Only a score strictly between the two is exact.
 /// </summary>
 public enum NodeType : byte
 {
@@ -40,7 +43,12 @@ public readonly struct TranspositionEntry(ulong key, Move bestMove, int score, i
 }
 
 /// <summary>
-/// A two-tier transposition table (https://www.chessprogramming.org/Transposition_Table). Each
+/// A two-tier transposition table (https://www.chessprogramming.org/Transposition_Table): a cache
+/// of search results keyed by the Zobrist key. The same position is reached again and again by
+/// different move orders (1. e4 e5 2. Nf3 and 1. Nf3 e5 2. e4 transpose to one position), and in
+/// every iteration of the deepening; a result stored the first time - the score, whether it is
+/// exact or a bound, the depth it was searched to, and the best move - can settle the node the
+/// next time, or at least order its best move first. The index is the key's top bits. Each
 /// index has a depth-preferred slot, which keeps the deepest search result seen, and an
 /// always-replace slot, so that recent shallow results are not lost behind old deep ones.
 /// Entries are verified with the full 64-bit Zobrist key. The two slots of an index sit next to

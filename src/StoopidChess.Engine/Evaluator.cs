@@ -203,6 +203,15 @@ public sealed class Evaluator
         Array.Clear(pawnCache);
     }
 
+    /// <summary>
+    /// The evaluation itself, white-positive until the last line. For each side: material and
+    /// piece-square values (one table read per piece, both folded into PieceSquareValues), then
+    /// mobility, passed pawns, knight outposts, rooks on open files and the bishop pair, and in the
+    /// middlegame king safety (enemy attacks into the king zone, weak squares beside the king, pawn
+    /// shelter and storm). Then the pawn structure of both sides from the pawn cache, the scaling
+    /// of drawish pawnless endings, and the tempo bonus for the side to move. docs/EVALUATION.md
+    /// lists every term with its weight and what it measured.
+    /// </summary>
     private int Compute(Position position)
     {
         int score = 0;

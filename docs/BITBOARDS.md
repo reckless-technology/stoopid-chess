@@ -1,213 +1,200 @@
-# Bitboard board representation (September 2026)
+# The board and move generation
 
-The plan for replacing the 0x88 board and its make/test/unmake legality filter with a bitboard
-board and a fully legal move generator, modelled on pawnstar (`reckless-technology/pawnstar`,
-`src/position.h`, `pins.h`, `attacks.h`, `generated_data.h`). Written before the work started; the
-results section at the end was filled in afterwards.
+How Stoopid Chess holds a position and generates its legal moves, in the order to read the code:
+`Core/Square.cs` and `Bitboard.cs`, then `Attacks.cs`, then `Position.cs` (the board, make and
+unmake) and `Position.MoveGeneration.cs` (the legal moves). The design follows the sibling C++
+engine pawnstar and the techniques the [Chess Programming Wiki](https://www.chessprogramming.org)
+describes; the appendix says how it got here.
 
-## Why now
+## Squares and bitboards
 
-The architecture review deferred bitboards ("about one ply, revisit when attack maps pay").
-Two things changed the calculus: the search now has the pruning that the review put first, so
-raw speed is the next lever, and the next evaluation and search features on the list (static
-exchange evaluation, mobility, king safety, `GivesCheck`) all want attack sets, which the 0x88
-board cannot provide cheaply. Baseline before the change, single thread, Release:
+A square is a number from 0 to 63: a1 = 0, b1 = 1, ..., h1 = 7, a2 = 8, ..., h8 = 63. The file is
+the low three bits and the rank the next three, so `e4` is file 4, rank 3, square 28. `Square` is
+a one-byte struct around that number. It converts to `int` by itself, so it can index a table,
+but an `int` becomes a square only on purpose, so a stray number can never pass for one.
 
-| Measure | Before |
+A **bitboard** is a set of squares held in one 64-bit word, bit *n* standing for square *n*. Sets
+of squares are what chess is made of - the squares a knight attacks, the white pieces, the empty
+squares - and on a bitboard each set operation is one machine instruction:
+
+| Question | Bitboard expression |
 |---|---|
-| perft, 128 standard positions, depths under 1M nodes | 31.0M nodes, 16.1M nps |
-| bench depth 5 | 241,437 nodes, ~600K nps |
+| Which squares hold white pieces? | `Pieces(Color.White)` |
+| Which white knights are there? | `Pieces(Color.White, Piece.Knight)` |
+| Which squares are empty? | `~Occupied` |
+| Where can this knight go? | `Attacks.Knight(from) & ~Pieces(us)` |
+| Where can every white pawn push? | `Pieces(Color.White, Piece.Pawn).North() & ~Occupied` |
 
-## Design
+`Bitboard` is a struct over the word with the operators `& | ^ ~`, the shifts (`North()`,
+`NorthEast()` and so on, which drop squares that would wrap round the edge of the board),
+`Count`, `First` and `foreach (Square s in set)`, which visits the squares from a1 upward by
+finding the lowest set bit and clearing it. See https://www.chessprogramming.org/Bitboards
 
-### Squares: 0x88 becomes 0..63 (little-endian rank-file)
+## The position
 
-`Squares` keeps its public shape (`int` squares, `Index`, `FileOf`, `RankOf`, `IsOnBoard`, `All`,
-`Name`, `Parse`, the `A1`..`H8` constants, `None = -1`) but a1 is 0, h1 is 7 and h8 is 63, so a
-square is a bit index. Everything that did 0x88 arithmetic (`PawnDirection` is now ±8, the
-generator's deltas, `Zobrist`'s 128-entry tables, the evaluator's 128-entry tables,
-the position editor's array, `Move`'s 7-bit square fields) follows. Callers that only use the
-`Squares` helpers (the GUI, the controller, FEN, notation) do not change.
+`Position` keeps the pieces three ways at once, each answering a different question fast:
 
-### Position: eight bitboards plus a mailbox
+- a bitboard per piece type (all pawns, all knights, ...) and one per color, so that "white
+  knights" is one AND;
+- the occupancy, every occupied square;
+- a 64-entry array of piece types, so that "what is on e4?" is one read. The piece's color comes
+  from the color bitboards.
 
-```
-ulong[] byType    (indexed by Piece, both colors)
-ulong[] byColor  (indexed by Color)
-ulong   occupied
-Piece[] squares   (64-entry mailbox: what is on a square, for captures, FEN and the GUI)
-```
+Alongside the pieces it keeps the side to move, the castling rights, the en passant square, the
+half-move clock for the fifty-move rule, the move number, two Zobrist keys (the whole position, and
+the pawns alone for the pawn-structure cache), the pieces giving check, and a history of the moves
+made.
 
-`PutPiece`/`RemovePiece` toggle the three bitboards, write the mailbox and XOR the Zobrist keys,
-exactly as before but without the `List<int>` piece lists. Public accessors:
+A position comes from FEN (`Position.FromFen`, `Position.Start`) and then changes only by
+`MakeMove` and `UnmakeMove`. Make moves the pieces and updates every key incrementally, XORing out
+what changed and XORing in what replaced it, then works out the pieces now giving check. It pushes
+an undo record with what the move cannot tell it afterwards - the castling rights, en passant
+square, clock, keys and checkers it replaced - and unmake pops it, putting the pieces back from the
+move itself (which records the piece moved and the piece captured). Make followed by unmake leaves
+the position exactly as it was, keys included; the search, which makes and unmakes millions of
+moves a second on one position, relies on that, and a test recomputes the keys from scratch after
+every move of random games to prove it.
 
-- `Pieces(color, type)`, `Pieces(color)`, `Pieces(type)`, `Occupied`, `Count(color, type)`
-  (population count), `KingSquare(color)`, `PieceCount`.
-- `Checkers`: the enemy pieces attacking the side to move's king, computed lazily and cached until
-  the next make/unmake. `IsInCheck => Checkers != 0`. `AttackersTo(square, by)`.
-- Gone: `SquaresOf` (iterate a bitboard instead) and `NormalisePieceOrder` (bitboard iteration is
-  least-significant-bit first, so generation order is a pure function of the position and the
-  searcher no longer needs to sort anything).
+The en passant square is recorded only when an enemy pawn stands ready to capture there. A double
+push nobody can answer then leaves the same key as any other way of reaching the position, which
+repetition detection needs.
 
-### Attack tables (`Attacks`, new)
+## Attack tables
 
-- Knight, king and pawn attack tables (64 entries each), `Between[from, to]` (squares strictly
-  between two aligned squares), empty-board bishop and rook rays.
-- Sliding attacks by magic bitboards: `((occupancy & mask) * magic) >> shift` indexes a shared
-  attack table (about 108K entries, 860 KB). The 128 magic multipliers are pawnstar's; they are a
-  plain 64-bit multiply, so they are portable (no `pext`, which is slow on AMD Zen 1/2). The tables
-  are built at startup from the constants; a debug assertion checks that no two occupancies with
-  different attack sets share a slot.
-- Bit iteration uses `System.Numerics.BitOperations.TrailingZeroCount` and `PopCount`, which the
-  JIT compiles to `tzcnt`/`popcnt`, with `bits &= bits - 1` to clear the lowest bit (`blsr`).
+`Attacks` answers "which squares does a piece on this square attack?" for every piece.
 
-### Fully legal move generation
+- **Knights and kings** attack the same squares whatever else is on the board, so each has a
+  64-entry table built at start-up by stepping in each direction and keeping the steps that stay
+  on the board.
+- **Pawns** attack the two squares diagonally forward: a table per color. Read the other way, the
+  same table says where a pawn would have to stand to attack a square: a white pawn attacks e4
+  from d3 or f3, which are exactly the squares a *black* pawn on e4 attacks.
+- **Bishops, rooks and queens** slide until they hit something, so their attacks depend on the
+  occupancy. Walking each ray square by square (`BishopAttacksByWalking`) is simple and too slow
+  to do millions of times a second, so the answers for every occupancy are worked out once and
+  looked up with **magic bitboards**. Only the squares on the piece's rays matter, and not the
+  last square of each ray: a rook on a1 cares about 12 squares (a2-a7 and b1-g1), which can be
+  occupied in 2^12 = 4,096 ways. Multiplying those 12 bits, masked out of the occupancy, by a
+  suitable 64-bit "magic" number gathers them into the top 12 bits of the product, and shifting
+  down leaves an index from 0 to 4,095 into the rook-on-a1 slice of one big table:
 
-`Position.GenerateLegalMoves` produces only legal moves, so the searcher's make/test/unmake
-filter (`TryMakeLegal`) and `GeneratePseudoLegalMoves` go. Following pawnstar:
+  ```
+  index = ((occupied & mask) * magic) >> (64 - 12)
+  ```
 
-1. King moves: target squares minus every square the enemy attacks with our king removed from
-   the occupancy (so x-ray attacks through the king count).
-2. In double check only king moves are legal. In single check the capture mask is the checker and
-   the quiet mask is `Between[king, checker]`.
-3. Pins: for each enemy slider aligned with our king, if exactly one piece stands between and it is
-   ours, it may only move along the ray (between squares or the pinner).
-4. Pawns by whole-board shifts: pushes, double pushes, captures east and west, promotions, then en
-   passant with pawnstar's two special cases: the captured pawn must be in the capture mask (so an
-   en passant capture answers a check only by taking the checking pawn) and, when our king shares
-   the rank, removing both pawns must not expose a rook or queen along it.
-5. Castling when not in check, the between squares empty and the two crossed squares unattacked.
+  A number is magic if no two occupancies with different attacks land on the same index. Nobody
+  works them out: `Attacks` tries random numbers with few bits set until one works for each
+  square, about 30 ms at start-up, with fixed seeds so that every run finds the same ones. Which
+  magic is found does not matter: every valid one gives exactly the same attack sets. A queen's
+  attacks are a bishop's and a rook's together. See https://www.chessprogramming.org/Magic_Bitboards
+  and https://www.chessprogramming.org/Looking_for_Magics
+- **Lines between squares**: `Between(a, b)` is the squares strictly between two squares on a
+  rank, file or diagonal; `Line(a, b)` is the whole line through them, edge to edge. The move
+  generator uses both for checks and pins.
 
-`GenerateLegalCaptures` (captures and promotions) serves quiescence.
+## Legal move generation
 
-### Evaluation
+The rule: **a move is legal if it does not leave the mover's own king attacked.** The plain way
+to apply it generates every move the pieces could make (the *pseudo-legal* moves), plays each,
+asks whether the king is attacked, and takes it back. That is how the reference generator in
+`tests/.../Core/MoveGenerationTests.cs` works, and it is the clearest statement of the rule; the
+engine's generator is checked against it on thousands of positions.
 
-Same terms, same values, computed from bitboards: piece-square sums iterate each bitboard; bishop
-mobility is `PopCount(Bishop(occupied, sq) & ~own)`; pawn structure uses precomputed forward-file
-and forward-adjacent-file masks per color and square. The evaluation of every position is
-unchanged, and a test pins the scores of eighteen positions recorded from the 0x88 evaluator.
+`Position.Generate` works out instead, once and before generating anything, every way a move
+could break the rule, and generates only moves that avoid them all. It is the same rule, spelled
+out in three parts:
 
-### Search
+1. **The king must not step onto a square the enemy attacks.** The attack map is made with our
+   king lifted off the board: a rook checking the king along a rank also attacks the square
+   behind the king, and the king cannot escape by stepping back along the line.
+2. **In check, every other move must capture the checker or block its line.** The *check mask*
+   is the squares a non-king move may land on: every square when not in check, the checker and
+   the squares between it and the king in check, and none in double check (no single move can
+   deal with two checkers at once), when only the king moves.
+3. **A pinned piece must stay on its pin line.** An enemy bishop, rook or queen on a line through
+   our king with exactly one piece between them, that piece ours, pins it: moving off the line
+   would expose the king. A pinned piece's targets are cut to `Line(king, piece)`, which also
+   lets it capture the pinner.
 
-`Searcher` loses `NormalisePieceOrder`, `TryMakeLegal` and the pseudo-legal generation; the fifty
-move rule in check becomes "any legal move draws". The history table shrinks to `[3, 64, 64]`.
-Everything else (ordering, pruning, table) is untouched.
+So a knight, bishop, rook or queen's moves are its attack set, cut to the check mask, cut to its
+pin line if it is pinned, and split into captures (enemy squares) and quiet moves (empty squares).
 
-## What changes the bench signature
+Pawns are generated for the whole set at once: shifting the pawn bitboard one rank forward gives
+every push, two ranks (from the third rank, through an empty square) every double push, and one
+diagonal step every capture in that direction. Each target is mapped back to its pawn by the same
+step. The check mask cuts the targets as for any piece. Pins are applied to the pawn set before the
+shift: a pawn pinned along its king's file may still push, a pawn pinned along a diagonal may still
+capture along that diagonal (which can only mean taking the pinner), and a pawn pinned along the
+rank cannot move.
 
-The Zobrist keys are regenerated for 64 squares (different table indexing), and the generation
-order of equal-scored quiet moves differs, so the node count changes even though the evaluation
-and the search algorithm do not. The new signature is recorded in `BenchTests`, README.md and
-CLAUDE.md as the testing discipline requires.
+**En passant** has one case of its own that the three rules do not cover. The capture takes two
+pawns off the capturing pawn's rank at once. If our king stands on that rank with an enemy rook or
+queen beyond the two pawns, the capture opens the line between them, yet neither pawn was pinned on
+its own. The generator tests that one case directly. The check mask applies to the captured pawn:
+in check, en passant is legal only if the pawn being taken is the checker.
 
-## Steps
+**Castling** is generated only when the right is intact, the king and rook stand on their home
+squares, the squares between them are empty, the king is not in check, and neither square the king
+crosses or lands on is attacked.
 
-1. Freeze the oracles: perft counts (already embedded), the evaluator's scores for eighteen
-   positions (recorded from the 0x88 build), the current bench and perft speed.
-2. `Squares` to 0..63; `Bitboards` helpers and `Attacks` tables with unit tests against naive
-   ray-walking implementations.
-3. `Move` with 6-bit squares, `Zobrist` with 64-square tables.
-4. `Position` and `Position.MakeMove` on bitboards with a lazily cached `Checkers`.
-5. Move generation rewritten as a legal generator (since folded into `Position`); `Perft` unchanged.
-6. `Fen` and position editing for 64 squares.
-7. `Evaluator` and `Searcher` on bitboards.
-8. Tests: update the few that hard-code 0x88 indices, add `AttacksTests`, `MoveGenerationTests`
-   (a slow reference generator cross-checked on random positions plus the classic en passant,
-   pin and double-check cases) and the frozen evaluation scores; record the new bench signature.
-9. Measure perft and bench speed, self-play against the pre-change build with
-   `tools/selfplay.ps1`, update README.md, CLAUDE.md and ARCHITECTURE_REVIEW.md.
+`GenerateLegalCaptures` generates only captures and promotions, for the quiescence search.
+Generation order is a fixed function of the position (pieces by type, squares from a1 up), so the
+search is deterministic and the bench node count is a signature of it.
 
-Steps 2 to 8 cannot be landed separately: changing the square indexing breaks the 0x88 generator,
-so they form one change gated by perft, the make/unmake key oracle and the frozen evaluations.
+See https://www.chessprogramming.org/Move_Generation and https://www.chessprogramming.org/Pin
 
-## Risks
+## How it is tested
 
-- A wrong magic table or a subtle generator bug: caught by perft (128 positions, all depths).
-- A silent evaluation change: caught by the frozen scores.
-- Slower than expected in C# (bounds checks, no `constexpr`): measured; the table accessors are
-  small static methods over arrays and the generator works on local copies of the bitboards.
-- API breaks for the GUI and controller: none expected, they use `Squares` helpers and `Piece`.
+- **Perft** counts the leaves of the legal move tree to a fixed depth for 128 standard positions
+  whose counts are known; any wrong move, missing or extra, changes a count. `stoopid-chess perft 3`
+  runs them. See https://www.chessprogramming.org/Perft
+- **The reference generator**: the plain make, test and unmake generator, cross-checked against the
+  engine's on every perft position and its children and through random games, with the en passant,
+  pin and double-check special cases pinned by name.
+- **The key oracle**: `ComputeKeys` rebuilds the keys from nothing and `IsConsistent` checks the
+  bitboards against the square array after every move of random games.
+- **The attack tables** are checked against ray walking for every square and many occupancies.
 
-## Results
+## Why this shape
 
-Everything landed as one change: 13 files modified, 5 added, about 560 lines added and 460 removed
-in `src` and about 600 lines of new tests. All 345 tests pass in Release and Debug; perft matches
-every listed depth of every one of the 128 positions (651 million nodes); the eighteen frozen
-evaluation scores are unchanged, so the evaluation is bit-for-bit the same and the only signature
-change comes from the Zobrist keys and generation order.
+The legal generator and magic sliders are what modern engines use, and they are measurably faster
+here than the plainer alternatives, measured with the same moves in the same order so that the
+search was identical (Legion, 2026-11-10, `DOTNET_TieredCompilation=0`):
 
-| Measure | Before | After | Change |
+| Variant | Search nps | Perft |
+|---|---|---|
+| This design | 3.24M nps | 232M nps |
+| Pseudo-legal moves, each made and tested for check | -30% | 7.8 times slower |
+| Classical sliders (ray tables cut at the first blocker) instead of magics | -16% | -12% |
+
+## Appendix: how we got here
+
+Until September 2026 the board was 0x88, and legality was the make, test and unmake filter. The
+bitboard board and legal generator replaced both in one change, gated by perft, the key oracle and
+eighteen evaluation scores frozen beforehand, modelled on pawnstar (`src/position.h`, `pins.h`,
+`attacks.h`). The evaluation was bit-for-bit the same, so the only signature change came from the
+Zobrist keys and generation order.
+
+| Measure | 0x88 | Bitboards | Change |
 |---|---|---|---|
 | perft, 128 positions, depths under 1M nodes | 19.1M nps (1,624 ms) | 81.2M nps (381 ms) | 4.3x |
 | perft, every listed depth (651M nodes) | not measured | 190M nps (3.4 s) | |
-| bench depth 6 (short run, cold JIT) | 579,880 nodes, 1.42M nps | 585,859 nodes, 2.05M nps | 1.45x |
+| bench depth 6 (short run, cold JIT) | 1.42M nps | 2.05M nps | 1.45x |
 | 3 s search, start position | depth 13, 2.09M nps | depth 14, 3.80M nps | 1.8x |
 | 3 s search, kiwipete | depth 10, 1.89M nps | depth 11, 3.92M nps | 2.1x |
-| 3 s search, middlegame (bench position 8) | depth 12, 2.11M nps | depth 12, 3.77M nps | 1.8x |
 
-Bench signature: depth 5 = 242,733 nodes (was 241,437), depth 6 = 585,859 (was 579,880).
+Self-play against the 0x88 build (60 games, 10+0.1, single thread, six-ply openings): 31 wins, 15
+losses, 14 draws, **+95 ± 70 Elo**. The evaluation and search were identical, so the whole gain is
+the depth bought by speed, about one ply at that time control.
 
-The gap between the perft gain and the search gain is expected: perft is almost pure move
-generation and make/unmake, while the search also evaluates, probes the table and orders moves,
-none of which changed. In a real search the JIT has time to tier up, which is why the timed
-searches show about 1.9x and the 300 ms bench only 1.45x.
+A follow-up replaced the raw `int` squares, `ulong` sets and `List<Move>` with the `Square`,
+`Bitboard` and `MoveList` structs, with the bench signature identical and the speed unchanged or
+better: perft over every depth went from 211M to 258M nps, because `MoveList` holds its moves
+inline instead of allocating a list per node. The colored-piece type went next: with a bitboard per
+color, the mailbox holds the piece type alone and make and unmake take the color from the move.
 
-Self-play against the pre-change build (60 games, 10+0.1, single thread, six-ply openings):
-31 wins, 15 losses, 14 draws, **+95 ± 70 Elo** (likelihood of superiority 99.8%). The evaluation
-and search are identical, so the whole gain is the extra depth bought by speed: about one ply at
-this time control, which is what the architecture review predicted.
-
-## Value types: Square, Bitboard, MoveList
-
-A follow-up replaced the raw `int` squares, `ulong` sets and `List<Move>` with three structs, as
-pawnstar does in C++, with the constraint that they cost nothing at run time:
-
-- `Square`: one byte, a1 = 0 .. h8 = 63 plus `Square.None` (64). It converts implicitly to `int`
-  so tables index by it directly, but only explicitly from `int` (`new Square(i)`, range checked;
-  `Square.Unchecked` internally where the index is known good), so an index can never be passed
-  where a square is meant. `Move.From`/`To`, `Position.KingSquare`, `EnPassantSquare`, the attack
-  tables, `Game`, `GameController` and the GUI all take and return `Square`.
-- `Bitboard`: a readonly record struct over `ulong` with the set operators, `Count`, `IsEmpty`,
-  `IsSingle`, `First`, `Contains`, the shifts and constants, and `foreach (Square s in set)` via a
-  two-field struct enumerator. `Position.Pieces`, `Occupied`, `Checkers`, `AttackersTo` and every
-  `Attacks` method use it.
-- `MoveList`: 256 moves inline (`[InlineArray]`) plus a count, so a generated list lives on the
-  stack or in a preallocated per-ply array and never touches the heap. The generator appends to a
-  `ref MoveList`; `Searcher` keeps one per ply, `Perft` one per depth; `AsSpan()` (marked
-  `[UnscopedRef]`) gives the ordering code in-place access; `IEnumerable<Move>` is implemented for
-  LINQ in tests.
-
-Cost, measured A/B against the commit before the types (same machine, same session; the bench
-signature is identical, so the trees searched are identical):
-
-| Measure | Raw types | Value types |
-|---|---|---|
-| bench depth 6 (best of 3) | 2.16M nps | 2.13M nps |
-| perft, depths under 1M nodes | 86.6M nps | 87.2M nps |
-| perft, every listed depth (651M nodes) | 211M nps | 258M nps |
-| 3 s search nps, start position / kiwipete | 4.55M / 4.65M | 4.71M / 4.60M |
-
-The struct wrappers are free, as the JIT promotes single-field structs to registers and inlines
-the enumerator; the perft gain comes from `MoveList` replacing a heap-allocated list per node.
-
-### No colored-piece type
-
-`Piece` (a `(Color, Piece)` record struct) went next. With a bitboard per color the color
-half of "what is on this square" is redundant, so the mailbox holds `Piece` alone and make/unmake
-pass color and type explicitly from the move (the mover is the side to move, a capture is the
-opponent's, a promotion is the mover's), exactly as pawnstar does. Callers that want both at once
-get a `(Color Color, Piece Type)` tuple from `Position[square]`, `Position.Place` and
-`GameController.PieceAt`, with the default tuple meaning an empty square; `Game.CapturedPieces`
-returns `Piece`s since its argument is the color; `Piece.ToChar(color)` produces the FEN
-letter. Measured against the build before the value types: bench within noise (2.0M vs 2.1M nps on
-a 280 ms run), perft 85.7M vs 81.4M nps at the 1M-node budget and 254M vs 195M nps over every
-depth, timed searches identical in nodes and within 3% in nps either way.
-
-### What the next steps can now use
-
-- `Position.AttackersTo(square, color)` and the `Attacks` tables make static exchange evaluation,
-  mobility and king-safety terms and a `GivesCheck` test cheap.
-- `Position.Checkers` is cached per position, so the searcher's in-check tests cost nothing after the
-  first one.
-- The searcher no longer needs to make a move to know it is legal, so late move pruning and
-  move-count based decisions can count moves before making them.
+In November 2026 the generator was restated as the three rules above, with pins applied to the
+pawn sets instead of being checked target by target, and the 128 magic numbers copied from
+pawnstar gave way to the search that finds them, both with the same moves in the same order and the
+same speed per node (docs/SEARCH.md has the figures). `Position` was split into its two files, and
+board editing, which the GUI needs and the engine does not, moved out to Play's `BoardSetup`.

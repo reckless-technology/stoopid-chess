@@ -1,4 +1,33 @@
-# Evaluation experiments (September 2026)
+# The evaluation
+
+`Engine/Evaluator.cs` scores a position in centipawns (a pawn is 100) from the side to move's point
+of view. It is hand-written, term by term, each term kept only if self-play said it helped; the log
+below the table records every experiment. A term is computed for each side and the score is white's
+minus black's, then turned round for black to move.
+
+## Current evaluation
+
+| Term | Value | Where in `Evaluator.cs` | Measured when added |
+|---|---|---|---|
+| Material | pawn 100, knight 324, bishop 328, rook 510, queen 1016 (the king has none) | `PawnValue`..`QueenValue`, folded into `PieceSquareValues` | the baseline; values SPSA-tuned |
+| Piece-square tables | the Simplified Evaluation Function's tables, the king's switched to its endgame table once no side has a queen together with a rook or more than one minor piece | `PawnTable`..`KingEndgameTable`, `IsEndgame` | the baseline |
+| Mobility | 5, 6, 7 and 3 cp per square a knight, bishop, rook or queen attacks, not counting own pieces or squares an enemy pawn attacks | `KnightMobility`..`QueenMobility`, `PieceAttacks` | +108 ± 63; safe squares +38 ± 55; rates raised twice, +67 ± 59 and +33 ± 31 |
+| King zone attacks (middlegame) | 4 cp per enemy knight, bishop or rook attack on the king's square, its neighbours and the three squares in front; 8 cp per queen attack | `KingZoneAttackPenalty`, `KingZoneQueenAttackPenalty`, `KingZone` | +30 ± 59; zone extended +53 ± 63; lowered to 4 and 8 +21 ± 33 |
+| Weak king squares (middlegame) | 16 cp per king zone square the enemy attacks and nothing but the king defends | `WeakKingSquarePenalty` | +49 ± 55 |
+| Pawn shelter and storm (middlegame) | on the king's file and the two beside it: the nearest own pawn ahead scores 15, 11 or 1 on its second, third or fourth rank, -16 for none; the nearest enemy pawn ahead costs 19, 11 or 9 at two, three or four ranks, half when blocked | `ShelterByRank`, `ShelterMissing`, `StormByDistance`, `ShelterAndStorm` | +30 ± 53; scaled by two thirds +31 ± 54 |
+| Passed pawns | 5, 6, 22, 42, 74, 124 by rank from the second to the seventh; half when the square in front is occupied; in the endgame more as the enemy king is further from the square in front and our own nearer | `PassedPawnBonus`, `PassedPawns` | +61 ± 62; blocked +53 ± 52; king distance +38 ± 36 |
+| Bishop pair | 43 cp | `BishopPairBonus` | +57 ± 58; raised +38 ± 49 |
+| Knight outposts | 27 cp for a knight on ranks 4 to 6 from its side, defended by a pawn, where no enemy pawn can ever attack it | `KnightOutpostBonus`, `KnightOutposts` | +44 ± 55 |
+| Rooks on open and semi-open files | 15 cp with no pawns on the file, 8 with no own pawn | `RookOpenFileBonus`, `RookSemiOpenFileBonus`, `RookFiles` | +45 ± 50 |
+| Pawn structure | isolated -9, doubled -11 (each extra pawn on a file), backward -7, connected +6 (defended by a pawn or beside one), from a pawn-keyed cache | `IsolatedPawnPenalty`..`ConnectedPawnBonus`, `FindPawnPatterns` | +45 ± 48 |
+| Drawish pawnless endings | a side ahead with no pawns and at most a bishop more material scores a sixteenth (under a rook of material) or a quarter; two knights against a bare king a sixteenth | `ScaleDrawishness` | +35 ± 46 |
+| Tempo | 10 cp for the side to move | `TempoBonus` | +30 ± 60 |
+
+The weights were SPSA-tuned in September 2026 (the log's retune rows) and are plain constants now.
+Two caches make it cheaper, not different: a 512 KB evaluation cache keyed by the Zobrist key, and
+a pawn-structure cache keyed by the pawn key.
+
+## Experiments (September 2026)
 
 The evaluation was reset to Tomasz Michniewski's
 [Simplified Evaluation Function](https://www.chessprogramming.org/Simplified_Evaluation_Function)
@@ -7,7 +36,7 @@ piece-square tables, and his endgame rule (no queens, or each side with a queen 
 minor piece and nothing else) selecting the king table. The previous evaluator's extras (pawn
 structure with a pawn hash, bishop mobility, material 330/370 for the minors) went with the reset.
 
-Method, the same as for the search: one term per commit, judged by `tools/selfplay.ps1` against
+Method, the same as for the search: one term per commit, judged by `dotnet run tools/match.cs -- --baseline` against
 the build before it (80 games at 10+0.1, single thread, six-ply openings, `fastchess`), kept only
 on a positive result, recorded here either way. The bench signature changes with every evaluation
 change and is updated in `BenchTests`, README.md and CLAUDE.md each time.
@@ -17,7 +46,7 @@ evaluation weight. Tuning finished in September 2026, and on 2026-11-10 the tune
 (`tools/spsa-runs/`) and the options were removed: the values it found are the plain constants in `Evaluator.cs`.
 The script and the archives the rows cite are in the git history, last present at commit `32e2961`.
 
-## Log
+### Log
 
 | Change | Self-play vs previous | Kept |
 |---|---|---|

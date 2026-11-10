@@ -458,8 +458,15 @@ public sealed partial class Position
             && (byColor[(int)Color.White] & byColor[(int)Color.Black]).IsEmpty && byType[(int)Piece.None].IsEmpty;
     }
 
-    // Making and unmaking moves. After a move is made and unmade the position, including every key,
-    // is identical to what it was before; the search relies on this.
+    // Making and unmaking moves. The search walks the game tree on this one position: it makes a
+    // move, searches the position that results, and unmakes the move to try the next, millions of
+    // times a second, rather than copying the board for every child (copy-make). Make changes the
+    // pieces, and XORs the same Zobrist keys in and out that it changes, so the keys stay right
+    // without being recomputed. What cannot be worked back out of the move - the castling rights,
+    // en passant square and half-move clock it replaced, the keys and the checkers - goes onto the
+    // history stack as an UndoInfo, and unmake puts it back. After a move is made and unmade the
+    // position, including every key, is identical to what it was before; the search relies on this.
+    // See https://www.chessprogramming.org/Make_Move and https://www.chessprogramming.org/Unmake_Move
 
     /// <summary>
     /// Make a move for the side to move. The move must be at least pseudo-legal: the pieces it names
@@ -657,7 +664,10 @@ public sealed partial class Position
     public static Square EnPassantCaptureSquare(Move move) => Square.At(move.To.File, move.From.Rank);
 
     /// <summary>
-    /// Everything needed to unmake a move and restore the position exactly.
+    /// Everything needed to unmake a move and restore the position exactly: the move itself (which
+    /// names the piece moved and the piece captured, so the pieces can be put back), and the state
+    /// the move overwrote, which no move records. The keys are saved too, being cheaper to restore
+    /// than to XOR back, and the history of keys is what repetition detection reads.
     /// </summary>
     private readonly record struct UndoInfo(
         Move Move,
