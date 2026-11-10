@@ -103,74 +103,9 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    `~/tools/stoopid-baseline` (`%USERPROFILE%\tools\stoopid-baseline`) (refresh it with
    `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change);
    its defaults are the standard test setting, 100 games at 12+0.12.
-   Results so far, all 40-60 games at 10+0.1, single-threaded, no book: pawnstar 0.13.593 beat
-   the original search 40-0 and the improved search 40-0; self-play gains were null move
-   +199 ± 90, history heuristic +41 ± 67, LMR +101 ± 68, quiescence TT +41 ± 61, aspiration
-   windows -35 ± 76 alone (not kept), PVS +58 ± 78, aspiration windows on top of PVS +64 ± 75 (kept),
-   bitboards with a legal move generator (a pure speed change) +95 ± 70, reverse futility pruning
-   +122 ± 50 (80 games), late move pruning at depth <= 4 after the (5 + depth^2)th quiet move +30 ± 61
-   (80 games; pawnstar's 3 + depth^2 to depth 8 measured -22 ± 59 and was not kept), a logarithmic LMR
-   table (0.75 + ln(depth) ln(move) / 2.25, one less in PV nodes) -22 ± 57 (not kept), futility pruning
-   of quiet moves at depth <= 3 with a 100 cp per ply margin +4 ± 58 (not kept), delta pruning in
-   quiescence with a 200 cp margin -4 ± 54 (not kept), countermove heuristic (the quiet reply that last refuted
-   the opponent's move, ordered after the killers) +103 ± 65, one-ply continuation history added to the
-   quiet-move history score +30 ± 56, the logarithmic LMR table retried on top of the new ordering +17 ± 63 (still
-   not kept; retry after further ordering work), static exchange evaluation pruning of losing captures in
-   quiescence +30 ± 55, ordering SEE-losing captures behind all quiet moves -30 ± 68 (not kept), main-search SEE
-   pruning of captures losing more than 100 cp per ply at depth <= 6 +17 ± 59 (not kept), a hard time limit of
-   three times the soft budget so that a started iteration can finish +13 ± 60 (not kept), a history malus for the
-   quiet moves searched before a cutoff +13 ± 60 (not kept), null move reduction 3 + depth/4 instead of 2 + depth/6
-   +45 ± 50 (100 games at 12+0.12, the test setting from here on), an improving heuristic (static evaluation above
-   two plies ago) taking one ply off the reverse futility margin and halving the late move pruning count when not
-   improving +10 ± 57 (not kept), the same on the reverse futility margin alone -67 ± 47 (not kept), internal
-   iterative reduction (one ply less at depth >= 4 without a table move) +21 ± 44 then +24 ± 49, +23 ± 33 over the
-   200 games (74 W, 61 L, 65 D; kept), a one-ply extension of every checking move -3 ± 47 (not kept), one ply less LMR for quiet moves with any
-   cutoff history -17 ± 47 (not kept). Stopping the iterative deepening only on a mate proven within the searched depth, instead
-   of on any mate score, -38 ± 54 then -24 ± 52: kept anyway, because in all 200 games the side that saw a mate won,
-   so the rule could not have changed a result (noise), while fifty-move-rule draws, the one thing it can change,
-   fell from 21 in 500 games to 7 in 200 (the keep-on-mechanism-evidence exception was reviewed and confirmed
-   on 20 September 2026). Half as much time again, within 80% of the clock, the first time the root
-   score falls 30 cp or more between iterations from depth 4 +78 ± 48 (45 W, 23 L, 32 D), the same extension when the
-   best move changes from depth 6 +45 ± 46 (43 W, 30 L, 27 D), stopping at 30% of the budget instead of 50% once the
-   best move has stood for four iterations +10 ± 50 (not kept), doubling the budget on instability instead of adding
-   half 0 ± 47 (not kept), sharing the clock over 40 moves instead of 30 -60 ± 49 (not kept), over 20
-   moves +14 ± 63 then +24 ± 46, +19 ± 38 over the 200 (75 W, 64 L, 61 D; kept), over 15 moves -3 ± 56 (not kept), a second extension on renewed
-   instability -14 ± 58 (not kept), an aspiration window of 20 cp instead of 40 +14 ± 52 then +31 ± 53, +23 ± 37 over
-   the 200 (80 W, 67 L, 53 D; kept), one more ply of null move reduction per 200 cp of static evaluation above beta,
-   at most three, +3 ± 46 (not kept), an aspiration window of 12 cp -7 ± 58 (not kept), the countermove exempt from late
-   move reductions and pruning like the killers +35 ± 50 (37 W, 27 L, 36 D), a two-ply follow-up history (our own previous
-   move, the moved piece and its square) added to the quiet-move score 0 ± 52 (not kept), a reverse futility margin of
-   60 cp per ply instead of 80 +38 ± 49 (40 W, 29 L, 31 D), 45 cp 0 ± 52 (not kept), late move pruning to depth 6
-   instead of 4 -42 ± 58 (not kept), reverse futility pruning to depth 9 instead of 7 0 ± 49 (not kept), late move
-   reductions from the third move instead of the fourth -38 ± 47 (not kept), from the fifth -7 ± 48 (not kept), null move
-   pruning from depth 2 instead of 3 +45 ± 51 (39 W, 26 L, 35 D), late move reductions from depth 2 +14 ± 52 then +14 ± 50,
-   +14 ± 36 over the 200 (not kept), ProbCut (a capture beating beta + 200 in a search four plies shallower cuts a
-   non-PV node from depth 5) -24 ± 48 (not kept), starting another iteration until 60% of the budget is used instead
-   of 50% 0 ± 41 (not kept), the whole increment in the budget instead of 80% 0 ± 44 (not kept), singular extensions
-   (from depth 8, the table move searched a ply deeper when every other move fails 2 cp per ply below the table score
-   at half depth; 53% more nodes at depth 10) +3 ± 50 (not kept), a capture history (cutoffs by piece, square and victim,
-   an eighth of it added to the MVV/LVA order) -53 ± 50 (not kept), halving the history tables between root iterations
-   -3 ± 45 (not kept), root moves ordered by the previous iteration's subtree node counts, the table move first,
-   from the second iteration on -14 ± 52 (not kept), razoring (a non-PV node at depth <= 3 whose static evaluation
-   is 250 cp per ply of depth below alpha is cut to the quiescence score when that score also stays at or below
-   alpha) +31 ± 47 (36 W, 27 L, 37 D; kept), a razoring margin of 200 cp per ply -24 ± 56 (not kept), of
-   300 cp per ply -24 ± 47 (not kept), a profile-guided speed pass (both transposition tiers in one array so a
-   probe touches adjacent lines, aggressive inlining of Opponent and KingSquare, the killer/countermove/history
-   tables as flat arrays instead of multi-dimensional ones, and a prefetch of the child's table bucket after
-   every make) +8.6% nodes per second at bench 16 with tiering off, identical signature so the play is unchanged;
-   kept on speed evidence like the evaluation cache. Quiet checking moves at the first ply of quiescence, skipped
-   when they lose material by the exchange evaluation (all legal quiets generated and filtered by precomputed
-   check squares and discovered-check candidates) -28 ± 57 (not kept: the extra generation at every quiescence
-   entry cost more than the tactics it found). The table move searched before any move generation and trusted
-   without a legality check (the full 64-bit key match makes a foreign move vanishingly unlikely, following
-   pawnstar), so a table-move cutoff skips generation entirely: 8.5% fewer nodes and 10% less time to depth 16,
-   and +45 ± 53 (37 W, 24 L, 39 D; kept). Indexing the slider attack table by pext instead of the magic
-   multiply, with the array bounds checks removed by MemoryMarshal (identical play, parked on the slider-speed
-   branch), measured no nps change at bench 16 or perft with tiering off — the dependent table load hides both
-   the multiply and the predictably-taken bounds check (not kept). A
-   100-game result between about +15 and +25 is neither kept nor rejected: a
-   second 100 games are played and the change is judged on the 200. Evaluation experiments are logged in docs/EVALUATION.md;
-   the reset to the Simplified Evaluation Function measured +13 ± 68 against the richer evaluation it replaced.
+   What has been tried and what it measured, kept or not, is in [docs/SEARCH.md](docs/SEARCH.md) (search) and
+   [docs/EVALUATION.md](docs/EVALUATION.md) (evaluation): add a line there for every change you judge. A 100-game result
+   between about +15 and +25 is neither kept nor rejected: a second 100 games are played and the change is judged on the 200.
 
 ## Architecture notes
 
