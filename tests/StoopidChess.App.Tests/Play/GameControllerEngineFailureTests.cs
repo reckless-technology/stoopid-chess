@@ -13,7 +13,7 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 public class GameControllerEngineFailureTests
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
     /// A controller whose external engines are the scripts registered by path; the clients it starts are
@@ -71,15 +71,19 @@ public class GameControllerEngineFailureTests
 
         public List<string> IllegalMoves { get; } = [];
 
-        public string Register(string path, Func<string, IEnumerable<string>?> script, bool dieAfterHandshake = false)
+        public string Register(
+            string path,
+            Func<string, IEnumerable<string>?> script,
+            bool shouldDieAfterHandshake = false
+        )
         {
-            _scripts[path] = (script, dieAfterHandshake);
+            _scripts[path] = (script, shouldDieAfterHandshake);
             return path;
         }
 
         public async Task WaitForExitAsync(string path)
         {
-            DateTime deadline = DateTime.UtcNow + s_timeout;
+            DateTime deadline = DateTime.UtcNow + Timeout;
             while (!Clients[path].HasExited)
             {
                 Assert.True(DateTime.UtcNow < deadline, $"{path} never exited");
@@ -89,11 +93,11 @@ public class GameControllerEngineFailureTests
 
         public async Task WaitForAsync(Func<bool> condition)
         {
-            DateTime deadline = DateTime.UtcNow + s_timeout;
+            DateTime deadline = DateTime.UtcNow + Timeout;
             while (!condition())
             {
                 Assert.True(DateTime.UtcNow < deadline, "the condition never held");
-                await Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+                await Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
                 await Task.Delay(5);
             }
         }
@@ -107,11 +111,11 @@ public class GameControllerEngineFailureTests
         {
             using var rig = new Rig();
             string path = rig.Register("illegal", ScriptedEngine.Plays("a1a8"));
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             Assert.Equal("illegal", rig.Controller.EngineName);
             Assert.Equal(path, rig.Controller.EnginePath);
             rig.Controller.NewGame(Color.Black);
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(["a1a8"], rig.IllegalMoves);
             Assert.Empty(rig.Controller.Game.Moves);
             Assert.Empty(rig.Failures);
@@ -130,9 +134,9 @@ public class GameControllerEngineFailureTests
             };
             var failures = new List<string>();
             controller.EngineFailed += (_, message) => failures.Add(message);
-            Assert.True(await controller.StartEngineAsync("deaf").WaitAsync(s_timeout));
+            Assert.True(await controller.StartEngineAsync("deaf").WaitAsync(Timeout));
             using DeafEngine engine = deaf!;
-            engine.WaitUntilDeaf(s_timeout); // Dead, and the client cannot know yet
+            engine.WaitUntilDeaf(Timeout); // Dead, and the client cannot know yet
             controller.NewGame(Color.White); // "ucinewgame" fails; dropping the engine threw IOException
             Assert.False(controller.HasEngine);
             Assert.Null(controller.EngineName);
@@ -147,9 +151,9 @@ public class GameControllerEngineFailureTests
         {
             using var rig = new Rig();
             string path = rig.Register("resigns", ScriptedEngine.Plays("0000"));
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.NewGame(Color.Black);
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Empty(rig.IllegalMoves);
             Assert.Empty(rig.Controller.Game.Moves);
             Assert.False(rig.Controller.IsThinking);
@@ -164,7 +168,7 @@ public class GameControllerEngineFailureTests
                 "dies on go",
                 command => command.StartsWith("go", StringComparison.Ordinal) ? null : []
             );
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.NewGame(Color.Black);
             await rig.WaitForAsync(() => !rig.Controller.HasEngine);
             Assert.Single(rig.Failures);
@@ -179,7 +183,7 @@ public class GameControllerEngineFailureTests
         {
             using var rig = new Rig();
             string path = rig.Register("dies on new game", command => command == "ucinewgame" ? null : []);
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.NewGame(Color.White);
             await rig.WaitForExitAsync(path);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
@@ -194,7 +198,7 @@ public class GameControllerEngineFailureTests
         {
             using var rig = new Rig();
             string path = rig.Register("dies on new game", command => command == "ucinewgame" ? null : []);
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.NewGame(Color.White);
             await rig.WaitForExitAsync(path);
             rig.Controller.NewGame(Color.White);
@@ -213,15 +217,15 @@ public class GameControllerEngineFailureTests
             StartExternalEngine = path =>
             {
                 launching.Set();
-                Assert.True(release.Wait(s_timeout));
+                Assert.True(release.Wait(Timeout));
                 return ScriptedEngine.Start(path, _ => []);
             },
         };
         Task<bool> first = Task.Run(() => controller.StartEngineAsync("slow"));
-        Assert.True(launching.Wait(s_timeout));
+        Assert.True(launching.Wait(Timeout));
         Assert.False(await controller.StartEngineAsync(null));
         release.Set();
-        Assert.True(await first.WaitAsync(s_timeout));
+        Assert.True(await first.WaitAsync(Timeout));
         Assert.Equal("slow", controller.EngineName);
     }
 
@@ -245,9 +249,9 @@ public class GameControllerEngineFailureTests
                     lines.Add(line);
                 }
             };
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.NewGame(Color.Black);
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(rig.Controller.Game.Moves);
             Assert.Equal("info depth 1 score cp 12 nodes 20 pv e2e4", rig.Controller.LastEngineInfo);
             lock (lines)
@@ -293,14 +297,14 @@ public class GameControllerEngineFailureTests
     public Task SwitchingSidesWhileTheEngineThinksHandsTheMoveToTheHuman() =>
         ControllerThread.Run(async () =>
         {
-            using var controller = new GameController { LimitsFor = _ => new SearchLimits { Infinite = true } };
-            Assert.True(await controller.StartEngineAsync(null).WaitAsync(s_timeout));
+            using var controller = new GameController { LimitsFor = _ => new SearchLimits { IsInfinite = true } };
+            Assert.True(await controller.StartEngineAsync(null).WaitAsync(Timeout));
             controller.NewGame(Color.White);
             Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
             Assert.True(controller.IsThinking);
             controller.SwitchSides();
             Assert.Equal(Color.Black, controller.HumanColor);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(controller.Game.Moves); // The engine's reply was discarded
             Assert.True(controller.IsHumanTurn);
         });
@@ -344,15 +348,15 @@ public class GameControllerEngineFailureTests
                     return command.StartsWith("go", StringComparison.Ordinal) ? [replies.Dequeue()] : [];
                 }
             );
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.SetTimeControl(TimeControl.Periods(3, 5));
             rig.Controller.NewGame(Color.White);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("g1"), Square.Parse("f3")));
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("f1"), Square.Parse("c4")));
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             lock (commands)
             {
                 // Black has completed none, one, then two of the period's three moves: three, two, then one to go
@@ -381,12 +385,12 @@ public class GameControllerEngineFailureTests
                     return command.StartsWith("go", StringComparison.Ordinal) ? ["bestmove e7e5"] : [];
                 }
             );
-            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
+            Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(Timeout));
             rig.Controller.SetTimeControl(TimeControl.OfMinutes(5, 3));
             rig.Controller.Level = Level.Hard; // 3:1
             rig.Controller.NewGame(Color.White);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
-            await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await rig.Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             lock (commands)
             {
                 Assert.Contains(

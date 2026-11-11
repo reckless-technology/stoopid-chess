@@ -22,9 +22,9 @@ public static class Zobrist
     private const int PieceTypes = 7;
     private const int Colors = 2;
 
-    private static readonly ulong[] s_pieces = new ulong[Colors * PieceTypes * Square.Count];
-    private static readonly ulong[] s_castlingKeys = new ulong[16];
-    private static readonly ulong[] s_enPassantKeys = new ulong[Square.Count];
+    private static readonly ulong[] Pieces = new ulong[Colors * PieceTypes * Square.Count];
+    private static readonly ulong[] CastlingKeys = new ulong[16];
+    private static readonly ulong[] EnPassantKeys = new ulong[Square.Count];
 
     static Zobrist()
     {
@@ -36,18 +36,18 @@ public static class Zobrist
         }
 
         SideToMove = Next();
-        for (int i = 0; i < s_pieces.Length; i++)
+        for (int i = 0; i < Pieces.Length; i++)
         {
-            s_pieces[i] = Next();
+            Pieces[i] = Next();
         }
         // No castling rights contributes nothing, so a bare board with no rights has key zero
-        for (int i = 1; i < s_castlingKeys.Length; i++)
+        for (int i = 1; i < CastlingKeys.Length; i++)
         {
-            s_castlingKeys[i] = Next();
+            CastlingKeys[i] = Next();
         }
-        for (int i = 0; i < s_enPassantKeys.Length; i++)
+        for (int i = 0; i < EnPassantKeys.Length; i++)
         {
-            s_enPassantKeys[i] = Next();
+            EnPassantKeys[i] = Next();
         }
     }
 
@@ -58,13 +58,13 @@ public static class Zobrist
 
     public static ulong Piece(Color color, Piece type, Square square)
     {
-        return s_pieces[((((int)color * PieceTypes) + (int)type) * Square.Count) + square];
+        return Pieces[((((int)color * PieceTypes) + (int)type) * Square.Count) + square];
     }
 
-    public static ulong Castling(CastlingRights rights) => s_castlingKeys[(int)rights];
+    public static ulong Castling(CastlingRights rights) => CastlingKeys[(int)rights];
 
     /// <summary>
     /// The key for an en passant square; zero for <see cref="Square.None"/>.
     /// </summary>
-    public static ulong EnPassant(Square square) => square.IsValid ? s_enPassantKeys[square] : 0;
+    public static ulong EnPassant(Square square) => square.IsValid ? EnPassantKeys[square] : 0;
 }

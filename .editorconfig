@@ -27,9 +27,9 @@ dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
 
 # Naming, after Microsoft's "C# identifier naming rules and conventions"
 # (learn.microsoft.com/dotnet/csharp/fundamentals/coding-style/identifier-names): PascalCase for types, members and
-# constants, camelCase for locals and parameters, _camelCase for private and internal instance fields, s_camelCase for
-# private and internal static fields, an I on interfaces and a T on type parameters. Violations are IDE1006 warnings,
-# which `dotnet format style --verify-no-changes` fails on (the hook and CI run it). The repository declares no
+# constants and static readonly fields, camelCase for locals and parameters, _camelCase for private and internal fields
+# that are not static readonly (no s_ or other Hungarian prefix), an I on interfaces and a T on type parameters.
+# Violations are IDE1006 warnings, which `dotnet format style --verify-no-changes` fails on (the hook and CI run it). The repository declares no
 # interop of its own (the SDL3 bindings are a package); a file of declarations that mirror native names, SDLK_* say,
 # would opt out with a section of its own at the end of this file.
 
@@ -37,8 +37,6 @@ dotnet_naming_style.pascal_case.capitalization = pascal_case
 dotnet_naming_style.camel_case.capitalization = camel_case
 dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 dotnet_naming_style.underscore_camel_case.required_prefix = _
-dotnet_naming_style.static_camel_case.capitalization = camel_case
-dotnet_naming_style.static_camel_case.required_prefix = s_
 dotnet_naming_style.interface_style.capitalization = pascal_case
 dotnet_naming_style.interface_style.required_prefix = I
 dotnet_naming_style.type_parameter_style.capitalization = pascal_case
@@ -51,9 +49,8 @@ dotnet_naming_symbols.constants.applicable_kinds = field, local
 dotnet_naming_symbols.constants.required_modifiers = const
 dotnet_naming_symbols.non_private_members.applicable_kinds = property, method, field, event, local_function
 dotnet_naming_symbols.non_private_members.applicable_accessibilities = public, protected, protected_internal, private_protected
-dotnet_naming_symbols.private_static_fields.applicable_kinds = field
-dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private, internal
-dotnet_naming_symbols.private_static_fields.required_modifiers = static
+dotnet_naming_symbols.static_readonly_fields.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_fields.required_modifiers = static, readonly
 dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
 dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private, internal
 dotnet_naming_symbols.private_members.applicable_kinds = property, method, event, local_function
@@ -78,9 +75,9 @@ dotnet_naming_rule.non_private_members_are_pascal.severity = warning
 dotnet_naming_rule.private_members_are_pascal.symbols = private_members
 dotnet_naming_rule.private_members_are_pascal.style = pascal_case
 dotnet_naming_rule.private_members_are_pascal.severity = warning
-dotnet_naming_rule.private_static_fields_need_s.symbols = private_static_fields
-dotnet_naming_rule.private_static_fields_need_s.style = static_camel_case
-dotnet_naming_rule.private_static_fields_need_s.severity = warning
+dotnet_naming_rule.static_readonly_fields_are_pascal.symbols = static_readonly_fields
+dotnet_naming_rule.static_readonly_fields_are_pascal.style = pascal_case
+dotnet_naming_rule.static_readonly_fields_are_pascal.severity = warning
 dotnet_naming_rule.private_instance_fields_need_underscore.symbols = private_instance_fields
 dotnet_naming_rule.private_instance_fields_need_underscore.style = underscore_camel_case
 dotnet_naming_rule.private_instance_fields_need_underscore.severity = warning

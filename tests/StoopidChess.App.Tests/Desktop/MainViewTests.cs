@@ -18,7 +18,7 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 public sealed class MainViewTests : IDisposable
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private readonly string _folder = Directory.CreateTempSubdirectory("stoopid-chess-gui-").FullName;
 
@@ -43,7 +43,7 @@ public sealed class MainViewTests : IDisposable
             };
             if (game is not null)
             {
-                Assert.True(Controller.Load(game));
+                Assert.True(Controller.TryLoad(game));
             }
             View = new MainView(Platform, Controller);
             Window = new ViewHarness(View);
@@ -111,7 +111,7 @@ public sealed class MainViewTests : IDisposable
 
         public async Task SettleAsync(Func<bool> condition)
         {
-            DateTime deadline = DateTime.UtcNow + s_timeout;
+            DateTime deadline = DateTime.UtcNow + Timeout;
             while (!condition())
             {
                 Assert.True(
@@ -125,7 +125,7 @@ public sealed class MainViewTests : IDisposable
                             )
                         )
                 );
-                await Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+                await Controller.WaitUntilIdleAsync().WaitAsync(Timeout);
                 await Task.Delay(5);
             }
         }

@@ -109,7 +109,7 @@ public sealed class Searcher
     private TimeSpan? _timeBudget;
     private TimeSpan? _timeCap;
     private long? _nodeLimit;
-    private bool _stopped;
+    private bool _isStopped;
 
     public Searcher(TranspositionTable table)
     {
@@ -152,9 +152,9 @@ public sealed class Searcher
         (TimeSpan Budget, TimeSpan Cap)? allocation = limits.TimeAllocation(_position.SideToMove);
         _timeBudget = allocation?.Budget;
         _timeCap = allocation?.Cap;
-        bool extended = false;
-        _nodeLimit = limits.Infinite ? null : limits.Nodes;
-        _stopped = false;
+        bool isExtended = false;
+        _nodeLimit = limits.IsInfinite ? null : limits.Nodes;
+        _isStopped = false;
         Array.Clear(_killers);
         Array.Clear(_counterMoves);
         Array.Clear(_history);
@@ -167,7 +167,7 @@ public sealed class Searcher
             return new SearchResult(0, _position.IsInCheck ? -MateScore : DrawScore, 0, _stopwatch.Elapsed, []);
         }
 
-        int maxDepth = limits.Infinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
+        int maxDepth = limits.IsInfinite ? MaxPly : Math.Clamp(limits.Depth ?? MaxPly, 1, MaxPly);
         Move bestMove = rootMoves[0];
         int bestScore = 0;
         int completedDepth = 0;
@@ -177,7 +177,7 @@ public sealed class Searcher
         for (int depth = 1; depth <= maxDepth; depth++)
         {
             (int score, Move move) = SearchWithAspiration(ref rootMoves, depth, bestScore, completedDepth);
-            if (_stopped)
+            if (_isStopped)
             {
                 // The iteration was cut short so its score cannot be trusted and the previous
                 // iteration's move is kept, unless there is none: then the best of the root moves
@@ -191,7 +191,7 @@ public sealed class Searcher
             if (
                 _timeBudget is not null
                 && _timeCap is not null
-                && !extended
+                && !isExtended
                 && (
                     (completedDepth >= ScoreDropMinimumDepth && score <= bestScore - ScoreDropMargin)
                     || (completedDepth >= MoveChangeMinimumDepth && move != bestMove)
@@ -200,7 +200,7 @@ public sealed class Searcher
             {
                 // C. Time management: the score fell or the best move changed, so give this move half
                 // as much time again, within the clock, to sort it out
-                extended = true;
+                isExtended = true;
                 TimeSpan longer = _timeBudget.Value * 1.5;
                 _timeBudget = longer < _timeCap.Value ? longer : _timeCap.Value;
             }
@@ -210,7 +210,12 @@ public sealed class Searcher
             principalVariation = ExtractPrincipalVariation(bestMove, depth);
             onProgress?.Invoke(new SearchResult(depth, score, _nodes, _stopwatch.Elapsed, principalVariation));
 
-            if (IsMateScore(score) && MateScore - Math.Abs(score) <= depth && !limits.Infinite && limits.Depth is null)
+            if (
+                IsMateScore(score)
+                && MateScore - Math.Abs(score) <= depth
+                && !limits.IsInfinite
+                && limits.Depth is null
+            )
             {
                 break; // A forced mate within the searched depth is proven; deeper search cannot improve on it
             }
@@ -245,7 +250,7 @@ public sealed class Searcher
         while (true)
         {
             (int score, Move bestMove) = SearchRoot(ref rootMoves, depth, alpha, beta);
-            if (_stopped || (score > alpha && score < beta))
+            if (_isStopped || (score > alpha && score < beta))
             {
                 return (score, bestMove);
             }
@@ -275,15 +280,15 @@ public sealed class Searcher
         OrderMoves(ref rootMoves, 0, GetTableMove());
         Move bestMove = rootMoves[0];
         int originalAlpha = alpha;
-        bool first = true;
+        bool isFirstMove = true;
         foreach (Move move in rootMoves)
         {
             _position.MakeMove(move);
             _table.Prefetch(_position.Key);
-            int score = SearchChild(alpha, beta, depth - 1, 1, first);
+            int score = SearchChild(alpha, beta, depth - 1, 1, isFirstMove);
             _position.UnmakeMove();
-            first = false;
-            if (_stopped)
+            isFirstMove = false;
+            if (_isStopped)
             {
                 return (alpha, bestMove);
             }
@@ -310,18 +315,18 @@ public sealed class Searcher
     /// full window; the rest only need to prove they are not better (a null window) and are
     /// re-searched with the full window only when they are.
     /// </summary>
-    private int SearchChild(int alpha, int beta, int depth, int ply, bool first, int reduction = 0)
+    private int SearchChild(int alpha, int beta, int depth, int ply, bool isFirstMove, int reduction = 0)
     {
-        if (first)
+        if (isFirstMove)
         {
             return -AlphaBeta(-beta, -alpha, depth, ply);
         }
         int score = -AlphaBeta(-alpha - 1, -alpha, depth - reduction, ply);
-        if (reduction > 0 && score > alpha && !_stopped)
+        if (reduction > 0 && score > alpha && !_isStopped)
         {
             score = -AlphaBeta(-alpha - 1, -alpha, depth, ply);
         }
-        if (score > alpha && score < beta && !_stopped)
+        if (score > alpha && score < beta && !_isStopped)
         {
             score = -AlphaBeta(-beta, -alpha, depth, ply);
         }
@@ -333,7 +338,7 @@ public sealed class Searcher
         Debug.Assert(alpha < beta, "alpha must be below beta");
         _nodes++;
         CheckLimits();
-        if (_stopped)
+        if (_isStopped)
         {
             return alpha;
         }
@@ -357,14 +362,14 @@ public sealed class Searcher
             return alpha;
         }
 
-        bool inCheck = _position.IsInCheck;
+        bool isInCheck = _position.IsInCheck;
         // 3. The fifty-move rule: a draw, unless the move that reached the hundredth half-move mated
-        if (_position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
+        if (_position.HalfMoveClock >= 100 && (!isInCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
         // 4. The horizon
-        if (depth <= 0 && !inCheck)
+        if (depth <= 0 && !isInCheck)
         {
             return Quiescence(alpha, beta, ply);
         }
@@ -386,15 +391,15 @@ public sealed class Searcher
             depth--;
         }
 
-        bool pvNode = beta - alpha > 1;
-        int staticEval = inCheck ? -Infinity : Evaluate();
+        bool isPvNode = beta - alpha > 1;
+        int staticEval = isInCheck ? -Infinity : Evaluate();
 
         // 7. Reverse futility pruning: in a non-PV node at low depth, a static evaluation so far above
         // beta that a few plies of play cannot bring it back down is taken as a fail-high at once.
         if (
             depth <= ReverseFutilityMaxDepth
-            && !inCheck
-            && !pvNode
+            && !isInCheck
+            && !isPvNode
             && beta < MateThreshold
             && staticEval - (ReverseFutilityMargin * depth) >= beta
         )
@@ -407,14 +412,14 @@ public sealed class Searcher
         // that alpha is out of reach the node is cut to the quiescence score.
         if (
             depth <= RazoringMaxDepth
-            && !inCheck
-            && !pvNode
+            && !isInCheck
+            && !isPvNode
             && alpha > -MateThreshold
             && staticEval + (RazoringMargin * depth) <= alpha
         )
         {
             int razorScore = Quiescence(alpha, alpha + 1, ply);
-            if (_stopped)
+            if (_isStopped)
             {
                 return alpha;
             }
@@ -429,9 +434,9 @@ public sealed class Searcher
         // right after another null move, in pawn endgames (zugzwang) and for mate-bound windows.
         if (
             depth >= NullMoveMinimumDepth
-            && !inCheck
+            && !isInCheck
             && beta < MateThreshold
-            && !_position.LastMoveWasNull
+            && !_position.WasLastMoveNull
             && _position.HasNonPawnMaterial(_position.SideToMove)
             && staticEval >= beta
         )
@@ -441,7 +446,7 @@ public sealed class Searcher
             _table.Prefetch(_position.Key);
             int nullScore = -AlphaBeta(-beta, -beta + 1, depth - 1 - reduction, ply + 1);
             _position.UnmakeMove();
-            if (_stopped)
+            if (_isStopped)
             {
                 return alpha;
             }
@@ -466,9 +471,9 @@ public sealed class Searcher
             moveNumber = 1;
             _position.MakeMove(tableMove);
             _table.Prefetch(_position.Key);
-            int tableMoveScore = SearchChild(alpha, beta, depth - 1, ply + 1, first: true);
+            int tableMoveScore = SearchChild(alpha, beta, depth - 1, ply + 1, isFirstMove: true);
             _position.UnmakeMove();
-            if (_stopped)
+            if (_isStopped)
             {
                 return alpha;
             }
@@ -488,7 +493,7 @@ public sealed class Searcher
         _position.GenerateLegalMoves(ref moves);
         if (moves.Count == 0)
         {
-            return inCheck ? -MateScore + ply : DrawScore;
+            return isInCheck ? -MateScore + ply : DrawScore;
         }
         // 11. Move ordering
         OrderMoves(ref moves, ply, tableMove);
@@ -504,8 +509,8 @@ public sealed class Searcher
             // so unlikely to beat the moves already searched that they are skipped altogether
             if (
                 depth <= LateMovePruningMaxDepth
-                && !pvNode
-                && !inCheck
+                && !isPvNode
+                && !isInCheck
                 && moveNumber > LateMovePruningBase + (depth * depth)
                 && IsReducible(move, ply)
             )
@@ -518,14 +523,14 @@ public sealed class Searcher
             int reduction =
                 depth >= LmrMinimumDepth
                 && moveNumber > LmrFullDepthMoves
-                && !inCheck
+                && !isInCheck
                 && IsReducible(move, ply)
                 && !_position.IsInCheck
                     ? (moveNumber > LmrFullDepthMoves * 3 ? 2 : 1)
                     : 0;
-            int score = SearchChild(alpha, beta, depth - 1, ply + 1, first: moveNumber == 1, reduction); // 14. PVS
+            int score = SearchChild(alpha, beta, depth - 1, ply + 1, isFirstMove: moveNumber == 1, reduction); // 14. PVS
             _position.UnmakeMove();
-            if (_stopped)
+            if (_isStopped)
             {
                 return alpha; // Do not store results from an incomplete search
             }
@@ -561,7 +566,7 @@ public sealed class Searcher
     {
         _nodes++;
         CheckLimits();
-        if (_stopped)
+        if (_isStopped)
         {
             return alpha;
         }
@@ -570,13 +575,13 @@ public sealed class Searcher
             return Evaluate();
         }
 
-        bool inCheck = _position.IsInCheck;
+        bool isInCheck = _position.IsInCheck;
         // The fifty-move rule, as in the main search
-        if (_position.HalfMoveClock >= 100 && (!inCheck || HasLegalMove(ply)))
+        if (_position.HalfMoveClock >= 100 && (!isInCheck || HasLegalMove(ply)))
         {
             return DrawScore;
         }
-        if (!inCheck && (_position.RepetitionCount() >= 1 || _position.IsInsufficientMaterial()))
+        if (!isInCheck && (_position.RepetitionCount() >= 1 || _position.IsInsufficientMaterial()))
         {
             return DrawScore;
         }
@@ -590,7 +595,7 @@ public sealed class Searcher
         int originalAlpha = alpha;
         int bestScore = -Infinity;
         Move bestMove = Move.None;
-        if (!inCheck)
+        if (!isInCheck)
         {
             // Stand pat: the side to move need not capture at all
             bestScore = Evaluate();
@@ -603,7 +608,7 @@ public sealed class Searcher
 
         ref MoveList moves = ref _moveLists[ply];
         moves.Clear();
-        if (inCheck)
+        if (isInCheck)
         {
             _position.GenerateLegalMoves(ref moves);
             if (moves.Count == 0)
@@ -620,7 +625,7 @@ public sealed class Searcher
         foreach (Move move in moves)
         {
             // A capture that the exchange evaluation says loses material is not worth searching
-            if (!inCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(_position, move) < 0)
+            if (!isInCheck && move.IsCapture && !move.IsPromotion && StaticExchange.Evaluate(_position, move) < 0)
             {
                 continue;
             }
@@ -628,7 +633,7 @@ public sealed class Searcher
             _table.Prefetch(_position.Key);
             int score = -Quiescence(-beta, -alpha, ply + 1);
             _position.UnmakeMove();
-            if (_stopped)
+            if (_isStopped)
             {
                 return alpha;
             }
@@ -673,7 +678,7 @@ public sealed class Searcher
             return false;
         }
         int tableScore = ScoreFromTable(entry.Score, ply);
-        bool cutoff = entry.Type switch
+        bool isCutoff = entry.Type switch
         {
             NodeType.Exact => true,
             NodeType.LowerBound => tableScore >= beta,
@@ -681,7 +686,7 @@ public sealed class Searcher
             _ => false,
         };
         score = tableScore;
-        return cutoff;
+        return isCutoff;
     }
 
     private int Evaluate() => _evaluator.Evaluate(_position);
@@ -713,13 +718,13 @@ public sealed class Searcher
 
     private void CheckLimits()
     {
-        if (_stopped)
+        if (_isStopped)
         {
             return;
         }
         if (_nodeLimit is not null && _nodes >= _nodeLimit.Value)
         {
-            _stopped = true;
+            _isStopped = true;
             return;
         }
         if (
@@ -730,7 +735,7 @@ public sealed class Searcher
             )
         )
         {
-            _stopped = true;
+            _isStopped = true;
         }
     }
 

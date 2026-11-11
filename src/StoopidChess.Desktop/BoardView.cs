@@ -18,8 +18,8 @@ internal sealed class BoardView : View
     /// <summary>The frame's width round the squares.</summary>
     public const float Edge = 2.0f;
 
-    private static readonly SKColor s_hintColor = new(0x14, 0x12, 0x10, 0x60);
-    private static readonly SKColor s_captureHintColor = new(0x14, 0x12, 0x10, 0x78);
+    private static readonly SKColor HintColor = new(0x14, 0x12, 0x10, 0x60);
+    private static readonly SKColor CaptureHintColor = new(0x14, 0x12, 0x10, 0x78);
 
     private Square _dragFrom = Square.None; // Square of the piece being dragged, or None
     private SKPoint _dragPosition;
@@ -126,14 +126,14 @@ internal sealed class BoardView : View
             if (controller.PieceAt(target).Type == Piece.None)
             {
                 paint.Style = SKPaintStyle.Fill;
-                paint.Color = s_hintColor;
+                paint.Color = HintColor;
                 canvas.DrawCircle(centre, size / 7, paint);
             }
             else
             {
                 paint.Style = SKPaintStyle.Stroke;
                 paint.StrokeWidth = Math.Max(3, size / 16);
-                paint.Color = s_captureHintColor;
+                paint.Color = CaptureHintColor;
                 canvas.DrawCircle(centre, (size / 2) - (paint.StrokeWidth / 2) - 1, paint);
             }
         }

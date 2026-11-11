@@ -17,7 +17,7 @@ namespace StoopidChess.Core;
 /// </summary>
 public static class Attacks
 {
-    private static readonly (int File, int Rank)[] s_knightSteps =
+    private static readonly (int File, int Rank)[] KnightSteps =
     [
         (1, 2),
         (2, 1),
@@ -28,7 +28,7 @@ public static class Attacks
         (-2, 1),
         (-1, 2),
     ];
-    private static readonly (int File, int Rank)[] s_kingSteps =
+    private static readonly (int File, int Rank)[] KingSteps =
     [
         (0, 1),
         (1, 1),
@@ -39,34 +39,34 @@ public static class Attacks
         (-1, 0),
         (-1, 1),
     ];
-    private static readonly (int File, int Rank)[] s_diagonalDirections = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
-    private static readonly (int File, int Rank)[] s_orthogonalDirections = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+    private static readonly (int File, int Rank)[] DiagonalDirections = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
+    private static readonly (int File, int Rank)[] OrthogonalDirections = [(0, 1), (1, 0), (0, -1), (-1, 0)];
 
     // The tables. Field initialisers run in this order, and each depends only on the ones above it.
-    private static readonly Bitboard[] s_knightTable = BuildTable(square => Leaps(square, s_knightSteps));
-    private static readonly Bitboard[] s_kingTable = BuildTable(square => Leaps(square, s_kingSteps));
-    private static readonly Bitboard[] s_whitePawnTable = BuildTable(square =>
+    private static readonly Bitboard[] KnightTable = BuildTable(square => Leaps(square, KnightSteps));
+    private static readonly Bitboard[] KingTable = BuildTable(square => Leaps(square, KingSteps));
+    private static readonly Bitboard[] WhitePawnTable = BuildTable(square =>
         Bitboard.Of(square).NorthWest() | Bitboard.Of(square).NorthEast()
     );
-    private static readonly Bitboard[] s_blackPawnTable = BuildTable(square =>
+    private static readonly Bitboard[] BlackPawnTable = BuildTable(square =>
         Bitboard.Of(square).SouthWest() | Bitboard.Of(square).SouthEast()
     );
-    private static readonly Bitboard[] s_bishopRayTable = BuildTable(square =>
+    private static readonly Bitboard[] BishopRayTable = BuildTable(square =>
         BishopAttacksByWalking(Bitboard.Empty, square)
     );
-    private static readonly Bitboard[] s_rookRayTable = BuildTable(square =>
+    private static readonly Bitboard[] RookRayTable = BuildTable(square =>
         RookAttacksByWalking(Bitboard.Empty, square)
     );
-    private static readonly Bitboard[] s_betweenTable = BuildPairTable(betweenOnly: true);
-    private static readonly Bitboard[] s_lineTable = BuildPairTable(betweenOnly: false);
-    private static readonly Bitboard[] s_diagonalTable = BuildTable(square =>
+    private static readonly Bitboard[] BetweenTable = BuildPairTable(isBetweenOnly: true);
+    private static readonly Bitboard[] LineTable = BuildPairTable(isBetweenOnly: false);
+    private static readonly Bitboard[] DiagonalTable = BuildTable(square =>
         Bitboard.Of(square) | Walk(square, 1, 1, Square.None) | Walk(square, -1, -1, Square.None)
     );
-    private static readonly Bitboard[] s_antiDiagonalTable = BuildTable(square =>
+    private static readonly Bitboard[] AntiDiagonalTable = BuildTable(square =>
         Bitboard.Of(square) | Walk(square, 1, -1, Square.None) | Walk(square, -1, 1, Square.None)
     );
-    private static readonly SliderAttacks s_bishopAttacks = new(s_diagonalDirections, BishopAttacksByWalking);
-    private static readonly SliderAttacks s_rookAttacks = new(s_orthogonalDirections, RookAttacksByWalking);
+    private static readonly SliderAttacks BishopAttacks = new(DiagonalDirections, BishopAttacksByWalking);
+    private static readonly SliderAttacks RookAttacks = new(OrthogonalDirections, RookAttacksByWalking);
 
     /// <summary>
     /// Build the tables now rather than on first use, so that their cost (mostly the magic search,
@@ -78,13 +78,13 @@ public static class Attacks
     /// The squares a knight on the square attacks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Knight(Square square) => s_knightTable[square];
+    public static Bitboard Knight(Square square) => KnightTable[square];
 
     /// <summary>
     /// The squares a king on the square attacks.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard King(Square square) => s_kingTable[square];
+    public static Bitboard King(Square square) => KingTable[square];
 
     /// <summary>
     /// The squares a pawn of the color on the square attacks (the two diagonally forward squares).
@@ -93,7 +93,7 @@ public static class Attacks
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard Pawn(Color color, Square square) =>
-        (color == Color.White ? s_whitePawnTable : s_blackPawnTable)[square];
+        (color == Color.White ? WhitePawnTable : BlackPawnTable)[square];
 
     /// <summary>
     /// The squares attacked by a whole set of pawns of the color.
@@ -109,36 +109,36 @@ public static class Attacks
     /// and including the first occupied square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Bishop(Bitboard occupied, Square square) => s_bishopAttacks.Lookup(occupied, square);
+    public static Bitboard Bishop(Bitboard occupied, Square square) => BishopAttacks.Lookup(occupied, square);
 
     /// <summary>
     /// The squares a rook on the square attacks given the occupied squares.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Rook(Bitboard occupied, Square square) => s_rookAttacks.Lookup(occupied, square);
+    public static Bitboard Rook(Bitboard occupied, Square square) => RookAttacks.Lookup(occupied, square);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bitboard Queen(Bitboard occupied, Square square) =>
-        s_bishopAttacks.Lookup(occupied, square) | s_rookAttacks.Lookup(occupied, square);
+        BishopAttacks.Lookup(occupied, square) | RookAttacks.Lookup(occupied, square);
 
     /// <summary>
     /// The diagonals through the square on an empty board (excluding the square itself).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard BishopRays(Square square) => s_bishopRayTable[square];
+    public static Bitboard BishopRays(Square square) => BishopRayTable[square];
 
     /// <summary>
     /// The rank and file through the square on an empty board (excluding the square itself).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard RookRays(Square square) => s_rookRayTable[square];
+    public static Bitboard RookRays(Square square) => RookRayTable[square];
 
     /// <summary>
     /// The squares strictly between two squares on the same rank, file or diagonal; empty if they
     /// are not aligned or are adjacent.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Between(Square from, Square to) => s_betweenTable[(from.Index << 6) | to.Index];
+    public static Bitboard Between(Square from, Square to) => BetweenTable[(from.Index << 6) | to.Index];
 
     /// <summary>
     /// The whole rank, file or diagonal through two aligned squares, from edge to edge and
@@ -146,32 +146,32 @@ public static class Attacks
     /// only move within the line through the two of them.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Line(Square from, Square to) => s_lineTable[(from.Index << 6) | to.Index];
+    public static Bitboard Line(Square from, Square to) => LineTable[(from.Index << 6) | to.Index];
 
     /// <summary>
     /// The a1-h8 diagonal through the square (file minus rank constant), including the square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard Diagonal(Square square) => s_diagonalTable[square];
+    public static Bitboard Diagonal(Square square) => DiagonalTable[square];
 
     /// <summary>
     /// The a8-h1 diagonal through the square (file plus rank constant), including the square.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Bitboard AntiDiagonal(Square square) => s_antiDiagonalTable[square];
+    public static Bitboard AntiDiagonal(Square square) => AntiDiagonalTable[square];
 
     /// <summary>
     /// Bishop attacks found the obvious way: walk each diagonal from the square, one step at a time,
     /// up to the edge or the first occupied square. The magic tables are filled from this.
     /// </summary>
     internal static Bitboard BishopAttacksByWalking(Bitboard occupied, Square square) =>
-        Slide(occupied, square, s_diagonalDirections);
+        Slide(occupied, square, DiagonalDirections);
 
     /// <summary>
     /// Rook attacks by walking each rank and file direction, as for the bishop.
     /// </summary>
     internal static Bitboard RookAttacksByWalking(Bitboard occupied, Square square) =>
-        Slide(occupied, square, s_orthogonalDirections);
+        Slide(occupied, square, OrthogonalDirections);
 
     private static Bitboard Slide(Bitboard occupied, Square square, (int File, int Rank)[] directions)
     {
@@ -243,7 +243,7 @@ public static class Attacks
         return table;
     }
 
-    private static Bitboard[] BuildPairTable(bool betweenOnly)
+    private static Bitboard[] BuildPairTable(bool isBetweenOnly)
     {
         var table = new Bitboard[Square.Count * Square.Count];
         foreach (Square from in Square.All)
@@ -254,12 +254,12 @@ public static class Attacks
                 int rankStep = Math.Sign(to.Rank - from.Rank);
                 int fileDistance = Math.Abs(to.File - from.File);
                 int rankDistance = Math.Abs(to.Rank - from.Rank);
-                bool aligned = from != to && (fileDistance == 0 || rankDistance == 0 || fileDistance == rankDistance);
-                if (!aligned)
+                bool isAligned = from != to && (fileDistance == 0 || rankDistance == 0 || fileDistance == rankDistance);
+                if (!isAligned)
                 {
                     continue;
                 }
-                table[(from.Index << 6) | to.Index] = betweenOnly
+                table[(from.Index << 6) | to.Index] = isBetweenOnly
                     ? Walk(from, fileStep, rankStep, stopAt: to)
                     : Bitboard.Of(from)
                         | Walk(from, fileStep, rankStep, stopAt: Square.None)
@@ -314,7 +314,7 @@ public static class Attacks
         // magics, and the same attack sets; these eight are Stockfish's, for the same search, and
         // they find every magic in about 30 ms. The best single seed of 20,000 tried took three
         // times as long, an arbitrary one six times.
-        private static readonly ulong[] s_seedByRank = [728, 10316, 55013, 32803, 12281, 15100, 16645, 255];
+        private static readonly ulong[] SeedByRank = [728, 10316, 55013, 32803, 12281, 15100, 16645, 255];
 
         private readonly Magic[] _magics = new Magic[Square.Count];
         private readonly Bitboard[] _table;
@@ -334,7 +334,7 @@ public static class Attacks
             foreach (Square square in Square.All)
             {
                 Magic magic = _magics[square];
-                var random = new MagicCandidates(s_seedByRank[square.Rank]);
+                var random = new MagicCandidates(SeedByRank[square.Rank]);
                 Span<Bitboard> slots = _table.AsSpan(magic.Offset, 1 << (64 - magic.Shift));
 
                 // Every occupancy of the mask and its attack set. The occupancies are the subsets

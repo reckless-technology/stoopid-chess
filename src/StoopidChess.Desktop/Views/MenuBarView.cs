@@ -87,7 +87,7 @@ internal sealed class MenuBarView : View
     /// <summary>
     /// Open the menu whose title starts with <paramref name="letter"/>, its first row lit; false when no title does.
     /// </summary>
-    public bool OpenByLetter(char letter)
+    public bool TryOpenByLetter(char letter)
     {
         int index = Menus.FindIndex(menu =>
             menu.Text.Length > 0 && char.ToUpperInvariant(menu.Text[0]) == char.ToUpperInvariant(letter)

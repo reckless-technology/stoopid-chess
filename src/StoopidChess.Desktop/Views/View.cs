@@ -70,7 +70,7 @@ internal abstract class View
     public virtual bool CanFocus => false;
 
     /// <summary>Whether the view, holding the keyboard, wants typed text (the host turns on text input for it).</summary>
-    public virtual bool AcceptsText => false;
+    public virtual bool CanAcceptText => false;
 
     /// <summary>The root at the top of the view's tree; null while the view is in none.</summary>
     public ViewRoot? Root
@@ -184,7 +184,7 @@ internal abstract class View
             }
             canvas.Save();
             canvas.Translate(child.Bounds.Left, child.Bounds.Top);
-            if (child.ClipsChildren)
+            if (child.DoesClipChildren)
             {
                 canvas.ClipRect(child.LocalBounds);
             }
@@ -215,7 +215,7 @@ internal abstract class View
     }
 
     /// <summary>Whether the children are clipped to the view's rectangle as they are drawn.</summary>
-    protected virtual bool ClipsChildren => true;
+    protected virtual bool DoesClipChildren => true;
 
     /// <summary>Lay out the children for the view's new size.</summary>
     protected virtual void Layout() { }

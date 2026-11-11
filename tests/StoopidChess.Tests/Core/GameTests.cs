@@ -39,7 +39,7 @@ public class GameTests
             }
         }
         Assert.Equal(GameStatus.DrawByRepetition, game.Status);
-        game.UndoMove();
+        game.TryUndoMove();
         Assert.Equal(GameStatus.InProgress, game.Status);
     }
 
@@ -77,7 +77,7 @@ public class GameTests
         Assert.Equal(100, game.Position.HalfMoveClock);
         Assert.Equal(GameStatus.DrawByFiftyMoveRule, game.Status);
         Assert.Equal("2kr4/8/8/8/8/8/8/5RK1 w - - 100 61", game.Position.ToFen());
-        game.UndoMove();
+        game.TryUndoMove();
         Assert.Equal(GameStatus.InProgress, game.Status);
     }
 
@@ -127,11 +127,11 @@ public class GameTests
     public void UndoRestoresPreviousPosition()
     {
         var game = new Game();
-        Assert.False(game.UndoMove());
+        Assert.False(game.TryUndoMove());
         game.TryMakeMove("e2e4");
         game.TryMakeMove("d7d5");
         game.TryMakeMove("e4d5");
-        Assert.True(game.UndoMove());
+        Assert.True(game.TryUndoMove());
         // No white pawn can capture on d6, so no en passant square is recorded
         Assert.Equal("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2", game.Position.ToFen());
         Assert.Equal(2, game.Moves.Count);

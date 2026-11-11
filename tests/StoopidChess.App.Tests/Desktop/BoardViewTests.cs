@@ -59,7 +59,7 @@ public class BoardViewTests
     private static GameController Game(string fen, Color human = Color.White)
     {
         var controller = new GameController();
-        Assert.True(controller.Load(new SavedGame { StartFen = fen, HumanColor = human }));
+        Assert.True(controller.TryLoad(new SavedGame { StartFen = fen, HumanColor = human }));
         return controller;
     }
 
@@ -130,7 +130,7 @@ public class BoardViewTests
     {
         using var controller = new GameController();
         Assert.True(
-            controller.Load(
+            controller.TryLoad(
                 new SavedGame
                 {
                     Moves = ["e2e4"],
@@ -210,7 +210,7 @@ public class BoardViewTests
     {
         using var controller = new GameController();
         Assert.True(
-            controller.Load(new SavedGame { Moves = ["e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5a2", "a1a2"] })
+            controller.TryLoad(new SavedGame { Moves = ["e2e4", "d7d5", "e4d5", "d8d5", "b1c3", "d5a2", "a1a2"] })
         );
         var bin = new CaptureBinView { Controller = controller };
         using var window = new ViewHarness(bin, 400, 68);

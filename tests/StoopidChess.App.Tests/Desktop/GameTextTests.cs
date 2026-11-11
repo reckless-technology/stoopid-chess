@@ -11,14 +11,14 @@ namespace StoopidChess.Tests.Desktop;
 /// </summary>
 public class GameTextTests
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
-    private static readonly string s_newLine = Environment.NewLine;
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+    private static readonly string NewLine = Environment.NewLine;
 
     private static GameController Loaded(string fen = Position.StartFen, params string[] moves)
     {
         var controller = new GameController();
         Assert.True(
-            controller.Load(
+            controller.TryLoad(
                 new SavedGame
                 {
                     StartFen = fen,
@@ -44,7 +44,7 @@ public class GameTextTests
         {
             using GameController controller = WithScriptedEngines();
             Assert.Equal("Stoopid Chess", GameText.Title(controller));
-            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(s_timeout));
+            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(Timeout));
             Assert.Equal("Stoopid Chess - Alpha", GameText.Title(controller));
         });
 
@@ -55,9 +55,9 @@ public class GameTextTests
             using GameController controller = WithScriptedEngines();
             Assert.Equal(("Human", "Engine"), GameText.PlayerNames(controller));
             Assert.Equal("White", GameText.HumanColor(controller));
-            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(s_timeout));
+            Assert.True(await controller.StartEngineAsync("Alpha").WaitAsync(Timeout));
             controller.NewGame(Color.Black);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(("Alpha", "Human"), GameText.PlayerNames(controller));
         });
 
@@ -68,7 +68,7 @@ public class GameTextTests
         controller.SetTimeControl(new TimeControl(TimeSpan.FromSeconds(1), TimeSpan.Zero));
         controller.NewGame(Color.White);
         controller.Tick(TimeSpan.FromSeconds(2));
-        Assert.Equal("GAME OVER: White lost on time", GameText.MoveList(controller, showEngineOutput: false));
+        Assert.Equal("GAME OVER: White lost on time", GameText.MoveList(controller, isEngineOutputShown: false));
         Assert.Equal("0-1", GameText.Result(controller));
         controller.SetPosition(Position.FromFen("4k3/8/8/8/8/8/8/4K2R b - - 0 1"));
         controller.Tick(TimeSpan.FromSeconds(2));
@@ -96,11 +96,11 @@ public class GameTextTests
     {
         using GameController controller = Loaded(Position.StartFen, "e2e4", "e7e5", "g1f3");
         Assert.Equal(
-            $" 1. e4       e5       {s_newLine} 2. Nf3      {s_newLine}",
-            GameText.MoveList(controller, showEngineOutput: false)
+            $" 1. e4       e5       {NewLine} 2. Nf3      {NewLine}",
+            GameText.MoveList(controller, isEngineOutputShown: false)
         );
         using GameController empty = Loaded();
-        Assert.Equal("", GameText.MoveList(empty, showEngineOutput: true));
+        Assert.Equal("", GameText.MoveList(empty, isEngineOutputShown: true));
     }
 
     [Fact]
@@ -108,8 +108,8 @@ public class GameTextTests
     {
         using GameController controller = Loaded("4k3/8/8/8/8/8/4P3/4K3 b - - 0 7", "e8d8", "e2e4");
         Assert.Equal(
-            $" 7. ...      Kd8      {s_newLine} 8. e4       {s_newLine}",
-            GameText.MoveList(controller, showEngineOutput: false)
+            $" 7. ...      Kd8      {NewLine} 8. e4       {NewLine}",
+            GameText.MoveList(controller, isEngineOutputShown: false)
         );
     }
 
@@ -123,8 +123,8 @@ public class GameTextTests
     {
         using GameController controller = Loaded(fen);
         Assert.Equal(
-            $"Position edited by user{s_newLine}{ending}",
-            GameText.MoveList(controller, showEngineOutput: false)
+            $"Position edited by user{NewLine}{ending}",
+            GameText.MoveList(controller, isEngineOutputShown: false)
         );
         Assert.Equal(result, GameText.Result(controller));
     }
@@ -144,15 +144,15 @@ public class GameTextTests
             "f6g8"
         );
         Assert.EndsWith(
-            $"{s_newLine}GAME OVER: DRAW\nDraw by threefold repetition",
-            GameText.MoveList(repeated, showEngineOutput: false),
+            $"{NewLine}GAME OVER: DRAW\nDraw by threefold repetition",
+            GameText.MoveList(repeated, isEngineOutputShown: false),
             StringComparison.Ordinal
         );
         Assert.Equal("1/2-1/2", GameText.Result(repeated));
         using GameController mated = Loaded("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", "d1d8");
         Assert.EndsWith(
             "CHECKMATE: White wins",
-            GameText.MoveList(mated, showEngineOutput: false),
+            GameText.MoveList(mated, isEngineOutputShown: false),
             StringComparison.Ordinal
         );
         Assert.Equal("1-0", GameText.Result(mated));
@@ -167,7 +167,7 @@ public class GameTextTests
         controller.ClearBoard();
         Assert.Equal(
             "Position edited by user: place both kings to continue",
-            GameText.MoveList(controller, showEngineOutput: true)
+            GameText.MoveList(controller, isEngineOutputShown: true)
         );
     }
 
@@ -186,13 +186,13 @@ public class GameTextTests
                                 : []
                     ),
             };
-            Assert.True(await controller.StartEngineAsync("Talker").WaitAsync(s_timeout));
+            Assert.True(await controller.StartEngineAsync("Talker").WaitAsync(Timeout));
             controller.NewGame(Color.Black);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
-            Assert.Equal($" 1. e4       {s_newLine}", GameText.MoveList(controller, showEngineOutput: false));
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
+            Assert.Equal($" 1. e4       {NewLine}", GameText.MoveList(controller, isEngineOutputShown: false));
             Assert.Equal(
-                $" 1. e4       {s_newLine}{s_newLine}info depth 1 score cp 25 nodes 30 pv e2e4",
-                GameText.MoveList(controller, showEngineOutput: true)
+                $" 1. e4       {NewLine}{NewLine}info depth 1 score cp 25 nodes 30 pv e2e4",
+                GameText.MoveList(controller, isEngineOutputShown: true)
             );
         });
 

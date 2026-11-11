@@ -22,7 +22,7 @@ namespace StoopidChess.Play;
 /// </summary>
 public sealed class UciEngineClient : IDisposable
 {
-    private static readonly TimeSpan s_shutdownTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(3);
 
     private readonly TextReader _reader;
     private readonly TextWriter _writer;
@@ -33,8 +33,8 @@ public sealed class UciEngineClient : IDisposable
     private TaskCompletionSource<string>? _uciOk; // Completed by "uciok"
     private TaskCompletionSource<string>? _readyOk; // Completed by "readyok"
     private TaskCompletionSource<string>? _bestMove; // Completed by "bestmove <move>"
-    private volatile bool _exited;
-    private bool _disposed;
+    private volatile bool _hasExited;
+    private bool _isDisposed;
 
     private UciEngineClient(TextReader reader, TextWriter writer, Process? process, Action? shutdown)
     {
@@ -57,7 +57,7 @@ public sealed class UciEngineClient : IDisposable
     /// True once the engine has closed its output: it has quit, crashed or been disposed. Commands
     /// sent after that throw <see cref="InvalidOperationException"/>.
     /// </summary>
-    public bool HasExited => _exited;
+    public bool HasExited => _hasExited;
 
     /// <summary>
     /// The external engine's process id; null for an engine in this process.
@@ -129,7 +129,7 @@ public sealed class UciEngineClient : IDisposable
             new StreamReader(engineOutput),
             new StreamWriter(toEngine) { AutoFlush = true },
             process: null,
-            shutdown: () => engineThread.Join(s_shutdownTimeout)
+            shutdown: () => engineThread.Join(ShutdownTimeout)
         );
     }
 
@@ -209,7 +209,7 @@ public sealed class UciEngineClient : IDisposable
     public static string FormatGo(SearchLimits limits)
     {
         ArgumentNullException.ThrowIfNull(limits);
-        if (limits.Infinite)
+        if (limits.IsInfinite)
         {
             return "infinite";
         }
@@ -256,8 +256,8 @@ public sealed class UciEngineClient : IDisposable
 
     private void Send(string command)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_exited)
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (_hasExited)
         {
             throw new InvalidOperationException("the engine has exited");
         }
@@ -271,7 +271,7 @@ public sealed class UciEngineClient : IDisposable
         }
         catch (IOException ex)
         {
-            _exited = true;
+            _hasExited = true;
             throw new InvalidOperationException("the engine has exited", ex);
         }
     }
@@ -290,7 +290,7 @@ public sealed class UciEngineClient : IDisposable
             // The engine has gone away; fall through and fail anything still waiting
         }
         catch (ObjectDisposedException) { }
-        _exited = true;
+        _hasExited = true;
         var gone = new InvalidOperationException("the engine has exited");
         lock (_sync)
         {
@@ -355,7 +355,7 @@ public sealed class UciEngineClient : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_disposed)
+        if (_isDisposed)
         {
             return;
         }
@@ -367,8 +367,8 @@ public sealed class UciEngineClient : IDisposable
         {
             // Already gone
         }
-        _disposed = true;
-        if (_process is not null && !_process.WaitForExit((int)s_shutdownTimeout.TotalMilliseconds))
+        _isDisposed = true;
+        if (_process is not null && !_process.WaitForExit((int)ShutdownTimeout.TotalMilliseconds))
         {
             try
             {
@@ -380,12 +380,12 @@ public sealed class UciEngineClient : IDisposable
             }
         }
         _shutdown?.Invoke();
-        _readerThread.Join(s_shutdownTimeout);
+        _readerThread.Join(ShutdownTimeout);
         try
         {
             _writer.Dispose();
         }
-        catch (IOException) when (_exited)
+        catch (IOException) when (_hasExited)
         {
             // A command the engine died before taking is still buffered (a write to a dead engine fails with the
             // command left in the writer, or in the stream under it), and closing the writer tries to send it again.

@@ -10,23 +10,23 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 public class UciEngineClientTests
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
 
     [Fact]
     public async Task InitialisesAndReportsName()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         Assert.StartsWith("Stoopid Chess", client.Name, StringComparison.Ordinal);
         Assert.Equal("Jonny Reckless", client.Author);
-        await client.WaitUntilReadyAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.WaitUntilReadyAsync(new CancellationTokenSource(Timeout).Token);
     }
 
     [Fact]
     public async Task PlaysAMoveFromAPosition()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         var infos = new List<string>();
         client.InfoReceived += (_, line) =>
         {
@@ -40,7 +40,7 @@ public class UciEngineClientTests
         game.TryMakeMove("e2e4");
         client.NewGame();
         client.SetPosition(game.StartFen, game.UciMoves);
-        string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(s_timeout);
+        string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(Timeout);
 
         Assert.True(game.TryMakeMove(best), $"engine played illegal move {best}");
         lock (infos)
@@ -53,10 +53,10 @@ public class UciEngineClientTests
     public async Task FindsMateFromAFenPosition()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         var game = Game.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
         client.SetPosition(game.StartFen, game.UciMoves);
-        string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(s_timeout);
+        string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(Timeout);
         Assert.Equal("d1d8", best);
     }
 
@@ -64,14 +64,14 @@ public class UciEngineClientTests
     public async Task CancellingAGoStopsTheSearch()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         client.SetPosition(Position.StartFen, []);
         using var cancellation = new CancellationTokenSource();
-        Task<string> search = client.GoAsync(new SearchLimits { Infinite = true }, cancellation.Token);
+        Task<string> search = client.GoAsync(new SearchLimits { IsInfinite = true }, cancellation.Token);
         await Task.Delay(100);
         Assert.False(search.IsCompleted);
         cancellation.Cancel();
-        string best = await search.WaitAsync(s_timeout);
+        string best = await search.WaitAsync(Timeout);
         Assert.NotEqual("0000", best);
     }
 
@@ -79,22 +79,22 @@ public class UciEngineClientTests
     public async Task RefusesOverlappingSearches()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         client.SetPosition(Position.StartFen, []);
-        Task<string> search = client.GoAsync(new SearchLimits { Infinite = true });
+        Task<string> search = client.GoAsync(new SearchLimits { IsInfinite = true });
         Assert.Throws<InvalidOperationException>(() =>
         {
             _ = client.GoAsync(SearchLimits.ForDepth(1));
         });
         client.Stop();
-        await search.WaitAsync(s_timeout);
+        await search.WaitAsync(Timeout);
     }
 
     [Fact]
     public async Task DisposeShutsTheEngineDown()
     {
         var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         Assert.False(client.HasExited);
         client.Dispose();
         client.Dispose(); // Idempotent
@@ -106,10 +106,10 @@ public class UciEngineClientTests
     public async Task AFaultyInfoHandlerDoesNotBreakTheClient()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
         client.InfoReceived += (_, _) => throw new FormatException("handler bug");
         client.SetPosition(Position.StartFen, []);
-        string best = await client.GoAsync(SearchLimits.ForDepth(2)).WaitAsync(s_timeout);
+        string best = await client.GoAsync(SearchLimits.ForDepth(2)).WaitAsync(Timeout);
         Assert.NotEqual("0000", best);
         Assert.False(client.HasExited);
     }
@@ -142,9 +142,9 @@ public class UciEngineClientTests
         string text = UciEngineClient.FormatGo(limits);
         SearchLimits parsed = UciSession.ParseGo(("go " + text).Split(' '));
         Assert.Equal(limits, parsed);
-        Assert.Equal("infinite", UciEngineClient.FormatGo(new SearchLimits { Infinite = true }));
+        Assert.Equal("infinite", UciEngineClient.FormatGo(new SearchLimits { IsInfinite = true }));
         Assert.Equal("infinite", UciEngineClient.FormatGo(new SearchLimits()));
-        Assert.True(UciSession.ParseGo(["go", "infinite", "ponder"]).Infinite);
+        Assert.True(UciSession.ParseGo(["go", "infinite", "ponder"]).IsInfinite);
         Assert.Equal(new SearchLimits(), UciSession.ParseGo(["go", "depth", "x"]));
     }
 }

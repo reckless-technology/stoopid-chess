@@ -23,15 +23,15 @@ namespace StoopidChess.Play;
 /// </summary>
 public sealed class GameController : IDisposable
 {
-    private static readonly TimeSpan s_engineStartTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan EngineStartTimeout = TimeSpan.FromSeconds(10);
 
     private UciEngineClient? _engine;
-    private bool _startingEngine;
+    private bool _isStartingEngine;
     private CancellationTokenSource? _thinking;
     private Task? _thinkingTask;
     private int _searchGeneration; // Bumped whenever a pending engine reply must be discarded
     private volatile string _lastEngineInfo = "";
-    private bool _disposed;
+    private bool _isDisposed;
 
     /// <summary>
     /// The game being played: the position, the moves so far and how it stands. Replaced by a new game, a loaded
@@ -184,16 +184,16 @@ public sealed class GameController : IDisposable
     /// </summary>
     public async Task<bool> StartEngineAsync(string? path)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_startingEngine)
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        if (_isStartingEngine)
         {
             return false;
         }
-        _startingEngine = true;
+        _isStartingEngine = true;
         try
         {
             // Throw away any search in progress and wait for it to unwind before the old engine goes
-            CancelThinking(discardResult: true);
+            CancelThinking(shouldDiscardResult: true);
             await WaitUntilIdleAsync();
             DropEngine();
             EnginePath = path;
@@ -202,14 +202,14 @@ public sealed class GameController : IDisposable
             (UciEngineClient? client, string? failure) = await ConnectAsync(path);
             if (client is null)
             {
-                if (_disposed)
+                if (_isDisposed)
                 {
                     return false;
                 }
                 EngineFailed?.Invoke(this, $"The engine could not be started: {failure}");
                 if (path is not null)
                 {
-                    _startingEngine = false;
+                    _isStartingEngine = false;
                     await StartEngineAsync(null);
                 }
                 return false;
@@ -219,7 +219,7 @@ public sealed class GameController : IDisposable
         }
         finally
         {
-            _startingEngine = false;
+            _isStartingEngine = false;
         }
         Resume();
         return true;
@@ -236,7 +236,7 @@ public sealed class GameController : IDisposable
         {
             client = path is null ? UciEngineClient.StartInProcess() : StartExternalEngine(path);
             client.InfoReceived += OnEngineInfo;
-            using var timeout = new CancellationTokenSource(s_engineStartTimeout);
+            using var timeout = new CancellationTokenSource(EngineStartTimeout);
             await client.InitialiseAsync(timeout.Token);
             return (client, null);
         }
@@ -264,7 +264,7 @@ public sealed class GameController : IDisposable
     /// </summary>
     private void StartThinkingIfEngineTurn()
     {
-        if (_thinking is not null || !IsEngineTurn || _disposed)
+        if (_thinking is not null || !IsEngineTurn || _isDisposed)
         {
             return;
         }
@@ -320,7 +320,7 @@ public sealed class GameController : IDisposable
                 _thinking = null;
             }
         }
-        if (_disposed)
+        if (_isDisposed)
         {
             return;
         }
@@ -395,12 +395,12 @@ public sealed class GameController : IDisposable
     }
 
     /// <summary>
-    /// Tell the engine to stop. With <paramref name="discardResult"/> its reply is thrown away when it comes (the game
+    /// Tell the engine to stop. With <paramref name="shouldDiscardResult"/> its reply is thrown away when it comes (the game
     /// has moved on); without, the best move it has found so far is played (<see cref="MoveNow"/>).
     /// </summary>
-    private void CancelThinking(bool discardResult)
+    private void CancelThinking(bool shouldDiscardResult)
     {
-        if (discardResult)
+        if (shouldDiscardResult)
         {
             _searchGeneration++;
         }
@@ -449,8 +449,8 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void NewGame(Color human)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        CancelThinking(discardResult: true);
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
+        CancelThinking(shouldDiscardResult: true);
         Game = new Game();
         Editing = null;
         HumanColor = human;
@@ -529,11 +529,11 @@ public sealed class GameController : IDisposable
         {
             return;
         }
-        CancelThinking(discardResult: true);
-        Game.UndoMove();
+        CancelThinking(shouldDiscardResult: true);
+        Game.TryUndoMove();
         if (Game.SideToMove != HumanColor)
         {
-            Game.UndoMove();
+            Game.TryUndoMove();
         }
         if (TimedOut is Color flagged)
         {
@@ -565,7 +565,7 @@ public sealed class GameController : IDisposable
         }
         else
         {
-            CancelThinking(discardResult: true);
+            CancelThinking(shouldDiscardResult: true);
             RaiseChanged();
         }
     }
@@ -573,7 +573,7 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// Stop the engine's search; it plays the best move it has found so far.
     /// </summary>
-    public void MoveNow() => CancelThinking(discardResult: false);
+    public void MoveNow() => CancelThinking(shouldDiscardResult: false);
 
     // ---------------------------------------------------------------------------------------------
     // Position editing
@@ -619,7 +619,7 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void SetPosition(Position position)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
         ArgumentNullException.ThrowIfNull(position);
         if (position.IsValid)
         {
@@ -643,14 +643,14 @@ public sealed class GameController : IDisposable
             StartFrom(position);
             return;
         }
-        CancelThinking(discardResult: true);
+        CancelThinking(shouldDiscardResult: true);
         Editing = editing;
         Resume();
     }
 
     private void StartFrom(Position position)
     {
-        CancelThinking(discardResult: true);
+        CancelThinking(shouldDiscardResult: true);
         Game = new Game(position);
         Editing = null;
         ResetClocks(); // A new position is a new game as far as the clocks are concerned
@@ -666,10 +666,10 @@ public sealed class GameController : IDisposable
     /// </summary>
     public void SetTimeControl(TimeControl timeControl)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(_isDisposed, this);
         ArgumentNullException.ThrowIfNull(timeControl);
         TimeControl = timeControl;
-        CancelThinking(discardResult: true); // A search under the old clock is restarted under the new
+        CancelThinking(shouldDiscardResult: true); // A search under the old clock is restarted under the new
         ResetClocks();
         Resume();
     }
@@ -690,7 +690,7 @@ public sealed class GameController : IDisposable
         {
             remaining = TimeSpan.Zero;
             TimedOut = side;
-            CancelThinking(discardResult: true);
+            CancelThinking(shouldDiscardResult: true);
         }
         if (side == Color.White)
         {
@@ -724,7 +724,7 @@ public sealed class GameController : IDisposable
     /// <summary>
     /// Replace the game with a saved one. Returns false, changing nothing, if it is not valid.
     /// </summary>
-    public bool Load(SavedGame saved)
+    public bool TryLoad(SavedGame saved)
     {
         ArgumentNullException.ThrowIfNull(saved);
         var loaded = saved.ToGame();
@@ -732,7 +732,7 @@ public sealed class GameController : IDisposable
         {
             return false;
         }
-        CancelThinking(discardResult: true);
+        CancelThinking(shouldDiscardResult: true);
         Game = loaded;
         Editing = null;
         HumanColor = saved.HumanColor;
@@ -748,12 +748,12 @@ public sealed class GameController : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (_isDisposed)
         {
             return;
         }
-        _disposed = true;
-        CancelThinking(discardResult: true);
+        _isDisposed = true;
+        CancelThinking(shouldDiscardResult: true);
         DropEngine();
         _thinking?.Dispose();
     }

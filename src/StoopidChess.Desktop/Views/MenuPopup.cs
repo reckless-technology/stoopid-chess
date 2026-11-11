@@ -23,9 +23,9 @@ internal sealed class MenuPopup : View
     private const float ShortcutGap = 28.0f;
     private const float MinimumWidth = 140.0f;
 
-    private static readonly SKColor s_border = Theme.Ink.WithOpacity(0.6f);
-    private static readonly SKColor s_highlight = Theme.Amber.WithOpacity(0.35f);
-    private static readonly SKColor s_disabledText = Theme.Ink.WithMultipliedAlpha(0.3f);
+    private static readonly SKColor Border = Theme.Ink.WithOpacity(0.6f);
+    private static readonly SKColor Highlight = Theme.Amber.WithOpacity(0.35f);
+    private static readonly SKColor DisabledText = Theme.Ink.WithMultipliedAlpha(0.3f);
 
     private readonly List<Level> _levels = [];
     private int _pressedLevel = -1;
@@ -362,7 +362,7 @@ internal sealed class MenuPopup : View
     {
         using var paint = new SKPaint { Color = Theme.Window, IsAntialias = true };
         canvas.DrawRect(level.Box, paint);
-        paint.Color = s_border;
+        paint.Color = Border;
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1;
         canvas.DrawRect(Plates.Reduced(level.Box, 0.5f), paint);
@@ -373,7 +373,7 @@ internal sealed class MenuPopup : View
             if (item.IsSeparator)
             {
                 paint.Style = SKPaintStyle.Stroke;
-                paint.Color = s_border;
+                paint.Color = Border;
                 float middle = MathF.Floor(row.MidY) + 0.5f;
                 canvas.DrawLine(row.Left + Padding, middle, row.Right - Padding, middle, paint);
                 continue;
@@ -382,10 +382,10 @@ internal sealed class MenuPopup : View
             if (isLit)
             {
                 paint.Style = SKPaintStyle.Fill;
-                paint.Color = s_highlight;
+                paint.Color = Highlight;
                 canvas.DrawRect(row, paint);
             }
-            SKColor ink = item.IsEnabled ? Theme.Ink : s_disabledText;
+            SKColor ink = item.IsEnabled ? Theme.Ink : DisabledText;
             if (item.IsChecked)
             {
                 // A tick: two strokes in the left column

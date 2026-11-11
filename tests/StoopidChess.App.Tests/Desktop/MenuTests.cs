@@ -161,7 +161,7 @@ public class MenuTests
     public void TheKeyboardWorksTheMenus()
     {
         var bar = new Bar();
-        Assert.True(bar.MenuBar.OpenByLetter('g'));
+        Assert.True(bar.MenuBar.TryOpenByLetter('g'));
         Assert.Equal(1, bar.MenuBar.OpenMenu);
         MenuPopup game = bar.Popup;
         Assert.Equal(0, game.HoveredRow(0));
@@ -180,21 +180,21 @@ public class MenuTests
         bar.Window.Key(Key.Right); // Undo has no submenu: the next title
         Assert.Equal(-1, bar.MenuBar.OpenMenu); // Help: acts, and opens nothing
         Assert.Contains("help", bar.Chosen);
-        Assert.True(bar.MenuBar.OpenByLetter('F'));
+        Assert.True(bar.MenuBar.TryOpenByLetter('F'));
         bar.Window.Key(Key.Left); // The previous title, round to the last
         Assert.Equal(-1, bar.MenuBar.OpenMenu); // Off is disabled: nothing opens
-        bar.MenuBar.OpenByLetter('F');
+        bar.MenuBar.TryOpenByLetter('F');
         bar.Window.Key(Key.Down); // Past the separator and the disabled row
         Assert.Equal(3, bar.Popup.HoveredRow(0));
         bar.Window.Key(Key.Return);
         Assert.Equal(["help", "exit"], bar.Chosen);
-        Assert.False(bar.MenuBar.OpenByLetter('Z'));
-        bar.MenuBar.OpenByLetter('G');
+        Assert.False(bar.MenuBar.TryOpenByLetter('Z'));
+        bar.MenuBar.TryOpenByLetter('G');
         bar.Window.Key(Key.Return); // New Game: its submenu opens
         Assert.Equal(2, bar.Popup.LevelCount);
         bar.Window.Key(Key.Return);
         Assert.Equal(["help", "exit", "white"], bar.Chosen);
-        bar.MenuBar.OpenByLetter('G');
+        bar.MenuBar.TryOpenByLetter('G');
         bar.Window.Key(Key.A); // Any other key is the menu's, and does nothing
         bar.Window.Key(Key.Escape);
         Assert.Empty(bar.Window.Root.Overlays);

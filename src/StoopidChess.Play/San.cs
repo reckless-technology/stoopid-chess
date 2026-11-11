@@ -175,27 +175,27 @@ public static class San
     /// </summary>
     private static string Disambiguation(Position position, Move move)
     {
-        bool ambiguous = false;
-        bool sameFile = false;
-        bool sameRank = false;
+        bool isAmbiguous = false;
+        bool isSameFile = false;
+        bool isSameRank = false;
         foreach (Move other in position.GenerateLegalMoves())
         {
             if (other.Piece == move.Piece && other.To == move.To && other.From != move.From)
             {
-                ambiguous = true;
-                sameFile |= other.From.File == move.From.File;
-                sameRank |= other.From.Rank == move.From.Rank;
+                isAmbiguous = true;
+                isSameFile |= other.From.File == move.From.File;
+                isSameRank |= other.From.Rank == move.From.Rank;
             }
         }
-        if (!ambiguous)
+        if (!isAmbiguous)
         {
             return "";
         }
-        if (!sameFile)
+        if (!isSameFile)
         {
             return ((char)('a' + move.From.File)).ToString();
         }
-        if (!sameRank)
+        if (!isSameRank)
         {
             return ((char)('1' + move.From.Rank)).ToString();
         }

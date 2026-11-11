@@ -160,7 +160,7 @@ public class MoveGenerationTests
     /// </summary>
     private static class ReferenceGenerator
     {
-        private static readonly (int File, int Rank)[] s_knightSteps =
+        private static readonly (int File, int Rank)[] KnightSteps =
         [
             (1, 2),
             (2, 1),
@@ -171,7 +171,7 @@ public class MoveGenerationTests
             (-2, 1),
             (-1, 2),
         ];
-        private static readonly (int File, int Rank)[] s_kingSteps =
+        private static readonly (int File, int Rank)[] KingSteps =
         [
             (0, 1),
             (1, 1),
@@ -182,9 +182,9 @@ public class MoveGenerationTests
             (-1, 0),
             (-1, 1),
         ];
-        private static readonly (int File, int Rank)[] s_diagonals = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
-        private static readonly (int File, int Rank)[] s_orthogonals = [(0, 1), (1, 0), (0, -1), (-1, 0)];
-        private static readonly Piece[] s_promotions = [Piece.Queen, Piece.Rook, Piece.Bishop, Piece.Knight];
+        private static readonly (int File, int Rank)[] Diagonals = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
+        private static readonly (int File, int Rank)[] Orthogonals = [(0, 1), (1, 0), (0, -1), (-1, 0)];
+        private static readonly Piece[] Promotions = [Piece.Queen, Piece.Rook, Piece.Bishop, Piece.Knight];
 
         public static List<Move> LegalMoves(Position position)
         {
@@ -214,25 +214,25 @@ public class MoveGenerationTests
                     return true;
                 }
             }
-            foreach ((int df, int dr) in s_knightSteps)
+            foreach ((int df, int dr) in KnightSteps)
             {
                 if (At(position, file + df, rank + dr) == (by, Piece.Knight))
                 {
                     return true;
                 }
             }
-            foreach ((int df, int dr) in s_kingSteps)
+            foreach ((int df, int dr) in KingSteps)
             {
                 if (At(position, file + df, rank + dr) == (by, Piece.King))
                 {
                     return true;
                 }
             }
-            return SliderAttacks(position, file, rank, by, s_diagonals, Piece.Bishop)
-                || SliderAttacks(position, file, rank, by, s_orthogonals, Piece.Rook);
+            return IsAttackedBySlider(position, file, rank, by, Diagonals, Piece.Bishop)
+                || IsAttackedBySlider(position, file, rank, by, Orthogonals, Piece.Rook);
         }
 
-        private static bool SliderAttacks(
+        private static bool IsAttackedBySlider(
             Position position,
             int file,
             int rank,
@@ -286,7 +286,7 @@ public class MoveGenerationTests
                         break;
                     case Piece.Knight:
                     case Piece.King:
-                        foreach ((int df, int dr) in piece.Type == Piece.Knight ? s_knightSteps : s_kingSteps)
+                        foreach ((int df, int dr) in piece.Type == Piece.Knight ? KnightSteps : KingSteps)
                         {
                             if (!IsOnBoard(file + df, rank + dr))
                             {
@@ -314,9 +314,9 @@ public class MoveGenerationTests
                     default:
                         (int File, int Rank)[] directions = piece.Type switch
                         {
-                            Piece.Bishop => s_diagonals,
-                            Piece.Rook => s_orthogonals,
-                            _ => [.. s_diagonals, .. s_orthogonals],
+                            Piece.Bishop => Diagonals,
+                            Piece.Rook => Orthogonals,
+                            _ => [.. Diagonals, .. Orthogonals],
                         };
                         foreach ((int df, int dr) in directions)
                         {
@@ -360,13 +360,13 @@ public class MoveGenerationTests
             int startRank = us == Color.White ? 1 : 6;
             int promotionRank = us == Color.White ? 7 : 0;
             int forwardRank = rank + direction;
-            bool promotes = forwardRank == promotionRank;
+            bool isPromotion = forwardRank == promotionRank;
             if (position[file, forwardRank].Type == Piece.None)
             {
                 var to = Square.At(file, forwardRank);
-                if (promotes)
+                if (isPromotion)
                 {
-                    foreach (Piece promotion in s_promotions)
+                    foreach (Piece promotion in Promotions)
                     {
                         yield return new Move(from, to, Piece.Pawn, Piece.None, MoveKind.Promotion, promotion);
                     }
@@ -396,9 +396,9 @@ public class MoveGenerationTests
                 (Color Color, Piece Type) target = position[to];
                 if (target.Type != Piece.None && target.Color == them)
                 {
-                    if (promotes)
+                    if (isPromotion)
                     {
-                        foreach (Piece promotion in s_promotions)
+                        foreach (Piece promotion in Promotions)
                         {
                             yield return new Move(from, to, Piece.Pawn, target.Type, MoveKind.Promotion, promotion);
                         }

@@ -154,11 +154,17 @@ only the things a change must not break.
 - **Names follow Microsoft's "C# identifier naming rules and conventions"** (learn.microsoft.com/dotnet/csharp/
   fundamentals/coding-style/identifier-names, checked 2026-11-10), enforced as warnings in `.editorconfig`
   (IDE1006, which `dotnet format style` fails on): PascalCase for types, namespaces, methods, properties, events and
-  constants (including private ones); camelCase for locals and parameters; `_camelCase` for private and internal
-  instance fields; `s_camelCase` for private and internal static fields, `static readonly` tables included; `I` on
-  interfaces and `T` on type parameters. Underscores appear nowhere else. A declaration that mirrors a native name
-  (SDL's `SDLK_*`) would be exempt in a section of its own in `.editorconfig`; none is declared here, the SDL3
-  bindings being a package. The house rule on top: names spelled out, booleans starting is/has/can/may/do/does.
+  constants and `static readonly` fields (including private ones: `KnightTable`); camelCase for locals and
+  parameters; `_camelCase` for private and internal instance fields and for the rare mutable static one; `I` on
+  interfaces and `T` on type parameters. **No Hungarian notation: no `s_`, `m_` or type prefixes** (Jonny,
+  2026-11-10); the single `_` marks a field, not a type. Underscores appear nowhere else. A declaration that mirrors
+  a native name (SDL's `SDLK_*`) would be exempt in a section of its own in `.editorconfig`; none is declared here,
+  the SDL3 bindings being a package.
+- **Booleans** (fields, properties, parameters, locals, and methods returning `bool`) start with a verb such as
+  is/has/can/does/did/may/was/should and name what `true` means: `_isClosed`, `IsInfinite`, `WasLastMoveNull`, not
+  `_closed` or `Infinite`. Not enforceable by `.editorconfig`, so review holds it. Exceptions: the standard `TryX`
+  pattern, `Contains`/`Matches` and the other collection-style predicates, framework-shaped members such as
+  `MoveNext`, and the view hierarchy's `OnPointerDown`/`OnKeyDown`/`OnWheel` handlers, whose `bool` is "handled", and `UciSession.HandleCommand`, whose `bool` is "keep running".
 - American spelling in identifiers and comments: `Color`, not `Colour`.
 - **Formatting is two tools with separate jobs.** CSharpier (pinned in `.config/dotnet-tools.json`, configured by
   `.csharpierrc.json`: `printWidth` 120, the C++ repositories' ColumnLimit, 4-space indent, LF) owns the layout of

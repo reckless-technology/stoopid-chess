@@ -16,12 +16,12 @@ namespace StoopidChess.Desktop.Sdl;
 internal sealed unsafe class SdlHost : IDisposable
 {
     /// <summary>How often the clocks tick.</summary>
-    private static readonly TimeSpan s_tickInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan TickInterval = TimeSpan.FromMilliseconds(100);
 
     /// <summary>How long "--smoke" keeps the GUI running once its main window has opened.</summary>
-    private static readonly TimeSpan s_smokeRunTime = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan SmokeRunTime = TimeSpan.FromSeconds(10);
 
-    private static SdlHost? s_current; // The one host, for SDL's event watch, which takes no managed state
+    private static SdlHost? _current; // The one host, for SDL's event watch, which takes no managed state
 
     private readonly List<SdlWindow> _windows = [];
     private readonly Dictionary<SdlWindow, Action> _closedHandlers = [];
@@ -36,7 +36,7 @@ internal sealed unsafe class SdlHost : IDisposable
         _wakeEvent = SDL3.SDL_RegisterEvents(1);
         _context = new UiSynchronizationContext(Wake);
         SynchronizationContext.SetSynchronizationContext(_context);
-        s_current = this;
+        _current = this;
     }
 
     /// <summary>The main window.</summary>
@@ -86,16 +86,16 @@ internal sealed unsafe class SdlHost : IDisposable
         if (isSmokeTest)
         {
             Console.WriteLine($"Stoopid Chess {Program.Version}: the main window is open");
-            smokeEnd = _clock.Elapsed + s_smokeRunTime;
+            smokeEnd = _clock.Elapsed + SmokeRunTime;
         }
         TimeSpan lastTick = _clock.Elapsed;
         SDL_Event e;
         while (!_isQuitting)
         {
-            TimeSpan untilTick = lastTick + s_tickInterval - _clock.Elapsed;
+            TimeSpan untilTick = lastTick + TickInterval - _clock.Elapsed;
             int timeout = _context.HasPending
                 ? 0
-                : Math.Clamp((int)untilTick.TotalMilliseconds, 0, (int)s_tickInterval.TotalMilliseconds);
+                : Math.Clamp((int)untilTick.TotalMilliseconds, 0, (int)TickInterval.TotalMilliseconds);
             if (SDL3.SDL_WaitEventTimeout(&e, timeout))
             {
                 Dispatch(e);
@@ -106,7 +106,7 @@ internal sealed unsafe class SdlHost : IDisposable
             }
             _context.RunPending();
             TimeSpan now = _clock.Elapsed;
-            if (now - lastTick >= s_tickInterval)
+            if (now - lastTick >= TickInterval)
             {
                 mainView.Tick(now - lastTick);
                 lastTick = now;
@@ -114,7 +114,7 @@ internal sealed unsafe class SdlHost : IDisposable
             if (now >= smokeEnd)
             {
                 Console.WriteLine(
-                    $"Stoopid Chess {Program.Version}: ran for {s_smokeRunTime.TotalSeconds:0} seconds; quitting"
+                    $"Stoopid Chess {Program.Version}: ran for {SmokeRunTime.TotalSeconds:0} seconds; quitting"
                 );
                 _isQuitting = true;
             }
@@ -296,7 +296,7 @@ internal sealed unsafe class SdlHost : IDisposable
     private static SDLBool WatchEvent(IntPtr userdata, SDL_Event* e)
     {
         if (
-            s_current is { } host
+            _current is { } host
             && Environment.CurrentManagedThreadId == host._mainThread
             && (SDL_EventType)e->type is SDL_EventType.SDL_EVENT_WINDOW_EXPOSED
             && host.WindowOf(e->window.windowID) is { } window
@@ -315,6 +315,6 @@ internal sealed unsafe class SdlHost : IDisposable
         }
         _windows.Clear();
         SynchronizationContext.SetSynchronizationContext(null);
-        s_current = null;
+        _current = null;
     }
 }

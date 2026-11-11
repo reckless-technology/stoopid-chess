@@ -184,7 +184,7 @@ public sealed class Game
     /// <summary>
     /// Take back the last move. Returns false if there is none.
     /// </summary>
-    public bool UndoMove()
+    public bool TryUndoMove()
     {
         if (_moves.Count == 0)
         {

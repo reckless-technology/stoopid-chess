@@ -54,7 +54,7 @@ internal sealed class ViewRoot : View
     public IReadOnlyList<View> Overlays => _overlays;
 
     /// <summary>Whether the view holding the keyboard wants typed text.</summary>
-    public bool WantsTextInput => Focused?.AcceptsText == true;
+    public bool WantsTextInput => Focused?.CanAcceptText == true;
 
     /// <summary>
     /// The window's new size, in logical pixels.

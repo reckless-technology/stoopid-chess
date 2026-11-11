@@ -46,9 +46,9 @@ internal static class GameText
 
     /// <summary>
     /// The move list: the game's moves in SAN, numbered two to a line, then how the game stands (check, or
-    /// how it ended), and the engine's last report when <paramref name="showEngineOutput"/> is set.
+    /// how it ended), and the engine's last report when <paramref name="isEngineOutputShown"/> is set.
     /// </summary>
-    public static string MoveList(GameController controller, bool showEngineOutput)
+    public static string MoveList(GameController controller, bool isEngineOutputShown)
     {
         ArgumentNullException.ThrowIfNull(controller);
         if (controller.IsEditing)
@@ -59,11 +59,11 @@ internal static class GameText
         var text = new StringBuilder();
         Color mover = game.StartSideToMove;
         int moveNumber = game.StartMoveNumber;
-        bool lineOpen = false;
+        bool isLineOpen = false;
         if (mover == Color.Black && game.Moves.Count > 0)
         {
             text.Append(CultureInfo.InvariantCulture, $"{moveNumber, 2}. {"...", -9}");
-            lineOpen = true;
+            isLineOpen = true;
         }
         var replay = Position.FromFen(game.StartFen);
         foreach (Move move in game.Moves)
@@ -71,7 +71,7 @@ internal static class GameText
             if (mover == Color.White)
             {
                 text.Append(CultureInfo.InvariantCulture, $"{moveNumber, 2}. ");
-                lineOpen = true;
+                isLineOpen = true;
             }
             text.Append(CultureInfo.InvariantCulture, $"{San.Format(replay, move), -9}");
             replay.MakeMove(move);
@@ -79,11 +79,11 @@ internal static class GameText
             {
                 text.AppendLine();
                 moveNumber++;
-                lineOpen = false;
+                isLineOpen = false;
             }
             mover = mover.Opponent();
         }
-        if (lineOpen)
+        if (isLineOpen)
         {
             text.AppendLine();
         }
@@ -119,7 +119,7 @@ internal static class GameText
         {
             text.Append(CultureInfo.InvariantCulture, $"GAME OVER: {flagged} lost on time");
         }
-        if (showEngineOutput && controller.LastEngineInfo.Length != 0)
+        if (isEngineOutputShown && controller.LastEngineInfo.Length != 0)
         {
             text.AppendLine().Append(controller.LastEngineInfo);
         }

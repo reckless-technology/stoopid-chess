@@ -132,13 +132,13 @@ internal sealed unsafe class SdlWindow : IDisposable
     /// </summary>
     public void UpdateTextInput()
     {
-        bool wants = Root.WantsTextInput;
-        if (wants == _isTextInputOn)
+        bool isTextInputWanted = Root.WantsTextInput;
+        if (isTextInputWanted == _isTextInputOn)
         {
             return;
         }
-        _isTextInputOn = wants;
-        if (wants)
+        _isTextInputOn = isTextInputWanted;
+        if (isTextInputWanted)
         {
             SDL3.SDL_StartTextInput(Handle);
         }

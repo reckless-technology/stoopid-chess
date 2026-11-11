@@ -19,7 +19,7 @@ public enum CastlingRights : byte
 public static class CastlingRightsExtensions
 {
     // The rights lost when a move touches each square: only the six home squares carry any
-    private static readonly CastlingRights[] s_lostBySquareTable = BuildLostBySquare();
+    private static readonly CastlingRights[] LostBySquareTable = BuildLostBySquare();
 
     /// <summary>
     /// The FEN castling field, e.g. "KQkq" or "-".
@@ -42,7 +42,7 @@ public static class CastlingRightsExtensions
     /// The rights that are lost whenever a piece moves from, or a capture is made on, the given square.
     /// The king's home square carries both of that side's rights; each rook's home square carries one.
     /// </summary>
-    public static CastlingRights LostBySquare(Square square) => s_lostBySquareTable[square];
+    public static CastlingRights LostBySquare(Square square) => LostBySquareTable[square];
 
     private static CastlingRights[] BuildLostBySquare()
     {

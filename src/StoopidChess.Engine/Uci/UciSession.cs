@@ -28,7 +28,7 @@ public sealed class UciSession : IDisposable
     private Position _position = Position.Start();
     private Task? _searchTask;
     private CancellationTokenSource? _searchCancellation;
-    private bool _disposed;
+    private bool _isDisposed;
 
     public UciSession(TextReader input, TextWriter output)
     {
@@ -232,7 +232,7 @@ public sealed class UciSession : IDisposable
         {
             if (tokens[i] == "infinite")
             {
-                limits = limits with { Infinite = true };
+                limits = limits with { IsInfinite = true };
                 continue;
             }
             string? argument = tokens.ElementAtOrDefault(i + 1);
@@ -326,11 +326,11 @@ public sealed class UciSession : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        if (_isDisposed)
         {
             return;
         }
-        _disposed = true;
+        _isDisposed = true;
         StopSearch();
     }
 }

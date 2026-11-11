@@ -12,12 +12,12 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 public class GameControllerTests
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
 
     private static async Task<GameController> StartAsync()
     {
         var controller = new GameController { LimitsFor = limits => limits with { Depth = 2 } };
-        Assert.True(await controller.StartEngineAsync(null).WaitAsync(s_timeout));
+        Assert.True(await controller.StartEngineAsync(null).WaitAsync(Timeout));
         Assert.True(controller.HasEngine);
         Assert.StartsWith("Stoopid Chess", controller.EngineName, StringComparison.Ordinal);
         return controller;
@@ -31,7 +31,7 @@ public class GameControllerTests
             int changes = 0;
             controller.Changed += (_, _) => Interlocked.Increment(ref changes);
             controller.NewGame(Color.Black);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(controller.Game.Moves);
             Assert.Equal(Color.Black, controller.Game.SideToMove);
             Assert.True(controller.IsHumanTurn);
@@ -49,7 +49,7 @@ public class GameControllerTests
             Assert.False(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e5")));
             Assert.True(controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
             Assert.False(controller.IsHumanTurn);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(2, controller.Game.Moves.Count);
             Assert.True(controller.IsHumanTurn);
             Assert.False(
@@ -62,13 +62,15 @@ public class GameControllerTests
         ControllerThread.Run(async () =>
         {
             using GameController controller = await StartAsync();
-            controller.Load(new SavedGame { StartFen = "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", HumanColor = Color.White });
+            controller.TryLoad(
+                new SavedGame { StartFen = "4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", HumanColor = Color.White }
+            );
             var from = Square.Parse("b7");
             var to = Square.Parse("b8");
             Assert.Equal(4, controller.HumanMoveCandidates(from, to).Count);
             Assert.False(controller.TryHumanMove(from, to));
             Assert.True(controller.TryHumanMove(from, to, Piece.Knight));
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal((Color.White, Piece.Knight), controller.Game.Position[to]);
         });
 
@@ -77,12 +79,12 @@ public class GameControllerTests
         ControllerThread.Run(async () =>
         {
             using GameController controller = await StartAsync();
-            controller.LimitsFor = _ => new SearchLimits { Infinite = true };
+            controller.LimitsFor = _ => new SearchLimits { IsInfinite = true };
             controller.NewGame(Color.White);
             controller.TryHumanMove(Square.Parse("d2"), Square.Parse("d4"));
             Assert.True(controller.IsThinking);
             controller.Undo();
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Empty(controller.Game.Moves);
             Assert.True(controller.IsHumanTurn);
             Assert.False(controller.IsThinking);
@@ -95,10 +97,10 @@ public class GameControllerTests
             using GameController controller = await StartAsync();
             controller.NewGame(Color.White);
             controller.TryHumanMove(Square.Parse("d2"), Square.Parse("d4"));
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(2, controller.Game.Moves.Count);
             controller.Undo();
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Empty(controller.Game.Moves);
             Assert.True(controller.IsHumanTurn);
         });
@@ -138,12 +140,12 @@ public class GameControllerTests
         ControllerThread.Run(async () =>
         {
             using GameController controller = await StartAsync();
-            controller.LimitsFor = _ => new SearchLimits { Infinite = true };
+            controller.LimitsFor = _ => new SearchLimits { IsInfinite = true };
             controller.NewGame(Color.Black);
             await Task.Delay(200);
             Assert.True(controller.IsThinking);
             controller.MoveNow();
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(controller.Game.Moves);
         });
 
@@ -157,7 +159,7 @@ public class GameControllerTests
             controller.SwitchSides();
             Assert.Equal(Color.Black, controller.HumanColor);
             Assert.True(controller.IsBoardFlipped);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(controller.Game.Moves);
             Assert.True(controller.IsHumanTurn);
         });
@@ -177,7 +179,7 @@ public class GameControllerTests
             controller.EditSquare(Square.Parse("a7"), (Color.White, Piece.Rook));
             Assert.False(controller.IsEditing);
             controller.SetSideToMove(Color.Black);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Single(controller.Game.Moves); // Black (the engine) has moved
             Assert.Equal(Color.White, controller.Game.SideToMove);
         });
@@ -189,19 +191,19 @@ public class GameControllerTests
             using GameController controller = await StartAsync();
             controller.Level = Level.Hard;
             controller.NewGame(Color.Black);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             SavedGame saved = controller.Save()!;
             using var stream = new MemoryStream();
             saved.Save(stream);
             stream.Position = 0;
             SavedGame loaded = SavedGame.Load(stream)!;
             controller.NewGame(Color.White);
-            Assert.True(controller.Load(loaded));
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            Assert.True(controller.TryLoad(loaded));
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(Color.Black, controller.HumanColor);
             Assert.Equal(Level.Hard, controller.Level);
             Assert.Single(controller.Game.Moves);
-            Assert.False(controller.Load(new SavedGame { StartFen = "not a fen" }));
+            Assert.False(controller.TryLoad(new SavedGame { StartFen = "not a fen" }));
         });
 
     [Fact]
@@ -210,7 +212,7 @@ public class GameControllerTests
         {
             using GameController controller = await StartAsync();
             TimeSpan start = controller.TimeControl.Base;
-            controller.Load(
+            controller.TryLoad(
                 new SavedGame { StartFen = "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1", HumanColor = Color.White }
             );
             Assert.Equal(start, controller.WhiteClock);
@@ -218,7 +220,7 @@ public class GameControllerTests
             Assert.Equal(start - TimeSpan.FromSeconds(1), controller.WhiteClock);
             Assert.Equal(start, controller.BlackClock);
             Assert.True(controller.TryHumanMove(Square.Parse("d1"), Square.Parse("d8")));
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(GameStatus.Checkmate, controller.Game.Status);
             controller.Tick(TimeSpan.FromSeconds(1));
             Assert.Equal(start, controller.BlackClock);
@@ -292,7 +294,7 @@ public class GameControllerTests
     public void UndoAfterALossOnTimeReopensTheGame()
     {
         using var controller = new GameController();
-        Assert.True(controller.Load(new SavedGame { Moves = ["e2e4", "e7e5"], HumanColor = Color.White }));
+        Assert.True(controller.TryLoad(new SavedGame { Moves = ["e2e4", "e7e5"], HumanColor = Color.White }));
         controller.Tick(controller.TimeControl.Base + TimeSpan.FromSeconds(1));
         Assert.Equal(Color.White, controller.TimedOut);
         controller.Undo();
@@ -333,11 +335,11 @@ public class GameControllerTests
                         )
                         .Client,
             };
-            Assert.True(await controller.StartEngineAsync("instant").WaitAsync(s_timeout));
+            Assert.True(await controller.StartEngineAsync("instant").WaitAsync(Timeout));
             controller.NewGame(Color.Black);
             Assert.True(controller.IsThinking);
             Assert.Empty(controller.Game.Moves);
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.Equal(["e2e4"], controller.Game.UciMoves);
             Assert.False(controller.IsThinking);
             Assert.True(controller.IsHumanTurn);
@@ -353,7 +355,7 @@ public class GameControllerTests
             Assert.False(
                 await controller
                     .StartEngineAsync(Path.Combine(Path.GetTempPath(), "no-such-engine.exe"))
-                    .WaitAsync(s_timeout)
+                    .WaitAsync(Timeout)
             );
             Assert.Single(failures);
             Assert.True(controller.HasEngine);
@@ -366,10 +368,10 @@ public class GameControllerTests
         ControllerThread.Run(async () =>
         {
             GameController controller = await StartAsync();
-            controller.LimitsFor = _ => new SearchLimits { Infinite = true };
+            controller.LimitsFor = _ => new SearchLimits { IsInfinite = true };
             controller.NewGame(Color.Black);
             controller.Dispose();
-            await controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
+            await controller.WaitUntilIdleAsync().WaitAsync(Timeout);
             Assert.False(controller.HasEngine);
             Assert.Throws<ObjectDisposedException>(() => controller.NewGame(Color.White));
         });

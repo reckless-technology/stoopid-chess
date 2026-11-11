@@ -183,9 +183,9 @@ public class PositionTests
     [InlineData("4kb2/8/8/8/8/8/8/4KB2 w - - 0 1", false)] // f8 is dark, f1 is light
     [InlineData("4k1b1/8/8/8/8/8/8/4KB2 w - - 0 1", true)] // g8 and f1 are both light
     [InlineData("4k3/8/8/8/8/8/8/4KR2 w - - 0 1", false)]
-    public void DetectsInsufficientMaterial(string fen, bool expected)
+    public void DetectsInsufficientMaterial(string fen, bool isInsufficientMaterial)
     {
-        Assert.Equal(expected, Position.FromFen(fen).IsInsufficientMaterial());
+        Assert.Equal(isInsufficientMaterial, Position.FromFen(fen).IsInsufficientMaterial());
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class PositionTests
         string fen = position.ToFen();
         ulong key = position.Key;
         position.MakeNullMove();
-        Assert.True(position.LastMoveWasNull);
+        Assert.True(position.WasLastMoveNull);
         Assert.Equal(Color.White, position.SideToMove);
         Assert.Equal(Square.None, position.EnPassantSquare);
         Assert.NotEqual(key, position.Key);
@@ -220,7 +220,7 @@ public class PositionTests
         Assert.Equal(computed, position.Key);
         Assert.Equal(position.FullMoveNumber, Position.FromFen(fen).FullMoveNumber);
         position.UnmakeMove();
-        Assert.False(position.LastMoveWasNull);
+        Assert.False(position.WasLastMoveNull);
         Assert.Equal(fen, position.ToFen());
         Assert.Equal(key, position.Key);
         Assert.True(position.HasNonPawnMaterial(Color.White));

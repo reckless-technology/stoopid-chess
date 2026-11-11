@@ -268,7 +268,7 @@ public class SearchTests
         Task<SearchResult> search = Task.Run(() =>
             searcher.Search(
                 Position.Start(),
-                new SearchLimits { Infinite = true },
+                new SearchLimits { IsInfinite = true },
                 cancellationToken: cancellation.Token
             )
         );

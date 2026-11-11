@@ -13,7 +13,7 @@ public sealed class SavedGame
     public const string FileSignature = "Stoopid Chess saved game";
     public const int CurrentVersion = 2;
 
-    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         Converters = { new JsonStringEnumConverter() },
@@ -30,6 +30,8 @@ public sealed class SavedGame
     [JsonConverter(typeof(HumanColorConverter))]
     public Color HumanColor { get; set; } = Color.White;
 
+    // The on-disk name is part of the file format: renaming the property must not rename it
+    [JsonPropertyName("IsBoardFlipped")]
     public bool IsBoardFlipped { get; set; }
 
     [JsonConverter(typeof(LevelConverter))]
@@ -50,7 +52,7 @@ public sealed class SavedGame
 
     public void Save(Stream stream)
     {
-        JsonSerializer.Serialize(stream, this, s_jsonOptions);
+        JsonSerializer.Serialize(stream, this, JsonOptions);
     }
 
     /// <summary>
@@ -60,7 +62,7 @@ public sealed class SavedGame
     {
         try
         {
-            SavedGame? saved = JsonSerializer.Deserialize<SavedGame>(stream, s_jsonOptions);
+            SavedGame? saved = JsonSerializer.Deserialize<SavedGame>(stream, JsonOptions);
             if (saved is null || saved.Signature != FileSignature || saved.Version != CurrentVersion)
             {
                 return null;

@@ -12,13 +12,13 @@ namespace StoopidChess.Tests.Play;
 internal static class ScriptedEngine
 {
     /// <summary>
-    /// Start the engine. With <paramref name="dieAfterHandshake"/> it dies straight after its "uciok":
+    /// Start the engine. With <paramref name="shouldDieAfterHandshake"/> it dies straight after its "uciok":
     /// it starts, then is gone before its first command.
     /// </summary>
     public static UciEngineClient Start(
         string name,
         Func<string, IEnumerable<string>?> script,
-        bool dieAfterHandshake = false
+        bool shouldDieAfterHandshake = false
     )
     {
         var toEngine = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);
@@ -47,7 +47,7 @@ internal static class ScriptedEngine
                     {
                         writer.WriteLine(line);
                     }
-                    if (dieAfterHandshake && command == "uci")
+                    if (shouldDieAfterHandshake && command == "uci")
                     {
                         return;
                     }

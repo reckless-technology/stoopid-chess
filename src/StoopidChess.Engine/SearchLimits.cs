@@ -34,7 +34,7 @@ public sealed record SearchLimits
     public int? MovesToGo { get; init; }
 
     /// <summary>Search until told to stop, ignoring every other limit.</summary>
-    public bool Infinite { get; init; }
+    public bool IsInfinite { get; init; }
 
     public static readonly TimeSpan MoveOverhead = TimeSpan.FromMilliseconds(30);
 
@@ -54,7 +54,7 @@ public sealed record SearchLimits
     /// </summary>
     public (TimeSpan Budget, TimeSpan Cap)? TimeAllocation(Color sideToMove)
     {
-        if (Infinite)
+        if (IsInfinite)
         {
             return null;
         }

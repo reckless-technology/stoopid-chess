@@ -13,7 +13,7 @@ namespace StoopidChess.Tests.Play;
 /// </summary>
 public class UciEngineClientDeadEngineTests
 {
-    private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
 
     [Fact]
     public void ACommandToAnEngineThatHasStoppedListeningFailsAndDisposingThenReleasesEverything()
@@ -54,7 +54,7 @@ public class UciEngineClientDeadEngineTests
         var client = UciEngineClient.StartProcess(executable);
         try
         {
-            await client.InitialiseAsync(new CancellationTokenSource(s_timeout).Token);
+            await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
             int id = client.ProcessId ?? throw new InvalidOperationException("an external engine has a process");
 
             // The reader thread held in the first "info" line, so it cannot see the engine die before the next command
@@ -63,21 +63,21 @@ public class UciEngineClientDeadEngineTests
             client.InfoReceived += (_, _) =>
             {
                 readerHeld.Set();
-                holdReader.Wait(s_timeout);
+                holdReader.Wait(Timeout);
             };
             client.SetPosition(Position.StartFen, []);
             Task<string> search = client.GoAsync(SearchLimits.ForDepth(30));
-            Assert.True(readerHeld.Wait(s_timeout), "the engine reported nothing");
+            Assert.True(readerHeld.Wait(Timeout), "the engine reported nothing");
             using (var engine = Process.GetProcessById(id))
             {
                 engine.Kill(entireProcessTree: true);
-                Assert.True(engine.WaitForExit(s_timeout));
+                Assert.True(engine.WaitForExit(Timeout));
             }
             Assert.False(client.HasExited);
             Assert.Throws<InvalidOperationException>(client.NewGame);
             Assert.True(client.HasExited);
             holdReader.Set();
-            await Assert.ThrowsAsync<InvalidOperationException>(() => search.WaitAsync(s_timeout));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => search.WaitAsync(Timeout));
         }
         finally
         {

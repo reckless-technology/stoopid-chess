@@ -61,20 +61,20 @@ public sealed class Evaluator
     // shelter value is by the rank of the own pawn nearest the king in front of it (an unmoved pawn
     // is the best shelter, a file with no pawn is an open line onto the king); the storm penalty is
     // by the enemy pawn nearest the king in front of it, halved when an own pawn blocks it.
-    private static readonly int[] s_shelterByRank = [0, 15, 11, 1, 0, 0, 0, 0]; // Pawn rank from its own side
+    private static readonly int[] ShelterByRank = [0, 15, 11, 1, 0, 0, 0, 0]; // Pawn rank from its own side
     public const int ShelterMissing = -16;
-    private static readonly int[] s_stormByDistance = [0, 0, 19, 11, 9, 0, 0, 0]; // Ranks between the king and the pawn
+    private static readonly int[] StormByDistance = [0, 0, 19, 11, 9, 0, 0, 0]; // Ranks between the king and the pawn
 
     // Passed pawns: bonus by the pawn's rank from its own side (index 1 is the second rank)
-    private static readonly int[] s_passedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
+    private static readonly int[] PassedPawnBonus = [0, 5, 6, 22, 42, 74, 124, 0];
 
     // The squares ahead of a pawn on its own file and the two beside it, indexed [color][square]:
     // an enemy pawn there stops it being passed
-    private static readonly Bitboard[][] s_passedPawnSpan = BuildPassedPawnSpans();
+    private static readonly Bitboard[][] PassedPawnSpan = BuildPassedPawnSpans();
 
     // Piece-square tables from white's point of view with rank 8 as the first row, so that they read
     // like a board diagram.
-    private static readonly int[] s_pawnTable =
+    private static readonly int[] PawnTable =
     [
         0,
         0,
@@ -142,7 +142,7 @@ public sealed class Evaluator
         0,
     ];
 
-    private static readonly int[] s_knightTable =
+    private static readonly int[] KnightTable =
     [
         -50,
         -40,
@@ -210,7 +210,7 @@ public sealed class Evaluator
         -50,
     ];
 
-    private static readonly int[] s_bishopTable =
+    private static readonly int[] BishopTable =
     [
         -20,
         -10,
@@ -278,7 +278,7 @@ public sealed class Evaluator
         -20,
     ];
 
-    private static readonly int[] s_rookTable =
+    private static readonly int[] RookTable =
     [
         0,
         0,
@@ -346,7 +346,7 @@ public sealed class Evaluator
         0,
     ];
 
-    private static readonly int[] s_queenTable =
+    private static readonly int[] QueenTable =
     [
         -20,
         -10,
@@ -415,7 +415,7 @@ public sealed class Evaluator
     ];
 
     // The king stays safely on the back rank in the opening and middle game...
-    private static readonly int[] s_kingTable =
+    private static readonly int[] KingTable =
     [
         -30,
         -40,
@@ -484,7 +484,7 @@ public sealed class Evaluator
     ];
 
     // ...and heads for the centre in the endgame.
-    private static readonly int[] s_kingEndgameTable =
+    private static readonly int[] KingEndgameTable =
     [
         -50,
         -40,
@@ -556,7 +556,7 @@ public sealed class Evaluator
     // view: positive for white pieces, negative (and vertically mirrored) for black pieces.
     // Indexed [color][type][square]; the king is stored twice, for the middle game and the endgame.
     private const int KingEndgameIndex = 7;
-    private static readonly int[][][] s_pieceSquareValues = BuildPieceSquareValues();
+    private static readonly int[][][] PieceSquareValues = BuildPieceSquareValues();
 
     // The evaluation cache: one 64-bit word per entry holding the top 48 bits of the Zobrist key and
     // the 16-bit score, always replaced. Positions reached again by transposition, by a re-search or
@@ -607,7 +607,7 @@ public sealed class Evaluator
     private int Compute(Position position)
     {
         int score = 0;
-        bool endgame = IsEndgame(position);
+        bool isEndgame = IsEndgame(position);
         // One pass over each side's pieces serves mobility, the pressure on the enemy king and the
         // attack maps the weak king squares need
         Bitboard whiteZone = KingZone(position, Color.White);
@@ -616,7 +616,7 @@ public sealed class Evaluator
         SideAttacks black = PieceAttacks(position, Color.Black, whiteZone);
         foreach (Color color in ColorExtensions.Sides)
         {
-            int[][] tables = s_pieceSquareValues[(int)color];
+            int[][] tables = PieceSquareValues[(int)color];
             for (Piece type = Piece.Pawn; type <= Piece.Queen; type++)
             {
                 int[] table = tables[(int)type];
@@ -625,19 +625,19 @@ public sealed class Evaluator
                     score += table[square];
                 }
             }
-            score += tables[endgame ? KingEndgameIndex : (int)Piece.King][position.KingSquare(color)];
+            score += tables[isEndgame ? KingEndgameIndex : (int)Piece.King][position.KingSquare(color)];
             (SideAttacks us, SideAttacks them, Bitboard zone) =
                 color == Color.White ? (white, black, whiteZone) : (black, white, blackZone);
             int own =
                 us.Mobility
-                + PassedPawns(position, color, endgame)
+                + PassedPawns(position, color, isEndgame)
                 + KnightOutposts(position, color)
                 + RookFiles(position, color);
             if (position.Pieces(color, Piece.Bishop).Count >= 2)
             {
                 own += BishopPairBonus;
             }
-            if (!endgame)
+            if (!isEndgame)
             {
                 // The pressure on the king: enemy piece attacks into the zone, and the zone squares the
                 // enemy attacks that nothing but the king defends, where an attack breaks through
@@ -802,13 +802,13 @@ public sealed class Evaluator
             else
             {
                 Square pawn = color == Color.White ? shelter.First : shelter.Last;
-                score += s_shelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
+                score += ShelterByRank[color == Color.White ? pawn.Rank : 7 - pawn.Rank];
             }
             Bitboard storm = column & enemyPawns;
             if (storm.IsNotEmpty)
             {
                 Square pawn = color == Color.White ? storm.First : storm.Last;
-                int penalty = s_stormByDistance[Math.Abs(pawn.Rank - king.Rank)];
+                int penalty = StormByDistance[Math.Abs(pawn.Rank - king.Rank)];
                 // An enemy pawn faced by one of ours cannot advance to open lines
                 if (ownPawns.Contains(pawn - Position.PawnDirection(color.Opponent())))
                 {
@@ -834,7 +834,7 @@ public sealed class Evaluator
                 ? Bitboard.Rank4 | Bitboard.Rank5 | Bitboard.Rank6
                 : Bitboard.Rank5 | Bitboard.Rank4 | Bitboard.Rank3;
         Bitboard defended = Attacks.Pawns(color, ownPawns);
-        Bitboard[] spans = s_passedPawnSpan[(int)color];
+        Bitboard[] spans = PassedPawnSpan[(int)color];
         int bonus = 0;
         foreach (Square square in position.Pieces(color, Piece.Knight) & outpostRanks & defended)
         {
@@ -852,11 +852,11 @@ public sealed class Evaluator
     /// Bonus for each pawn with no enemy pawn ahead of it on its own or the adjacent files, growing
     /// as it advances.
     /// </summary>
-    private static int PassedPawns(Position position, Color color, bool endgame)
+    private static int PassedPawns(Position position, Color color, bool isEndgame)
     {
         Color them = color.Opponent();
         Bitboard enemyPawns = position.Pieces(them, Piece.Pawn);
-        Bitboard[] spans = s_passedPawnSpan[(int)color];
+        Bitboard[] spans = PassedPawnSpan[(int)color];
         Square ownKing = position.KingSquare(color);
         Square enemyKing = position.KingSquare(them);
         int bonus = 0;
@@ -867,13 +867,13 @@ public sealed class Evaluator
                 continue;
             }
             var next = new Square(square + (color == Color.White ? 8 : -8));
-            int rankBonus = s_passedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
+            int rankBonus = PassedPawnBonus[color == Color.White ? square.Rank : 7 - square.Rank];
             if (position.Occupied.Contains(next))
             {
                 rankBonus /= 2; // A blocked passer is worth half until it can move again
             }
             bonus += rankBonus;
-            if (endgame)
+            if (isEndgame)
             {
                 // Kings decide passed pawns in the endgame (after Crafty): the further the enemy king is
                 // from the square in front of the pawn, and the nearer our own, the better
@@ -1022,13 +1022,13 @@ public sealed class Evaluator
         (int[] Table, int Material)[] source =
         [
             ([], 0), // None
-            (s_pawnTable, PawnValue),
-            (s_knightTable, KnightValue),
-            (s_bishopTable, BishopValue),
-            (s_rookTable, RookValue),
-            (s_queenTable, QueenValue),
-            (s_kingTable, 0), // Kings are always present, so they carry no material value
-            (s_kingEndgameTable, 0),
+            (PawnTable, PawnValue),
+            (KnightTable, KnightValue),
+            (BishopTable, BishopValue),
+            (RookTable, RookValue),
+            (QueenTable, QueenValue),
+            (KingTable, 0), // Kings are always present, so they carry no material value
+            (KingEndgameTable, 0),
         ];
         int[][][] values = new int[2][][];
         for (int color = 0; color < 2; color++)

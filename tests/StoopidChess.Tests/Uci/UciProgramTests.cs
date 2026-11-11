@@ -9,10 +9,10 @@ namespace StoopidChess.Tests.Uci;
 [Collection(ConsoleCapture.Name)]
 public class UciProgramTests
 {
-    private static readonly MethodInfo s_entryPoint = Assembly.Load("stoopid-chess").EntryPoint!;
+    private static readonly MethodInfo EntryPoint = Assembly.Load("stoopid-chess").EntryPoint!;
 
     private static (int ExitCode, string Output, string Error) Run(string input, params string[] args) =>
-        ConsoleCapture.Run(() => (int)s_entryPoint.Invoke(null, [args])!, input);
+        ConsoleCapture.Run(() => (int)EntryPoint.Invoke(null, [args])!, input);
 
     [Fact]
     public void WithNoArgumentsItSpeaksUciOnTheConsole()

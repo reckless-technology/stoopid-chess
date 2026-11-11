@@ -12,7 +12,7 @@ public class SearchLimitsTests
         Assert.Null(new SearchLimits().TimeAllocation(Color.White)?.Budget);
         Assert.Null(SearchLimits.ForDepth(5).TimeAllocation(Color.White)?.Budget);
         Assert.Null(
-            new SearchLimits { Infinite = true, MoveTime = TimeSpan.FromSeconds(1) }
+            new SearchLimits { IsInfinite = true, MoveTime = TimeSpan.FromSeconds(1) }
                 .TimeAllocation(Color.White)
                 ?.Budget
         );

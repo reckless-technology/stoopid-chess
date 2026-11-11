@@ -13,7 +13,7 @@ namespace StoopidChess.Play;
 public sealed class BoardSetup
 {
     // The king and rook squares each castling right needs
-    private static readonly (Square Square, Color Color, Piece Type)[] s_castlingHomes =
+    private static readonly (Square Square, Color Color, Piece Type)[] CastlingHomes =
     [
         (Square.E1, Color.White, Piece.King),
         (Square.H1, Color.White, Piece.Rook),
@@ -82,10 +82,10 @@ public sealed class BoardSetup
         {
             throw new ArgumentOutOfRangeException(nameof(square));
         }
-        bool valid =
+        bool isValid =
             piece.Type == Piece.None
             || (piece.Color is Color.White or Color.Black && piece.Type is >= Piece.Pawn and <= Piece.King);
-        if (!valid)
+        if (!isValid)
         {
             throw new ArgumentException($"'{piece.Color} {piece.Type}' is not a valid piece", nameof(piece));
         }
@@ -140,7 +140,7 @@ public sealed class BoardSetup
     private CastlingRights HomeCastlingRights()
     {
         CastlingRights rights = CastlingRights.All;
-        foreach ((Square square, Color color, Piece type) in s_castlingHomes)
+        foreach ((Square square, Color color, Piece type) in CastlingHomes)
         {
             if (_squares[square] != (color, type))
             {

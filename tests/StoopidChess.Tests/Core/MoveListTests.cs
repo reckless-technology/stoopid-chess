@@ -4,37 +4,37 @@ namespace StoopidChess.Tests.Core;
 
 public class MoveListTests
 {
-    private static readonly Move s_e2e4 = new(
+    private static readonly Move E2e4 = new(
         Square.Parse("e2"),
         Square.Parse("e4"),
         Piece.Pawn,
         Piece.None,
         MoveKind.DoublePawnPush
     );
-    private static readonly Move s_g1f3 = new(Square.G1, Square.Parse("f3"), Piece.Knight);
-    private static readonly Move s_e1g1 = new(Square.E1, Square.G1, Piece.King, Piece.None, MoveKind.CastleKingSide);
+    private static readonly Move G1f3 = new(Square.G1, Square.Parse("f3"), Piece.Knight);
+    private static readonly Move E1g1 = new(Square.E1, Square.G1, Piece.King, Piece.None, MoveKind.CastleKingSide);
 
     [Fact]
     public void AddsIndexesEnumeratesAndClears()
     {
         MoveList moves = default;
         Assert.Equal(0, moves.Count);
-        moves.Add(s_e2e4);
-        moves.Add(s_g1f3);
+        moves.Add(E2e4);
+        moves.Add(G1f3);
         Assert.Equal(2, moves.Count);
-        Assert.Equal(s_e2e4, moves[0]);
-        Assert.Equal(s_g1f3, moves[1]);
+        Assert.Equal(E2e4, moves[0]);
+        Assert.Equal(G1f3, moves[1]);
         Assert.Throws<ArgumentOutOfRangeException>(() => moves[2]);
-        Assert.True(moves.Contains(s_g1f3));
-        Assert.False(moves.Contains(s_e1g1));
-        Assert.Equal([s_e2e4, s_g1f3], [.. moves]);
+        Assert.True(moves.Contains(G1f3));
+        Assert.False(moves.Contains(E1g1));
+        Assert.Equal([E2e4, G1f3], [.. moves]);
         var seen = new List<Move>();
         foreach (Move move in moves)
         {
             seen.Add(move);
         }
-        Assert.Equal([s_e2e4, s_g1f3], seen);
-        Assert.Equal([s_e2e4, s_g1f3], moves.ToArray());
+        Assert.Equal([E2e4, G1f3], seen);
+        Assert.Equal([E2e4, G1f3], moves.ToArray());
         moves.Clear();
         Assert.Equal(0, moves.Count);
         Assert.Empty(moves.ToArray());
@@ -44,13 +44,13 @@ public class MoveListTests
     public void SpanReordersInPlace()
     {
         MoveList moves = default;
-        moves.Add(s_e2e4);
-        moves.Add(s_g1f3);
+        moves.Add(E2e4);
+        moves.Add(G1f3);
         Span<Move> span = moves.AsSpan();
         Assert.Equal(2, span.Length);
         (span[0], span[1]) = (span[1], span[0]);
-        Assert.Equal(s_g1f3, moves[0]);
-        Assert.Equal(s_e2e4, moves[1]);
+        Assert.Equal(G1f3, moves[0]);
+        Assert.Equal(E2e4, moves[1]);
     }
 
     [Fact]
@@ -66,9 +66,9 @@ public class MoveListTests
     public void IsACopyWhenAssigned()
     {
         MoveList original = default;
-        original.Add(s_e2e4);
+        original.Add(E2e4);
         MoveList copy = original;
-        copy.Add(s_g1f3);
+        copy.Add(G1f3);
         Assert.Equal(1, original.Count);
         Assert.Equal(2, copy.Count);
     }

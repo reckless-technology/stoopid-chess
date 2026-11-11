@@ -439,18 +439,18 @@ public sealed partial class Position
         {
             Piece type = _squares[square];
             var bit = Bitboard.Of(square);
-            bool white = _byColor[(int)Color.White].Contains(square);
-            bool black = _byColor[(int)Color.Black].Contains(square);
+            bool hasWhitePiece = _byColor[(int)Color.White].Contains(square);
+            bool hasBlackPiece = _byColor[(int)Color.Black].Contains(square);
             if (type == Piece.None)
             {
-                if ((_occupied & bit).IsNotEmpty || white || black)
+                if ((_occupied & bit).IsNotEmpty || hasWhitePiece || hasBlackPiece)
                 {
                     return false;
                 }
                 continue;
             }
             all |= bit;
-            if ((_byType[(int)type] & bit).IsEmpty || white == black)
+            if ((_byType[(int)type] & bit).IsEmpty || hasWhitePiece == hasBlackPiece)
             {
                 return false;
             }
@@ -579,7 +579,7 @@ public sealed partial class Position
     /// <summary>
     /// True if the last move made was a null move.
     /// </summary>
-    public bool LastMoveWasNull => _history.Count != 0 && _history[^1].Move.IsNone;
+    public bool WasLastMoveNull => _history.Count != 0 && _history[^1].Move.IsNone;
 
     /// <summary>
     /// Unmake the most recently made move (or null move).

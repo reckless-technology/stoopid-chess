@@ -57,18 +57,18 @@ internal sealed class InstantEngine
     /// </summary>
     private sealed class Reader(InstantEngine engine) : TextReader
     {
-        private bool _started;
+        private bool _hasStarted;
 
         public override string? ReadLine()
         {
             lock (engine._sync)
             {
-                if (_started)
+                if (_hasStarted)
                 {
                     engine._dispatched++;
                     Monitor.PulseAll(engine._sync);
                 }
-                _started = true;
+                _hasStarted = true;
             }
             return engine._lines.TryTake(out string? line, Timeout.Infinite) ? line : null;
         }

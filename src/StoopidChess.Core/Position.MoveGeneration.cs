@@ -10,7 +10,7 @@ public sealed partial class Position
     public MoveList GenerateLegalMoves()
     {
         MoveList moves = default;
-        Generate(ref moves, quietMoves: true);
+        Generate(ref moves, isIncludingQuietMoves: true);
         return moves;
     }
 
@@ -19,7 +19,7 @@ public sealed partial class Position
     /// </summary>
     public void GenerateLegalMoves(ref MoveList moves)
     {
-        Generate(ref moves, quietMoves: true);
+        Generate(ref moves, isIncludingQuietMoves: true);
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ public sealed partial class Position
     /// </summary>
     public void GenerateLegalCaptures(ref MoveList moves)
     {
-        Generate(ref moves, quietMoves: false);
+        Generate(ref moves, isIncludingQuietMoves: false);
     }
 
     /// <summary>
@@ -47,7 +47,7 @@ public sealed partial class Position
     /// Castling has its own conditions, and en passant one special case that none of the three
     /// covers. See https://www.chessprogramming.org/Move_Generation#Legal and docs/BITBOARDS.md.
     /// </summary>
-    private void Generate(ref MoveList moves, bool quietMoves)
+    private void Generate(ref MoveList moves, bool isIncludingQuietMoves)
     {
         Color us = SideToMove;
         Color them = us.Opponent();
@@ -75,7 +75,7 @@ public sealed partial class Position
         }
         else
         {
-            GenerateKingMoves(ref moves, king, attackedByThem, occupied, Pieces(them), quietMoves);
+            GenerateKingMoves(ref moves, king, attackedByThem, occupied, Pieces(them), isIncludingQuietMoves);
             return;
         }
 
@@ -100,8 +100,8 @@ public sealed partial class Position
         // pinned, to its pin line (rule 3)
         Bitboard captureTargets = Pieces(them) & checkMask;
         Bitboard emptyTargets = ~occupied & checkMask;
-        Bitboard quietTargets = quietMoves ? emptyTargets : Bitboard.Empty;
-        GeneratePawnMoves(ref moves, us, king, pinned, checkMask, captureTargets, emptyTargets, quietMoves);
+        Bitboard quietTargets = isIncludingQuietMoves ? emptyTargets : Bitboard.Empty;
+        GeneratePawnMoves(ref moves, us, king, pinned, checkMask, captureTargets, emptyTargets, isIncludingQuietMoves);
         foreach (Square from in Pieces(us, Piece.Knight))
         {
             AddPieceMoves(
@@ -156,8 +156,8 @@ public sealed partial class Position
         }
 
         // The king: any square the enemy does not attack (rule 1), and castling when not in check
-        GenerateKingMoves(ref moves, king, attackedByThem, occupied, Pieces(them), quietMoves);
-        if (quietMoves && checkers.IsEmpty)
+        GenerateKingMoves(ref moves, king, attackedByThem, occupied, Pieces(them), isIncludingQuietMoves);
+        if (isIncludingQuietMoves && checkers.IsEmpty)
         {
             GenerateCastlingMoves(ref moves, us, king, occupied, attackedByThem);
         }
@@ -220,7 +220,7 @@ public sealed partial class Position
         Bitboard attackedByThem,
         Bitboard occupied,
         Bitboard theirs,
-        bool quietMoves
+        bool isIncludingQuietMoves
     )
     {
         Bitboard targets = Attacks.King(king) & ~attackedByThem;
@@ -228,7 +228,7 @@ public sealed partial class Position
         {
             moves.Add(new Move(king, to, Piece.King, At(to)));
         }
-        if (quietMoves)
+        if (isIncludingQuietMoves)
         {
             foreach (Square to in targets & ~occupied)
             {
@@ -295,7 +295,7 @@ public sealed partial class Position
         Bitboard checkMask,
         Bitboard captureTargets,
         Bitboard emptyTargets,
-        bool quietMoves
+        bool isIncludingQuietMoves
     )
     {
         Bitboard pawns = Pieces(us, Piece.Pawn);
@@ -355,7 +355,7 @@ public sealed partial class Position
         AddPromotions(ref moves, capturesEast & promotionRank, eastStep);
         AddPawnMoves(ref moves, capturesWest & ~promotionRank, westStep, MoveKind.Normal);
         AddPawnMoves(ref moves, capturesEast & ~promotionRank, eastStep, MoveKind.Normal);
-        if (quietMoves)
+        if (isIncludingQuietMoves)
         {
             AddPawnMoves(ref moves, pushes & ~promotionRank & emptyTargets, pushStep, MoveKind.Normal);
             AddPawnMoves(ref moves, doublePushes & emptyTargets, 2 * pushStep, MoveKind.DoublePawnPush);

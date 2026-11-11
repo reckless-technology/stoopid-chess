@@ -40,10 +40,10 @@ internal sealed class MainView : View, IDisposable
         + "Each side must have strictly one king on the board before play is allowed to resume following "
         + "a position edit.";
 
-    private static readonly FileFilter s_chessFiles = new("Stoopid Chess games", "chess");
-    private static readonly FileFilter s_pgnFiles = new("PGN", "pgn");
+    private static readonly FileFilter ChessFiles = new("Stoopid Chess games", "chess");
+    private static readonly FileFilter PgnFiles = new("PGN", "pgn");
 
-    private static readonly TimeControl[] s_timeControls =
+    private static readonly TimeControl[] TimeControls =
     [
         TimeControl.Periods(40, 5),
         TimeControl.Periods(40, 40),
@@ -55,7 +55,7 @@ internal sealed class MainView : View, IDisposable
         TimeControl.OfMinutes(30, 0),
     ];
 
-    private static readonly (string Header, Level Level)[] s_levelChoices =
+    private static readonly (string Header, Level Level)[] LevelChoices =
     [
         ("Easy", Level.Easy),
         ("Medium", Level.Medium),
@@ -239,14 +239,14 @@ internal sealed class MainView : View, IDisposable
             },
         ]);
         var timeControl = new MenuItem("Time control");
-        foreach (TimeControl clock in s_timeControls)
+        foreach (TimeControl clock in TimeControls)
         {
             var item = new MenuItem(clock.ToString(), () => _controller.SetTimeControl(clock));
             _timeControlItems.Add((item, clock));
             timeControl.Items.Add(item);
         }
         var level = new MenuItem("Set level");
-        foreach ((string header, Level value) in s_levelChoices)
+        foreach ((string header, Level value) in LevelChoices)
         {
             var item = new MenuItem(header, () => SetLevel(value));
             _levelItems.Add((item, value));
@@ -423,7 +423,7 @@ internal sealed class MainView : View, IDisposable
         }
         if (e.Modifiers == KeyModifiers.Alt && e.Key is >= Key.A and <= Key.Z)
         {
-            return MenuBar.OpenByLetter((char)('A' + (e.Key - Key.A)));
+            return MenuBar.TryOpenByLetter((char)('A' + (e.Key - Key.A)));
         }
         return false;
     }
@@ -541,7 +541,7 @@ internal sealed class MainView : View, IDisposable
             return;
         }
         if (
-            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Save game", "game.chess", [s_chessFiles]))
+            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Save game", "game.chess", [ChessFiles]))
             is not { } chosen
         )
         {
@@ -561,7 +561,7 @@ internal sealed class MainView : View, IDisposable
     private async Task LoadGameAsync()
     {
         if (
-            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Load game", [s_chessFiles, FileFilter.All]))
+            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Load game", [ChessFiles, FileFilter.All]))
             is not { } path
         )
         {
@@ -578,7 +578,7 @@ internal sealed class MainView : View, IDisposable
             await ShowMessageAsync("Load game", $"Unable to load the game:\n{ex.Message}");
             return;
         }
-        if (saved is null || !_controller.Load(saved))
+        if (saved is null || !_controller.TryLoad(saved))
         {
             await ShowMessageAsync("Load game", "This file does not contain a game in Stoopid Chess format.");
         }
@@ -587,7 +587,7 @@ internal sealed class MainView : View, IDisposable
     private async Task ImportPgnAsync()
     {
         if (
-            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Import PGN", [s_pgnFiles, FileFilter.All]))
+            await ChooseFileAsync(() => _platform.ChooseFileToOpenAsync("Import PGN", [PgnFiles, FileFilter.All]))
             is not { } path
         )
         {
@@ -608,7 +608,7 @@ internal sealed class MainView : View, IDisposable
             await ShowMessageAsync("Import PGN", "The file does not hold a readable PGN game.");
             return;
         }
-        _controller.Load(
+        _controller.TryLoad(
             new SavedGame
             {
                 StartFen = game.StartFen,
@@ -628,7 +628,7 @@ internal sealed class MainView : View, IDisposable
             return;
         }
         if (
-            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Export PGN", "game.pgn", [s_pgnFiles]))
+            await ChooseFileAsync(() => _platform.ChooseFileToSaveAsync("Export PGN", "game.pgn", [PgnFiles]))
             is not { } chosen
         )
         {
