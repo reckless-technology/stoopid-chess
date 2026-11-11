@@ -22,7 +22,7 @@ Then read the code in this order, each file standing on the one before ([docs/AR
 guided tour, with the life of a move from click to reply):
 
 1. `Core/Square.cs`, `Bitboard.cs`, `Move.cs`: the value types everything is written in.
-2. `Core/Position.cs` and `Attacks.cs`: the board, make and unmake, legal move generation
+2. `Core/Position.cs` with `Attacks.cs`: the board, make and unmake; then `Core/Position.MoveGeneration.cs`: legal move generation
    ([docs/BITBOARDS.md](docs/BITBOARDS.md)); then `Game.cs`.
 3. `Engine/Evaluator.cs` ([docs/EVALUATION.md](docs/EVALUATION.md)) and `Engine/Searcher.cs`.
 4. `Engine/Uci/UciSession.cs`: the engine's side of UCI.
