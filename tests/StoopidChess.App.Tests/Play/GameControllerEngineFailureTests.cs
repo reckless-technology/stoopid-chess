@@ -30,7 +30,7 @@ public class GameControllerEngineFailureTests
         {
             Controller = new GameController
             {
-                LimitsFor = _ => SearchLimits.ForDepth(1),
+                LimitsFor = limits => limits with { Depth = 1 },
                 StartExternalEngine = path =>
                 {
                     if (
@@ -124,7 +124,7 @@ public class GameControllerEngineFailureTests
             DeafEngine? deaf = null;
             using var controller = new GameController
             {
-                LimitsFor = _ => SearchLimits.ForDepth(1),
+                LimitsFor = limits => limits with { Depth = 1 },
                 StartExternalEngine = path =>
                     (deaf = DeafEngine.StartAnswering(path, TimeSpan.FromMilliseconds(500))).Client,
             };
@@ -365,7 +365,7 @@ public class GameControllerEngineFailureTests
         });
 
     [Fact]
-    public Task TheEngineIsGivenTheClocksAndTheLevelsDepth() =>
+    public Task TheEngineIsGivenTheClocksScaledByTheLevel() =>
         ControllerThread.Run(async () =>
         {
             var commands = new List<string>();
@@ -383,6 +383,7 @@ public class GameControllerEngineFailureTests
             );
             Assert.True(await rig.Controller.StartEngineAsync(path).WaitAsync(s_timeout));
             rig.Controller.SetTimeControl(TimeControl.OfMinutes(5, 3));
+            rig.Controller.Level = Level.Hard; // 3:1
             rig.Controller.NewGame(Color.White);
             Assert.True(rig.Controller.TryHumanMove(Square.Parse("e2"), Square.Parse("e4")));
             await rig.Controller.WaitUntilIdleAsync().WaitAsync(s_timeout);
@@ -392,7 +393,7 @@ public class GameControllerEngineFailureTests
                     commands,
                     command =>
                         command.StartsWith("go depth ", StringComparison.Ordinal)
-                        && command.EndsWith("wtime 303000 btime 300000 winc 3000 binc 3000", StringComparison.Ordinal)
+                        && command.EndsWith("wtime 101000 btime 100000 winc 1000 binc 1000", StringComparison.Ordinal)
                 );
             }
         });

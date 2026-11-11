@@ -114,9 +114,9 @@ public sealed class GameController : IDisposable
     public string LastEngineInfo => _lastEngineInfo;
 
     /// <summary>
-    /// How the engine's search is limited for each level; replaceable for tests.
+    /// Adjusts the limits sent with every "go"; replaceable for tests, which make the engine think until told to stop.
     /// </summary>
-    public Func<Level, SearchLimits> LimitsFor { get; set; } = Levels.Limits;
+    internal Func<SearchLimits, SearchLimits> LimitsFor { get; set; } = limits => limits;
 
     /// <summary>
     /// How an external engine is started from its path; replaceable for tests, which play against
@@ -354,22 +354,28 @@ public sealed class GameController : IDisposable
 
     /// <summary>
     /// How the engine's search is limited: it plays on the clocks ("go wtime ... btime ... winc ... binc ... movestogo ...",
-    /// the last when the control has periods)
-    /// and never searches deeper than the <see cref="Level"/> allows, so the lower levels answer quickly.
+    /// the last when the control has periods), and at <see cref="Level.Easy"/> never searches deeper than the level allows.
     /// </summary>
-    private SearchLimits CurrentLimits()
+    internal SearchLimits CurrentLimits()
     {
-        return new SearchLimits
+        // The difficulty is a handicap on the engine's planning, not on the clocks. Both clocks run in real time and a
+        // flag still falls at zero, but the engine plans each move from a clock shrunk by the level's ratio (100 at Easy,
+        // 1 at Best), so it spends about 1/ratio of the time a full-clock engine would and replies faster and weaker. The
+        // engine spends from the clock it is told, so telling it less is all that is needed. The increments shrink with
+        // the clocks, because the engine adds a share of the increment to its budget; movestogo stays, it is a count.
+        int ratio = Level.Setting().ClockRatio;
+        SearchLimits limits = new()
         {
-            Depth = LimitsFor(Level).Depth,
-            WhiteTime = WhiteClock,
-            BlackTime = BlackClock,
-            WhiteIncrement = TimeControl.Increment,
-            BlackIncrement = TimeControl.Increment,
+            Depth = Level.Setting().MaxDepth,
+            WhiteTime = WhiteClock / ratio,
+            BlackTime = BlackClock / ratio,
+            WhiteIncrement = TimeControl.Increment / ratio,
+            BlackIncrement = TimeControl.Increment / ratio,
             MovesToGo = TimeControl.MovesPerPeriod is int period
                 ? period - (MovesMade(Game.SideToMove) % period)
                 : null,
         };
+        return LimitsFor(limits);
     }
 
     /// <summary>

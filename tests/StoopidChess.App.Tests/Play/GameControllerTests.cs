@@ -16,7 +16,7 @@ public class GameControllerTests
 
     private static async Task<GameController> StartAsync()
     {
-        var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(2) };
+        var controller = new GameController { LimitsFor = limits => limits with { Depth = 2 } };
         Assert.True(await controller.StartEngineAsync(null).WaitAsync(s_timeout));
         Assert.True(controller.HasEngine);
         Assert.StartsWith("Stoopid Chess", controller.EngineName, StringComparison.Ordinal);
@@ -102,6 +102,36 @@ public class GameControllerTests
             Assert.Empty(controller.Game.Moves);
             Assert.True(controller.IsHumanTurn);
         });
+
+    [Theory]
+    [InlineData(Level.Easy, "depth 3 wtime 6000 btime 6000 winc 0 binc 0")]
+    [InlineData(Level.Medium, "wtime 60000 btime 60000 winc 0 binc 0")]
+    [InlineData(Level.Hard, "wtime 200000 btime 200000 winc 0 binc 0")]
+    [InlineData(Level.Best, "wtime 600000 btime 600000 winc 0 binc 0")]
+    public void EachLevelSendsItsScaledClocksAtTenMinutes(Level level, string expectedGo)
+    {
+        using var controller = new GameController { Level = level };
+        Assert.Equal(expectedGo, UciEngineClient.FormatGo(controller.CurrentLimits()));
+    }
+
+    [Fact]
+    public void ThePeriodControlScalesTheClocksAndIncrementsButNotMovesToGo()
+    {
+        using var controller = new GameController { Level = Level.Easy };
+        controller.SetTimeControl(TimeControl.Periods(40, 40));
+        Assert.Equal(
+            "depth 3 wtime 24000 btime 24000 winc 0 binc 0 movestogo 40",
+            UciEngineClient.FormatGo(controller.CurrentLimits())
+        );
+        controller.SetTimeControl(TimeControl.OfMinutes(3, 2));
+        controller.Level = Level.Hard;
+        Assert.Equal("wtime 60000 btime 60000 winc 666 binc 666", UciEngineClient.FormatGo(controller.CurrentLimits()));
+        controller.Level = Level.Best;
+        Assert.Equal(
+            "wtime 180000 btime 180000 winc 2000 binc 2000",
+            UciEngineClient.FormatGo(controller.CurrentLimits())
+        );
+    }
 
     [Fact]
     public Task MoveNowPlaysTheEnginesCurrentBestMove() =>
@@ -294,7 +324,7 @@ public class GameControllerTests
             // handled after a yield, and the search is still "thinking" when NewGame returns.
             using var controller = new GameController
             {
-                LimitsFor = _ => SearchLimits.ForDepth(1),
+                LimitsFor = limits => limits with { Depth = 1 },
                 StartExternalEngine = path =>
                     InstantEngine
                         .Start(
@@ -317,7 +347,7 @@ public class GameControllerTests
     public Task AMissingExternalEngineFallsBackToTheBuiltInOne() =>
         ControllerThread.Run(async () =>
         {
-            using var controller = new GameController { LimitsFor = _ => SearchLimits.ForDepth(1) };
+            using var controller = new GameController { LimitsFor = limits => limits with { Depth = 1 } };
             var failures = new List<string>();
             controller.EngineFailed += (_, message) => failures.Add(message);
             Assert.False(

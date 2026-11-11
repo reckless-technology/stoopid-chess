@@ -35,7 +35,7 @@ public sealed class MainViewTests : IDisposable
         {
             Controller = new GameController
             {
-                LimitsFor = _ => SearchLimits.ForDepth(1),
+                LimitsFor = limits => limits with { Depth = 1 },
                 StartExternalEngine = path =>
                     _scripts.TryGetValue(path, out Func<string, IEnumerable<string>?>? script)
                         ? ScriptedEngine.Start(Path.GetFileName(path), script)
@@ -333,7 +333,7 @@ public sealed class MainViewTests : IDisposable
         using var rig = new Rig(new SavedGame { Moves = ["e2e4"] });
         rig.Choose("Game", "Set level", "Hard");
         Assert.Equal(Level.Hard, rig.Controller.Level);
-        Assert.True(rig.View.MenuBar.Menus[2].Items[4].Items[3].IsChecked);
+        Assert.True(rig.View.MenuBar.Menus[2].Items[4].Items[2].IsChecked);
         rig.Choose("Game", "Undo last move");
         Assert.Empty(rig.Controller.Game.Moves);
         rig.Choose("Game", "Switch sides");

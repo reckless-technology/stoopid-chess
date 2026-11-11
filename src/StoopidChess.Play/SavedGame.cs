@@ -32,6 +32,7 @@ public sealed class SavedGame
 
     public bool IsBoardFlipped { get; set; }
 
+    [JsonConverter(typeof(LevelConverter))]
     public Level Level { get; set; } = Level.Easy;
 
     public static SavedGame FromGame(Game game, Color humanColor, bool isBoardFlipped, Level level)
@@ -99,6 +100,32 @@ public sealed class SavedGame
             }
         }
         return game;
+    }
+
+    /// <summary>
+    /// Reads the level by name. The "Beginner" level no longer exists: a game saved at it loads as Easy.
+    /// </summary>
+    private sealed class LevelConverter : JsonConverter<Level>
+    {
+        public override Level Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            string? name = reader.TokenType == JsonTokenType.String ? reader.GetString() : null;
+            if (string.Equals(name, "Beginner", StringComparison.OrdinalIgnoreCase))
+            {
+                return Level.Easy;
+            }
+            if (Enum.TryParse(name, ignoreCase: true, out Level level) && Enum.IsDefined(level))
+            {
+                return level;
+            }
+            throw new JsonException($"invalid level '{name}'");
+        }
+
+        public override void Write(Utf8JsonWriter writer, Level value, JsonSerializerOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(writer);
+            writer.WriteStringValue(value.ToString());
+        }
     }
 
     /// <summary>

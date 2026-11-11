@@ -51,7 +51,9 @@ You drag the white e-pawn from e2 to e4, and the engine answers. Every step, in 
 6. **`StartThinkingIfEngineTurn`** sees it is the engine's turn. It sends the engine the *whole game so far*
    (`UciEngineClient.SetPosition`, which writes `position startpos moves e2e4`, UCI engines keeping no game of their own)
    and starts `ThinkAsync`, which awaits `UciEngineClient.GoAsync`: `go depth 3 wtime ... btime ... winc ... binc ...`,
-   the depth coming from the chosen difficulty level and the times from the chess clocks.
+   the times being the chess clocks divided by the difficulty level's clock ratio (`GameController.CurrentLimits`: the
+   engine plans each move as though it had 1/ratio of its clock, while the real clocks run on), and the depth sent only
+   at Easy.
 7. **The pipes.** The built-in engine is not a separate program. `UciEngineClient.StartInProcess` runs a `UciSession` on a
    background thread of the same process and connects it to the client with two anonymous pipes, one each way; the two
    talk the same text protocol they would over a console. An external engine (*Engine > Open UCI engine...*) is a child
@@ -117,10 +119,11 @@ other side.
   that made the call, so the controller must be used from one with a single-threaded `SynchronizationContext` (the GUI's UI
   thread; the tests give theirs a `ControllerThread`). `WaitUntilIdleAsync` completes once the engine has stopped thinking
   and its last reply has been handled.
-- **Level and clock.** `Level` is the difficulty and caps the search depth. Every game is also played against a countdown
+- **Level and clock.** `Level` is the difficulty: a ratio of the human's clock time to the engine's (Easy 100:1, Medium 10:1, Hard 3:1, Best
+  1:1, the one table in `Levels`), plus a depth cap at Easy (3 plies). Every game is also played against a countdown
   `TimeControl` (base time plus increment, or "40 moves in 5 minutes": the base time is added again after each 40 moves a
   side makes): `Tick` runs the side to move's clock down, the mover gains the increment after each move, a side that
-  reaches zero loses on time (`TimedOut`), and the engine is told the clocks with every `go`, with `movestogo` counting
+  reaches zero loses on time (`TimedOut`), and the engine is told the clocks, divided by the level's ratio, with every `go`, with `movestogo` counting
   down the moves left in the period.
 - **Editing.** Right-clicking a square edits the position (`EditSquare`, `SetSideToMove`, `ClearBoard`) on a `BoardSetup`,
   which may hold anything while it is edited. It is shown, but not played from, until play can proceed from it; then it

@@ -57,7 +57,6 @@ internal sealed class MainView : View, IDisposable
 
     private static readonly (string Header, Level Level)[] s_levelChoices =
     [
-        ("Beginner", Level.Beginner),
         ("Easy", Level.Easy),
         ("Medium", Level.Medium),
         ("Hard", Level.Hard),

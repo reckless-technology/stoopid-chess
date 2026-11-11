@@ -12,22 +12,19 @@ namespace StoopidChess.Tests.Play;
 public class PlaySettingsTests
 {
     [Theory]
-    [InlineData(Level.Beginner, 1, 1)]
-    [InlineData(Level.Easy, 3, 3)]
-    [InlineData(Level.Medium, 6, 10)]
-    [InlineData(Level.Hard, 8, 20)]
-    [InlineData(Level.Best, 13, 40)]
-    public void EachLevelLimitsDepthAndTime(Level level, int depth, int seconds)
+    [InlineData(Level.Easy, 100, 3)]
+    [InlineData(Level.Medium, 10, null)]
+    [InlineData(Level.Hard, 3, null)]
+    [InlineData(Level.Best, 1, null)]
+    public void EachLevelHasAClockRatioAndMaybeADepthCap(Level level, int ratio, int? depth)
     {
-        SearchLimits limits = level.Limits();
-        Assert.Equal(depth, limits.Depth);
-        Assert.Equal(TimeSpan.FromSeconds(seconds), limits.MoveTime);
+        Assert.Equal(new LevelSetting(ratio, depth), level.Setting());
     }
 
     [Fact]
-    public void AnUnknownLevelHasNoLimits()
+    public void AnUnknownLevelHasNoSetting()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => ((Level)99).Limits());
+        Assert.Throws<ArgumentOutOfRangeException>(() => ((Level)99).Setting());
     }
 
     [Fact]
@@ -82,6 +79,16 @@ public class PlaySettingsTests
             Color.Black,
             LoadSaved(ValidGame.Replace("\"White\"", "\"Black\"", StringComparison.Ordinal))!.HumanColor
         );
+    }
+
+    [Fact]
+    public void ASaveAtTheRetiredBeginnerLevelLoadsAsEasy()
+    {
+        SavedGame? saved = LoadSaved(
+            ValidGame.Replace("\"Level\": \"Easy\"", "\"Level\": \"Beginner\"", StringComparison.Ordinal)
+        );
+        Assert.NotNull(saved);
+        Assert.Equal(Level.Easy, saved.Level);
     }
 
     [Fact]

@@ -1,14 +1,13 @@
-using StoopidChess.Engine;
-
 namespace StoopidChess.Play;
 
 /// <summary>
-/// Playing strength: how hard the engine thinks about each move. The game is played on the clock (see
-/// <see cref="TimeControl"/>); the level caps how deep the engine may search, so the lower levels answer at once.
+/// Playing strength, as a handicap on the chess clock. The game is played on the clock (see <see cref="TimeControl"/>)
+/// and both sides' clocks run in real time, but at a level other than <see cref="Best"/> the engine budgets its moves
+/// as though it had only a fraction of its clock (<see cref="LevelSetting.ClockRatio"/>); <see cref="Easy"/> also
+/// limits the search depth. See <see cref="Levels"/> for the numbers.
 /// </summary>
 public enum Level
 {
-    Beginner,
     Easy,
     Medium,
     Hard,
@@ -16,22 +15,30 @@ public enum Level
 }
 
 /// <summary>
-/// The search limits each <see cref="Level"/> stands for.
+/// What a <see cref="Level"/> stands for.
+/// </summary>
+/// <param name="ClockRatio">
+/// How many times more clock time the human has than the engine is allowed to plan with: 1 is equal time, 100 means
+/// the engine budgets its moves as though it had a hundredth of its clock.
+/// </param>
+/// <param name="MaxDepth">The deepest the engine may search, or null for no limit (the clock alone decides).</param>
+public readonly record struct LevelSetting(int ClockRatio, int? MaxDepth);
+
+/// <summary>
+/// The difficulty ladder: the one place where the levels' strengths are defined.
 /// </summary>
 public static class Levels
 {
     /// <summary>
-    /// The search limits of a level: the engine stops at whichever of the depth and time limits it reaches first.
-    /// (<see cref="GameController"/> uses the depth, and lets the clocks decide the time.)
+    /// The clock ratio and depth cap of a level.
     /// </summary>
-    public static SearchLimits Limits(this Level level) =>
+    public static LevelSetting Setting(this Level level) =>
         level switch
         {
-            Level.Beginner => new SearchLimits { Depth = 1, MoveTime = TimeSpan.FromSeconds(1) },
-            Level.Easy => new SearchLimits { Depth = 3, MoveTime = TimeSpan.FromSeconds(3) },
-            Level.Medium => new SearchLimits { Depth = 6, MoveTime = TimeSpan.FromSeconds(10) },
-            Level.Hard => new SearchLimits { Depth = 8, MoveTime = TimeSpan.FromSeconds(20) },
-            Level.Best => new SearchLimits { Depth = 13, MoveTime = TimeSpan.FromSeconds(40) },
+            Level.Easy => new LevelSetting(ClockRatio: 100, MaxDepth: 3),
+            Level.Medium => new LevelSetting(ClockRatio: 10, MaxDepth: null),
+            Level.Hard => new LevelSetting(ClockRatio: 3, MaxDepth: null),
+            Level.Best => new LevelSetting(ClockRatio: 1, MaxDepth: null),
             _ => throw new ArgumentOutOfRangeException(nameof(level)),
         };
 }
