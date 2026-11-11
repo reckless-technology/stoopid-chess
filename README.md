@@ -53,7 +53,7 @@ Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 building, testing and debugging need - the .NET SDK of `Directory.Build.props`' target framework (per-user, through
 Microsoft's dotnet-install script, when no such SDK is on the PATH), git, on Linux the libraries .NET and the GUI load -
 plus the git hooks and the recommended VS Code extensions, checking each first, so they are safe to run again;
-`-Check` / `--check` only reports. `-Tuning` / `--tuning` adds what the match and self-play scripts play with, under
+`-Check` / `--check` only reports. `-Tuning` / `--tuning` adds what `tools/match.cs` plays with, under
 `~/tools`: fastchess and the reference pawnstar, the release binaries `tools/tuning-tools.txt` pins by version and
 SHA-256 (pawnstar has none for Intel Macs, Linux on arm64 or Windows on arm64), and a first self-play baseline. In VS
 Code they are the `setup environment`, `setup environment + tuning tools` and `check environment` tasks.
@@ -76,17 +76,26 @@ the above and launch configurations for debugging the GUI and the engine.
 ## The engine
 
 - Bitboard board representation (a set of squares per piece type and per color, plus a square
-  array), magic bitboards for the sliding pieces, and a fully legal move generator that resolves
-  pins, checks, en passant and castling during generation rather than by make/test/unmake. Modelled
-  on pawnstar; the design and measurements are in `docs/BITBOARDS.md`.
+  array), magic bitboards for the sliding pieces, their magic numbers found by a seeded search at
+  start-up, and a fully legal move generator that resolves pins, checks, en passant and castling
+  during generation rather than by make/test/unmake. Modelled on pawnstar; the design and
+  measurements are in `docs/BITBOARDS.md`.
 - Squares, bitboards and move lists are small structs (`Square`, `Bitboard`, `MoveList`) rather
   than raw integers and arrays, at no run-time cost: the bench signature and speed are unchanged
   by them.
 - Zobrist keys for the position and for the pawn structure, generated from fixed seeds so every run
   is reproducible; 16-byte transposition entries verified by the full 64-bit key.
-- Negamax alpha-beta (principal variation search) with iterative deepening and aspiration windows, a two-tier transposition table (depth-preferred and
-  always-replace), null-move pruning, late move reductions, killer moves, a countermove, history and one-ply continuation history heuristics, MVV/LVA capture ordering, a quiescence search that skips captures losing material by static exchange evaluation,
-  with stand-pat, a check extension at the horizon, and mate distance pruning.
+- Search: negamax alpha-beta (principal variation search) with iterative deepening, aspiration
+  windows, and time management that gives a move half as much time again when its score drops or
+  its best move changes; a two-tier transposition table (depth-preferred and always-replace), probed
+  in the quiescence search too; mate distance pruning, internal iterative reduction, reverse
+  futility pruning, razoring, null-move pruning, late move pruning and late move reductions; moves
+  ordered by the table move, MVV/LVA for captures, two killer moves, a countermove, and history and
+  one-ply continuation history for quiet moves; a check extension at the horizon; and a quiescence
+  search with stand-pat that skips captures losing material by static exchange evaluation.
+  `Engine/Searcher.cs` opens with a numbered map of these in the order it applies them, and
+  `docs/SEARCH.md` records what each one measured in self-play, with the ones that were tried and
+  dropped.
 - Evaluation: the Simplified Evaluation Function (material and piece-square tables, with a separate
   king table in the endgame) as a baseline, plus whatever terms self-play has since justified;
   `docs/EVALUATION.md` is the log of every term tried, kept or not.
@@ -164,7 +173,7 @@ The version is `MAJOR.MINOR.BUILD`, from git alone, the rule all of reckless-tec
 - `BUILD` is the number of commits since that tag, the tagged commit itself being 0.
 
 `Directory.Build.targets` works it out at build time (`git describe --tags --match 'v*.*' --exclude 'v*.*.*'`) and
-stamps every assembly with it. The engine reports it (`id name Stoopid Chess 4.1.0`), and so does the GUI: in its
+stamps every assembly with it. The engine reports it (`id name Stoopid Chess 5.0.0`), and so does the GUI: in its
 Help box, its `--version`, the Windows .exe's version resource and the macOS app's Info.plist. Nothing
 in the tree holds a version to edit. A tree with no mark reachable (a source tarball, a shallow clone, a fork without
 the tags) builds as `0.0.0`, with a warning.
@@ -213,6 +222,15 @@ amber accent, the light and dark squares of its board, the toolkit's legend plat
 Serif for the interface and Monaspace Xenon for the moves, the engine's lines and the clocks, and every dialog drawn
 in the window over a veil.
 
+You play White or Black against the engine (*Game > New Game*), can take a move back or switch sides, set up a
+position by right-clicking a square, copy and paste FEN, save and load games, and import and export PGN. Every game
+is played on countdown clocks, shown in the status bar, and a side whose clock reaches zero loses on time. *Game >
+Time control* offers eight: 40/5 and 40/40 (40 moves in 5 or 40 minutes, the period repeating), 1+0, 3+2, 5+3, 10+0,
+15+10 and 30+0, in minutes and seconds of increment; a game starts at 10+0. *Game > Set level* handicaps the engine's
+thinking, not the clocks: both clocks run in real time, but the engine plans each move as though it had only part of
+its clock - a hundredth at Easy, a tenth at Medium, a third at Hard and all of it at Best. Easy, where a game starts,
+also searches no more than three plies deep.
+
 - **Views** (`Views/`, `Look/`, and `MainView`, `BoardView`, `Dialogs/` beside them) draw on any `SKCanvas` and take
   the app's own pointer, wheel, key and text events, so the suite runs them with no window. The look is a C#
   translation of reckless-toolkit's drawing (`look/LookDrawing.cpp`, `app/MenuBarView.h`, `view/Menu.h`,
@@ -226,14 +244,21 @@ in the window over a veil.
 
 ## Playing against other engines
 
-The engine executable works in any UCI GUI (Arena, Cute Chess, Banksia) and with tournament tools
-such as `cutechess-cli` or `fastchess`, which is how it can be measured against pawnstar or trebuchet.
-In the Stoopid Chess GUI, *Engine > Open UCI engine...* swaps the built-in engine for an external one.
+The engine executable works in any UCI GUI (Arena, Cute Chess, Banksia), and
+[Reckless Amphitheater](https://github.com/reckless-technology/amphitheater-chess) carries it as one of its bundled
+engines. It also works with tournament tools such as `cutechess-cli` or `fastchess`, which is how it can be measured
+against pawnstar or trebuchet.
+
+In the Stoopid Chess GUI, *Engine > Open UCI engine...* plays an external engine in place of the built-in one, and
+*Engine > Use built-in engine* goes back. The GUI plays one engine at a time: matches between engines, a list of
+engines and their options are Amphitheater's job, and were taken out of this GUI in 5.0.
 
 ## Saved games
 
-`*.chess` files are JSON: the starting position as FEN, the moves in UCI notation, and the game
-settings. Files from before September 2026 used .NET binary serialisation and cannot be loaded.
+`*.chess` files are JSON: the starting position as FEN, the moves in UCI notation, the side you play,
+the level and whether the board is flipped; the time control is not saved. A file saved at the Beginner level,
+which 5.0 removed, loads at Easy. Files from before September 2026 used .NET binary serialisation and cannot be
+loaded.
 
 ## History
 
