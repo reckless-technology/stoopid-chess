@@ -4,3 +4,6 @@
 
 # Format with CSharpier and enforce .NET naming rules (PR #39)
 e434a80501d320dc1f24eed5e425ecd799cbaabf
+
+# Drop s_ prefixes and name booleans for what true means (PR #41)
+cb489c474f8fe7f63ff0367d7869356fe24837dd
