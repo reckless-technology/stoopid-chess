@@ -745,7 +745,7 @@ public sealed class Searcher
     }
 
     /// <summary>
-    /// 11. Order moves best-first to maximise cutoffs, since alpha-beta prunes most when the best move
+    /// 11. Order moves best-first to maximize cutoffs, since alpha-beta prunes most when the best move
     /// comes first: the table move, then captures by most valuable
     /// victim / least valuable attacker (promotions count as capturing the promoted piece), then the
     /// killer moves for this ply, then quiet moves by history. The sort is stable so that the search

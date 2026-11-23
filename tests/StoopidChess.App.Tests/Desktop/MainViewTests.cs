@@ -97,17 +97,17 @@ public sealed class MainViewTests : IDisposable
                 Assert.True(row >= 0, $"no row {path[level]}");
                 if (level < path.Length - 1)
                 {
-                    Window.Move(popup.RowCentre(level, row));
+                    Window.Move(popup.RowCenter(level, row));
                 }
                 else
                 {
-                    Window.Click(popup.RowCentre(level, row));
+                    Window.Click(popup.RowCenter(level, row));
                 }
             }
         }
 
         public SKPoint Square(string name) =>
-            View.Board.ToRoot(View.Board.SquareCentre(StoopidChess.Core.Square.Parse(name)));
+            View.Board.ToRoot(View.Board.SquareCenter(StoopidChess.Core.Square.Parse(name)));
 
         public async Task SettleAsync(Func<bool> condition)
         {
@@ -470,7 +470,7 @@ public sealed class MainViewTests : IDisposable
             await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
             Assert.StartsWith("The engine could not be started:", rig.TakeMessage().Text, StringComparison.Ordinal);
             await rig.SettleAsync(() => rig.Controller.EnginePath is null && rig.Controller.HasEngine); // The fallback
-            rig.Choose("Engine", "Open UCI engine..."); // Cancelled: the engine stays
+            rig.Choose("Engine", "Open UCI engine..."); // Canceled: the engine stays
             Assert.True(rig.Controller.HasEngine);
         });
 
@@ -505,8 +505,8 @@ public sealed class MainViewTests : IDisposable
             rig.Platform.FileAnswers.Enqueue(Path.Combine(_folder, "no", "such", "folder", "game.chess"));
             rig.Choose("File", "Save game");
             Assert.StartsWith("Unable to save the game:", rig.TakeMessage().Text, StringComparison.Ordinal);
-            rig.Choose("File", "Save game"); // Cancelled
-            rig.Choose("File", "Load game"); // Cancelled
+            rig.Choose("File", "Save game"); // Canceled
+            rig.Choose("File", "Load game"); // Canceled
             rig.Platform.FileAnswers.Enqueue(new InvalidOperationException("no portal"));
             rig.Choose("File", "Load game");
             Assert.Equal(("Files", "The file dialog could not be opened:\nno portal"), rig.TakeMessage());
@@ -546,8 +546,8 @@ public sealed class MainViewTests : IDisposable
             rig.Choose("File", "Export PGN...");
             await rig.SettleAsync(() => rig.Window.Root.Overlays.Count > 0);
             Assert.StartsWith("Unable to save the file:", rig.TakeMessage().Text, StringComparison.Ordinal);
-            rig.Choose("File", "Import PGN..."); // Cancelled
-            rig.Choose("File", "Export PGN..."); // Cancelled
+            rig.Choose("File", "Import PGN..."); // Canceled
+            rig.Choose("File", "Export PGN..."); // Canceled
 
             rig.Controller.ClearBoard();
             rig.Choose("File", "Export PGN...");

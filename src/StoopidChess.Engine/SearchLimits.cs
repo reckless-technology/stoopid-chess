@@ -5,7 +5,7 @@ namespace StoopidChess.Engine;
 /// <summary>
 /// When a search should stop, as expressed by the UCI "go" command. Any combination may be given;
 /// the search stops at the first limit reached. With no limits at all the search runs until it is
-/// cancelled or reaches the maximum depth.
+/// canceled or reaches the maximum depth.
 /// </summary>
 public sealed record SearchLimits
 {

@@ -5,7 +5,7 @@ namespace StoopidChess.Desktop.Views;
 
 /// <summary>
 /// Lines of text to read, in a panel that scrolls both ways: the move list and the engine's lines, in the monospaced
-/// face on the panel's colour inside a rule. A scroll bar shows along each edge where the lines do not fit, its thumb
+/// face on the panel's color inside a rule. A scroll bar shows along each edge where the lines do not fit, its thumb
 /// the accent (Amphitheater's <c>AccentScrollBar</c>) and a quarter brighter under the pointer, as the toolkit's
 /// <c>view/ScrollBar.h</c> draws it; the wheel scrolls three lines a notch, across with Shift or a sideways wheel, a
 /// thumb drags, and a press on the track beside it moves a page.

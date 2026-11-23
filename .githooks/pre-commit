@@ -1,7 +1,7 @@
 #!/bin/sh
 # Pre-commit hook: refuse a commit made under any identity but Jonny Reckless <jonny@recklesstechnology.com>,
 # and refuse the commit if CSharpier or `dotnet format` would change any of the code. The identity is every commit's in the
-# reckless-technology organisation; the pre-push hook checks the commits a rebase or a cherry-pick makes.
+# reckless-technology organization; the pre-push hook checks the commits a rebase or a cherry-pick makes.
 #
 # Enable it once per clone with:   git config core.hooksPath .githooks
 # Fix a refusal with:              dotnet csharpier format .   and   dotnet format style StoopidChess.slnx

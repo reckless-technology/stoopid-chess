@@ -78,7 +78,7 @@ the above and launch configurations for debugging the GUI and the engine.
 - Bitboard board representation (a set of squares per piece type and per color, plus a square
   array), magic bitboards for the sliding pieces, their magic numbers found by a seeded search at
   start-up, and a fully legal move generator that resolves pins, checks, en passant and castling
-  during generation rather than by make/test/unmake. Modelled on pawnstar; the design and
+  during generation rather than by make/test/unmake. Modeled on pawnstar; the design and
   measurements are in `docs/BITBOARDS.md`.
 - Squares, bitboards and move lists are small structs (`Square`, `Bitboard`, `MoveList`) rather
   than raw integers and arrays, at no run-time cost: the bench signature and speed are unchanged
@@ -121,7 +121,7 @@ term and how its value was found.
 
 ## Testing
 
-Modelled on the sibling engines pawnstar and trebuchet:
+Modeled on the sibling engines pawnstar and trebuchet:
 
 - **Perft** against the 128 standard positions (Ethereal's `standard.epd`, embedded in Core) is the
   move generation gate. The unit tests run each position to the deepest depth under 300k nodes;
@@ -194,7 +194,7 @@ shipped must report the version, and each GUI is started before it ships. The wo
 | File | What it is |
 |---|---|
 | `stoopid-chess-<version>-windows-x86_64.exe`, `stoopid-chess-gui-<version>-windows-x86_64.exe` | the engine and the GUI (each one self-contained file), Authenticode-signed through SSL.com eSigner (Jonathan Reckless); up to 3.0.0 the Windows GUI was the Windows Forms one |
-| `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarised by Apple; the app's ticket is stapled |
+| `stoopid-chess-<version>-macos-arm64.zip`, `stoopid-chess-gui-<version>-macos-arm64.zip` | the engine and `Stoopid Chess.app` (the GUI) for Apple silicon, signed with a Developer ID (hardened runtime) and notarized by Apple; the app's ticket is stapled |
 | `stoopid-chess-<version>-linux-x86_64`, `stoopid-chess-gui-<version>-linux-x86_64` | the engine and the GUI for Linux, each one self-contained file |
 
 **No source archive is published**, as in the sibling engines pawnstar and trebuchet. The source is this repository:
@@ -207,9 +207,9 @@ The macOS GUI is a proper app bundle, so it opens from Finder; its native librar
 The Linux and Windows GUIs carry their native libraries inside their single files. No one watches the Windows
 runner's screen, so the Windows GUI is started there by its own `--smoke`: it opens its main window as usual, says
 so, and quits itself ten seconds later with exit code 0. Before 3.0 the macOS and Linux GUIs shipped without those
-libraries and did not start. A bare engine binary can't carry a stapled notarisation ticket, so Gatekeeper looks the
+libraries and did not start. A bare engine binary can't carry a stapled notarization ticket, so Gatekeeper looks the
 macOS engine's up online. The signing runs from `tools/sign-macos.sh` and `tools/sign-windows.ps1`, with the
-organisation's signing secrets (the same ones as its other apps). The Windows files are signed only in a run that
+organization's signing secrets (the same ones as its other apps). The Windows files are signed only in a run that
 publishes, since every signing spends the eSigner account's allowance. A publishing run that would ship an unsigned
 file fails.
 
@@ -234,7 +234,7 @@ also searches no more than three plies deep.
 - **Views** (`Views/`, `Look/`, and `MainView`, `BoardView`, `Dialogs/` beside them) draw on any `SKCanvas` and take
   the app's own pointer, wheel, key and text events, so the suite runs them with no window. The look is a C#
   translation of reckless-toolkit's drawing (`look/LookDrawing.cpp`, `app/MenuBarView.h`, `view/Menu.h`,
-  `view/Dialog.h`; GPLv3, as this repository is), in Amphitheater's colours (`src/app/Theme.h`). The menu bar is drawn
+  `view/Dialog.h`; GPLv3, as this repository is), in Amphitheater's colors (`src/app/Theme.h`). The menu bar is drawn
   on every OS; its shortcuts use the platform's command key, Cmd on macOS and Ctrl elsewhere.
 - **The SDL host** (`Sdl/`) opens the windows, pumps SDL's events into the views, and presents each frame: Skia draws
   into a raster bitmap at the window's physical pixels, which an SDL streaming texture shows - no GL context of the
@@ -257,7 +257,7 @@ engines and their options are Amphitheater's job, and were taken out of this GUI
 
 `*.chess` files are JSON: the starting position as FEN, the moves in UCI notation, the side you play,
 the level and whether the board is flipped; the time control is not saved. A file saved at the Beginner level,
-which 5.0 removed, loads at Easy. Files from before September 2026 used .NET binary serialisation and cannot be
+which 5.0 removed, loads at Easy. Files from before September 2026 used .NET binary serialization and cannot be
 loaded.
 
 ## History
@@ -272,15 +272,15 @@ Stoopid Chess is free software, licensed under the **GNU General Public License,
 redistribute and/or modify it under the terms of that license; it comes with **no warranty**. See the
 [LICENSE](LICENSE) file for the full text, or <https://www.gnu.org/licenses/gpl-3.0.html>.
 
-The GUI's fonts are embedded in it with their licences (`src/StoopidChess.Desktop/Assets/Fonts/`): Noto Serif,
+The GUI's fonts are embedded in it with their licenses (`src/StoopidChess.Desktop/Assets/Fonts/`): Noto Serif,
 Copyright 2022 The Noto Project Authors, and Monaspace Xenon, Copyright 2023 GitHub, both under the SIL Open Font
 License, version 1.1, as reckless-toolkit carries them. It is built on SkiaSharp 4 (MIT; Skia itself under the BSD
-licence) and on SDL3 (the zlib licence) through the ppy.SDL3-CS binding (MIT), whose native libraries ship inside it.
+license) and on SDL3 (the zlib license) through the ppy.SDL3-CS binding (MIT), whose native libraries ship inside it.
 
 The chess piece images, in the GUI and in the application icon, are the "cburnett" set by
 [Colin M.L. Burnett](https://en.wikipedia.org/wiki/User:Cburnett), used under the GNU General Public
 License, version 2 or later. They were rendered to 64 px PNGs from the SVGs that
 [Lichess](https://github.com/lichess-org/lila/tree/7370914942f30f1a77321ff6e5bc0ad3e4dd5841/public/piece/cburnett)
 ships. The application icon is the black queen, `packaging/icon/BlackQueen.svg` (that SVG, unchanged), on a rounded
-square of the Lichess board's light square colour, laid out on Apple's icon grid; `tools/make-icons.py` renders it to
+square of the Lichess board's light square color, laid out on Apple's icon grid; `tools/make-icons.py` renders it to
 the Windows .ico (16 to 256 px), the window's PNG and the macOS app's .icns (16 to 1024 px).

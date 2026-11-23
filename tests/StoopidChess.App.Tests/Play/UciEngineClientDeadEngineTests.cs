@@ -54,7 +54,7 @@ public class UciEngineClientDeadEngineTests
         var client = UciEngineClient.StartProcess(executable);
         try
         {
-            await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+            await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
             int id = client.ProcessId ?? throw new InvalidOperationException("an external engine has a process");
 
             // The reader thread held in the first "info" line, so it cannot see the engine die before the next command

@@ -7,7 +7,7 @@ namespace StoopidChess.Play;
 /// <summary>
 /// Portable Game Notation: one game as tag pairs and SAN move text. Writing produces the seven tag
 /// roster (with FEN and SetUp tags when the game did not start from the standard position);
-/// parsing reads the first game of a file, honours a FEN tag, and ignores comments, variations and
+/// parsing reads the first game of a file, honors a FEN tag, and ignores comments, variations and
 /// numeric annotation glyphs.
 /// </summary>
 public static class Pgn

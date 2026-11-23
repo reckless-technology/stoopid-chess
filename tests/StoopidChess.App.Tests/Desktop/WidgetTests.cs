@@ -52,9 +52,9 @@ public class WidgetTests
         button.Clicked += () => clicks++;
         window.Click(button);
         Assert.Equal(1, clicks);
-        window.Drag(ViewHarness.Centre(button), new SKPoint(250, 150)); // Released away from it
+        window.Drag(ViewHarness.Center(button), new SKPoint(250, 150)); // Released away from it
         Assert.Equal(1, clicks);
-        window.Click(ViewHarness.Centre(button), PointerButton.Right); // Not the left button
+        window.Click(ViewHarness.Center(button), PointerButton.Right); // Not the left button
         Assert.Equal(1, clicks);
         button.IsEnabled = false;
         window.Click(button);
@@ -70,7 +70,7 @@ public class WidgetTests
         using var window = new ViewHarness(panel, 300, 200);
         PlateButton button = panel.Place(new PlateButton("Lit"), 20, 20, 100, 30);
         SKColor resting = window.ColorAt(30, 40);
-        window.Move(ViewHarness.Centre(button));
+        window.Move(ViewHarness.Center(button));
         Assert.True(button.IsHovered);
         SKColor lit = window.ColorAt(30, 40);
         Assert.NotEqual(resting, lit);
@@ -123,11 +123,11 @@ public class WidgetTests
         list.ScrollToEnd();
         Assert.Equal(list.MaximumScrollY, list.ScrollY);
         window.Render();
-        window.Wheel(ViewHarness.Centre(list), -1);
+        window.Wheel(ViewHarness.Center(list), -1);
         Assert.True(list.ScrollY < list.MaximumScrollY);
-        window.Wheel(ViewHarness.Centre(list), 1, modifiers: KeyModifiers.Shift);
+        window.Wheel(ViewHarness.Center(list), 1, modifiers: KeyModifiers.Shift);
         Assert.True(list.ScrollX > 0);
-        window.Wheel(ViewHarness.Centre(list), 0, -10);
+        window.Wheel(ViewHarness.Center(list), 0, -10);
         Assert.Equal(0, list.ScrollX);
 
         // The vertical thumb dragged to the top, and a press on the track below it moves a page
@@ -146,8 +146,8 @@ public class WidgetTests
         Assert.True(list.ScrollX < list.MaximumScrollX);
         window.Move(handle);
         window.Move(new SKPoint(390, 290));
-        window.Click(ViewHarness.Centre(list)); // The text itself takes no press
-        window.Click(ViewHarness.Centre(list), PointerButton.Right);
+        window.Click(ViewHarness.Center(list)); // The text itself takes no press
+        window.Click(ViewHarness.Center(list), PointerButton.Right);
         list.SetBounds(SKRect.Create(10, 10, 390, 280));
         window.Render();
         Assert.Throws<ArgumentNullException>(() => list.SetText(null!));
@@ -206,11 +206,11 @@ public class WidgetTests
         window.Key(Key.Tab, KeyModifiers.Primary); // Not a focus move
         Assert.Single(panel.UnhandledKeys);
 
-        window.Press(ViewHarness.Centre(first));
-        window.Press(ViewHarness.Centre(second)); // While the first is held: ignored
+        window.Press(ViewHarness.Center(first));
+        window.Press(ViewHarness.Center(second)); // While the first is held: ignored
         Assert.True(first.IsFocused);
-        window.Release(ViewHarness.Centre(first));
-        window.Release(ViewHarness.Centre(first)); // Nothing held
+        window.Release(ViewHarness.Center(first));
+        window.Release(ViewHarness.Center(first)); // Nothing held
         window.Root.PointerLeave();
         window.Press(new SKPoint(-5, -5)); // Outside the window
         window.Type("ignored");

@@ -42,7 +42,7 @@ public class BoardViewTests
 
         public int IncompleteEdits { get; private set; }
 
-        public SKPoint Centre(string square) => Board.SquareCentre(Square.Parse(square));
+        public SKPoint Center(string square) => Board.SquareCenter(Square.Parse(square));
 
         public SKColor ColorOf(string square)
         {
@@ -51,7 +51,7 @@ public class BoardViewTests
         }
 
         public void Drag(string from, string to, PointerButton button = PointerButton.Left) =>
-            Window.Drag(Centre(from), Centre(to), button);
+            Window.Drag(Center(from), Center(to), button);
 
         public void Dispose() => Window.Dispose();
     }
@@ -80,14 +80,14 @@ public class BoardViewTests
     private static float Edge() => BoardView.Edge;
 
     [Fact]
-    public void ADragReleasedOffTheBoardIsCancelled()
+    public void ADragReleasedOffTheBoardIsCanceled()
     {
         // A rook dragged off the left edge along its rank used to land on a1 and be played
         using GameController controller = Game("7k/8/8/8/8/8/8/4R2K w - - 0 1");
         using var rig = new Rig(controller);
-        rig.Window.Move(rig.Centre("e1"));
-        rig.Window.Press(rig.Centre("e1"));
-        SKPoint offBoard = new(-30, rig.Centre("e1").Y);
+        rig.Window.Move(rig.Center("e1"));
+        rig.Window.Press(rig.Center("e1"));
+        SKPoint offBoard = new(-30, rig.Center("e1").Y);
         rig.Window.Move(offBoard);
         rig.Window.Release(offBoard);
         Assert.Empty(rig.Dropped);
@@ -100,13 +100,13 @@ public class BoardViewTests
     {
         using GameController controller = Game(Position.StartFen);
         using var rig = new Rig(controller);
-        rig.Window.Move(rig.Centre("e2"));
-        rig.Window.Press(rig.Centre("e2"));
+        rig.Window.Move(rig.Center("e2"));
+        rig.Window.Press(rig.Center("e2"));
         Assert.Equal(Square.Parse("e2"), rig.Board.DragFrom);
         Assert.Equal(Bitboard.Of(Square.Parse("e3")) | Bitboard.Of(Square.Parse("e4")), rig.Board.DragTargets);
-        rig.Window.Move(rig.Centre("e4"));
+        rig.Window.Move(rig.Center("e4"));
         rig.Window.Render();
-        rig.Window.Release(rig.Centre("e4"));
+        rig.Window.Release(rig.Center("e4"));
         Assert.Equal([(Square.Parse("e2"), Square.Parse("e4"))], rig.Dropped);
         Assert.Equal(Square.None, rig.Board.DragFrom);
     }
@@ -140,7 +140,7 @@ public class BoardViewTests
             )
         );
         using var rig = new Rig(controller);
-        Assert.True(rig.Centre("e7").Y > rig.Centre("e5").Y);
+        Assert.True(rig.Center("e7").Y > rig.Center("e5").Y);
         rig.Drag("e7", "e5");
         Assert.Equal([(Square.Parse("e7"), Square.Parse("e5"))], rig.Dropped);
     }
@@ -164,9 +164,9 @@ public class BoardViewTests
     {
         using GameController controller = Game("4k3/8/8/8/8/8/8/r3K3 w - - 0 1");
         using var rig = new Rig(controller);
-        SKPoint king = rig.Centre("e1");
+        SKPoint king = rig.Center("e1");
         Assert.NotEqual(Theme.DarkSquare, rig.Window.ColorAt(king.X - 22, king.Y)); // The glow, not the square
-        rig.Window.Click(rig.Centre("c3"), PointerButton.Right);
+        rig.Window.Click(rig.Center("c3"), PointerButton.Right);
         Assert.Equal([Square.Parse("c3")], rig.EditRequests);
     }
 
@@ -175,7 +175,7 @@ public class BoardViewTests
     {
         using GameController controller = Game(Position.StartFen, Color.Black);
         using var rig = new Rig(controller);
-        rig.Window.Click(rig.Centre("c3"), PointerButton.Right);
+        rig.Window.Click(rig.Center("c3"), PointerButton.Right);
         Assert.Empty(rig.EditRequests);
     }
 

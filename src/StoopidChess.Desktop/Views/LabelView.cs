@@ -4,7 +4,7 @@ using StoopidChess.Desktop.Look;
 namespace StoopidChess.Desktop.Views;
 
 /// <summary>
-/// Text that only shows: one line centred down the view, or, wrapped, as many lines as it takes from the top.
+/// Text that only shows: one line centered down the view, or, wrapped, as many lines as it takes from the top.
 /// </summary>
 internal sealed class LabelView(string text) : View
 {
@@ -14,7 +14,7 @@ internal sealed class LabelView(string text) : View
     /// <summary>The font.</summary>
     public SKFont Font { get; init; } = Fonts.Body;
 
-    /// <summary>The colour.</summary>
+    /// <summary>The color.</summary>
     public SKColor Color { get; init; } = Theme.Ink;
 
     /// <summary>Whether the text is broken into lines to fit the view's width.</summary>

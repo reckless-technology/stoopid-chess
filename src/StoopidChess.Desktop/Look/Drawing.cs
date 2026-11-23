@@ -8,7 +8,7 @@ namespace StoopidChess.Desktop.Look;
 internal enum TextAlignment
 {
     Left,
-    Centre,
+    Center,
     Right,
 }
 
@@ -34,7 +34,7 @@ internal static class Drawing
     }
 
     /// <summary>
-    /// One line of text, centred down <paramref name="box"/> and aligned across it, cut with an ellipsis where it is
+    /// One line of text, centered down <paramref name="box"/> and aligned across it, cut with an ellipsis where it is
     /// wider than the box.
     /// </summary>
     public static void Text(
@@ -56,7 +56,7 @@ internal static class Drawing
         float width = Measure(font, shown);
         float x = alignment switch
         {
-            TextAlignment.Centre => box.MidX - (width / 2),
+            TextAlignment.Center => box.MidX - (width / 2),
             TextAlignment.Right => box.Right - width,
             _ => box.Left,
         };

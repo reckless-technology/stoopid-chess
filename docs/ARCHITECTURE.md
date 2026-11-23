@@ -71,15 +71,15 @@ You drag the white e-pawn from e2 to e4, and the engine answers. Every step, in 
     cycle of step 5 raises `Changed` again. The window redraws with the engine's move on the board.
 
 If you move before the engine has answered, or undo, or start a new game, the controller bumps a generation counter and
-cancels the search; the late reply is recognised as stale and dropped.
+cancels the search; the late reply is recognized as stale and dropped.
 
 ## Core: the rules
 
 - **Value types.** `Square` (one byte), `Bitboard` (a `ulong`), `MoveList` (256 moves held inline, so generating allocates
   nothing) and `Move` (32 bits). They are structs with operators, at no run-time cost; the engine's `bench` node count is
-  the proof, since it would change if they changed anything. There is no coloured-piece type: where a caller wants both
+  the proof, since it would change if they changed anything. There is no colored-piece type: where a caller wants both
   at once it is a `(Color, Piece)` pair.
-- **`Position`** is the board as bitboards (per piece type and per colour) plus a 64-entry square array, with `MakeMove`
+- **`Position`** is the board as bitboards (per piece type and per color) plus a 64-entry square array, with `MakeMove`
   and `UnmakeMove` (strictly last in, first out), Zobrist keys for the position and for the pawn structure, castling
   rights, the en-passant square and the move clocks. Move generation is part of it and produces *legal* moves only, working
   out pins, check masks, en passant and castling as it goes instead of making each move to see whether it was legal.
@@ -137,7 +137,7 @@ other side.
 
 SkiaSharp draws, SDL3 supplies the windows, events, file dialogs and clipboard. Three layers:
 
-- **`Look/`**: the colours (`Theme`), fonts and the drawing helpers (`Plates`, `Drawing`) that give the program the
+- **`Look/`**: the colors (`Theme`), fonts and the drawing helpers (`Plates`, `Drawing`) that give the program the
   Reckless series' look.
 - **`Views/`**: a small retained tree of views with no window system under it. A `View` draws in its own coordinates and takes
   pointer, wheel, key and text events; `ViewRoot` sits at the top of a window, holds the content and the overlays on it (an

@@ -27,7 +27,7 @@ public sealed class Evaluator
     public const int QueenMobility = 3;
 
     // King safety (middlegame only): centipawns per square of the king zone (the king's square and
-    // its neighbours) attacked by an enemy piece
+    // its neighbors) attacked by an enemy piece
     public const int KingZoneAttackPenalty = 4;
     public const int KingZoneQueenAttackPenalty = 8;
     public const int WeakKingSquarePenalty = 16;
@@ -483,7 +483,7 @@ public sealed class Evaluator
         20,
     ];
 
-    // ...and heads for the centre in the endgame.
+    // ...and heads for the center in the endgame.
     private static readonly int[] KingEndgameTable =
     [
         -50,
@@ -695,7 +695,7 @@ public sealed class Evaluator
         Bitboard aheadOfOwn = color == Color.White ? NorthFill(pawns.North()) : SouthFill(pawns.South());
         Bitboard doubled = pawns & aheadOfOwn;
         Bitboard connected = pawns & (Attacks.Pawns(color, pawns) | pawns.East() | pawns.West());
-        // A pawn that no neighbouring pawn can ever step up beside: only squares at or above an
+        // A pawn that no neighboring pawn can ever step up beside: only squares at or above an
         // adjacent own pawn are reachable support
         Bitboard everSupported =
             color == Color.White
@@ -777,7 +777,7 @@ public sealed class Evaluator
 
     /// <summary>
     /// The pawn cover in front of the king and the enemy pawns advancing on it, over the king's file
-    /// and its neighbours (moved in from the edge so that a king in the corner still counts three).
+    /// and its neighbors (moved in from the edge so that a king in the corner still counts three).
     /// </summary>
     private static int ShelterAndStorm(Position position, Color color)
     {
@@ -790,8 +790,8 @@ public sealed class Evaluator
                 ? new Bitboard(~0UL << (8 * (king.Rank + 1)))
                 : new Bitboard(king.Rank == 0 ? 0UL : ~0UL >> (8 * (8 - king.Rank)));
         int score = 0;
-        int centreFile = Math.Clamp(king.File, 1, 6);
-        for (int file = centreFile - 1; file <= centreFile + 1; file++)
+        int centerFile = Math.Clamp(king.File, 1, 6);
+        for (int file = centerFile - 1; file <= centerFile + 1; file++)
         {
             Bitboard column = Bitboard.OfFile(file) & ahead;
             Bitboard shelter = column & ownPawns;
@@ -822,7 +822,7 @@ public sealed class Evaluator
 
     /// <summary>
     /// Knights on outposts: squares in the opponent's half that an own pawn defends and that no enemy
-    /// pawn can reach (none ahead on the neighbouring files, which the passed-pawn spans encode).
+    /// pawn can reach (none ahead on the neighboring files, which the passed-pawn spans encode).
     /// </summary>
     private static int KnightOutposts(Position position, Color color)
     {
@@ -838,7 +838,7 @@ public sealed class Evaluator
         int bonus = 0;
         foreach (Square square in position.Pieces(color, Piece.Knight) & outpostRanks & defended)
         {
-            // The span ahead on the neighbouring files, less the knight's own file
+            // The span ahead on the neighboring files, less the knight's own file
             Bitboard adjacentAhead = spans[square] & ~Bitboard.OfFile(square.File);
             if ((adjacentAhead & enemyPawns).IsEmpty)
             {
@@ -941,7 +941,7 @@ public sealed class Evaluator
     private readonly record struct SideAttacks(int Mobility, int KingZoneAttack, Bitboard Attacks);
 
     /// <summary>
-    /// The king, its neighbours and the three squares beyond them in front, where an attack builds up.
+    /// The king, its neighbors and the three squares beyond them in front, where an attack builds up.
     /// </summary>
     private static Bitboard KingZone(Position position, Color color)
     {

@@ -140,7 +140,7 @@ case "$os" in
     *) echo "unsupported system: $os (tools/setup-dev.ps1 is the Windows script)" >&2; exit 2 ;;
 esac
 
-# The shared libraries .NET loads (ICU for globalisation, OpenSSL for NuGet's HTTPS, zlib, and the C++ runtime, which
+# The shared libraries .NET loads (ICU for globalization, OpenSSL for NuGet's HTTPS, zlib, and the C++ runtime, which
 # the GUI's SkiaSharp 4 also links) and the GUI's SDL3 opens at run time (X11 and its extensions, Wayland and
 # xkbcommon, EGL and GL for a hardware renderer, D-Bus for the desktop portal's file dialogs; its SkiaSharp is the
 # no-dependencies build, which needs no fontconfig or FreeType, its fonts embedded), looked for by file so the check

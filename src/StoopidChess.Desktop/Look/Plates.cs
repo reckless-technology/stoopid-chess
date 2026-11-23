@@ -6,7 +6,7 @@ namespace StoopidChess.Desktop.Look;
 /// The series' legend plate, the one drawing every button, choice and lamp in the window is made of. A C# translation
 /// of reckless-toolkit's <c>look/LookDrawing.cpp</c> (<c>DrawButtonPlate</c>, <c>DrawPlateArrow</c>,
 /// <c>DrawPlateLamp</c>) and its metrics in <c>look/LookMetrics.h</c>, Copyright Jonny Reckless, GPLv3 like this
-/// repository; coloured as Amphitheater's <c>theme::Buttons()</c> colours its plates.
+/// repository; colored as Amphitheater's <c>theme::Buttons()</c> colors its plates.
 /// </summary>
 internal static class Plates
 {
@@ -16,7 +16,7 @@ internal static class Plates
     /// <summary>A plate's lift while held (kPlatePressedLift).</summary>
     private const float PressedLift = 0.15f;
 
-    /// <summary>An arrow's or a lamp's centre in from the plate's edge (kArrowInset).</summary>
+    /// <summary>An arrow's or a lamp's center in from the plate's edge (kArrowInset).</summary>
     public const float ArrowInset = 12.0f;
 
     /// <summary>An arrow's half-width (kArrowHalfWidth).</summary>
@@ -51,7 +51,7 @@ internal static class Plates
     }
 
     /// <summary>
-    /// A menu's arrow on a plate that opens one: a small triangle pointing down, its centre
+    /// A menu's arrow on a plate that opens one: a small triangle pointing down, its center
     /// <see cref="ArrowInset"/> in from the plate's right.
     /// </summary>
     public static void Arrow(SKCanvas canvas, SKRect bounds, SKColor color)
@@ -71,33 +71,33 @@ internal static class Plates
     }
 
     /// <summary>
-    /// A toggle's lamp: a lens in its chrome rim, centred <see cref="ArrowInset"/> in from the left of
+    /// A toggle's lamp: a lens in its chrome rim, centered <see cref="ArrowInset"/> in from the left of
     /// <paramref name="bounds"/>; lit, amber with its glow on the plate round it, so a choice that is on is seen to be.
     /// </summary>
     public static void Lamp(SKCanvas canvas, SKRect bounds, bool isLit)
     {
         ArgumentNullException.ThrowIfNull(canvas);
         SKRect rect = Reduced(bounds, 1.0f);
-        var centre = new SKPoint(rect.Left + ArrowInset, rect.MidY);
+        var center = new SKPoint(rect.Left + ArrowInset, rect.MidY);
         float radius = LampDiameter / 2;
         using var paint = new SKPaint { IsAntialias = true };
         if (isLit)
         {
-            // The glow round the lens, two rings fading out, then the lens hot at its centre and amber to its rim.
+            // The glow round the lens, two rings fading out, then the lens hot at its center and amber to its rim.
             paint.Color = Theme.LampAmber.WithOpacity(0.22f);
-            canvas.DrawCircle(centre, radius + (0.6f * LampDiameter), paint);
+            canvas.DrawCircle(center, radius + (0.6f * LampDiameter), paint);
             paint.Color = Theme.LampAmber.WithOpacity(0.45f);
-            canvas.DrawCircle(centre, radius + (0.25f * LampDiameter), paint);
+            canvas.DrawCircle(center, radius + (0.25f * LampDiameter), paint);
             paint.Shader = SKShader.CreateRadialGradient(
-                centre,
+                center,
                 radius,
-                [Theme.LampCentre, Theme.LampAmber],
+                [Theme.LampCenter, Theme.LampAmber],
                 SKShaderTileMode.Clamp
             );
         }
         else
         {
-            var highlight = new SKPoint(centre.X - (0.2f * LampDiameter), centre.Y - (0.2f * LampDiameter));
+            var highlight = new SKPoint(center.X - (0.2f * LampDiameter), center.Y - (0.2f * LampDiameter));
             paint.Shader = SKShader.CreateRadialGradient(
                 highlight,
                 LampDiameter,
@@ -105,12 +105,12 @@ internal static class Plates
                 SKShaderTileMode.Clamp
             );
         }
-        canvas.DrawCircle(centre, radius, paint);
+        canvas.DrawCircle(center, radius, paint);
         paint.Shader = null;
         paint.Color = Theme.LensRim;
         paint.Style = SKPaintStyle.Stroke;
         paint.StrokeWidth = 1.0f;
-        canvas.DrawCircle(centre, radius + 0.5f, paint);
+        canvas.DrawCircle(center, radius + 0.5f, paint);
     }
 
     /// <summary>

@@ -171,7 +171,7 @@ search was identical (Legion, 2026-11-10, `DOTNET_TieredCompilation=0`):
 
 Until September 2026 the board was 0x88, and legality was the make, test and unmake filter. The
 bitboard board and legal generator replaced both in one change, gated by perft, the key oracle and
-eighteen evaluation scores frozen beforehand, modelled on pawnstar (`src/position.h`, `pins.h`,
+eighteen evaluation scores frozen beforehand, modeled on pawnstar (`src/position.h`, `pins.h`,
 `attacks.h`). The evaluation was bit-for-bit the same, so the only signature change came from the
 Zobrist keys and generation order.
 

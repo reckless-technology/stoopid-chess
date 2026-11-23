@@ -34,7 +34,7 @@ jobs:
   # machine: setup-dotnet installs the SDK in its default place each run. Every job
   # uploads versioned, self-contained binaries as artifacts, for a look at a commit's build: releases
   # are built from nothing by release.yml on a pushed vMAJOR.MINOR tag, and signed. The artifacts are
-  # kept a day (retention-days: 1): the organisation's artifact storage is one quota every repository
+  # kept a day (retention-days: 1): the organization's artifact storage is one quota every repository
   # shares.
   engine-linux:
     name: engine + tests (linux)

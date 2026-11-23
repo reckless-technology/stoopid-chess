@@ -5,7 +5,7 @@ using StoopidChess.Desktop.Views;
 namespace StoopidChess.Tests.Desktop;
 
 /// <summary>
-/// The modal dialog's frame: the card centred over a veil that takes every press, the buttons along the bottom,
+/// The modal dialog's frame: the card centered over a veil that takes every press, the buttons along the bottom,
 /// Return and Escape, Tab between fields, and the task that completes when it closes.
 /// </summary>
 public class DialogFrameTests

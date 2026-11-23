@@ -3,12 +3,12 @@ using SkiaSharp;
 namespace StoopidChess.Desktop.Look;
 
 /// <summary>
-/// The window's colours: the series' dark look as Reckless Amphitheater wears it (the tokens of its
+/// The window's colors: the series' dark look as Reckless Amphitheater wears it (the tokens of its
 /// <c>src/app/Theme.h</c>), so the two chess GUIs of the series read as one family.
 /// </summary>
 internal static class Theme
 {
-    /// <summary>The window's colour, behind the panels.</summary>
+    /// <summary>The window's color, behind the panels.</summary>
     public static readonly SKColor Window = new(0xff29282c);
 
     /// <summary>A card, a list, a strip: one step darker than the window.</summary>
@@ -74,8 +74,8 @@ internal static class Theme
     /// <summary>A lamp's amber (the toolkit's <c>colors::kAmber</c>).</summary>
     public static readonly SKColor LampAmber = new(0xffe0a038);
 
-    /// <summary>A lit lamp's hot centre.</summary>
-    public static readonly SKColor LampCentre = new(0xffffe2a0);
+    /// <summary>A lit lamp's hot center.</summary>
+    public static readonly SKColor LampCenter = new(0xffffe2a0);
 
     /// <summary>
     /// A lighter shade, as the toolkit's <c>Color::Brighter</c>: each channel's distance from white scaled by
@@ -99,13 +99,13 @@ internal static class Theme
     }
 
     /// <summary>
-    /// The colour at <paramref name="opacity"/> (0 to 1) of full strength.
+    /// The color at <paramref name="opacity"/> (0 to 1) of full strength.
     /// </summary>
     public static SKColor WithOpacity(this SKColor color, float opacity) =>
         color.WithAlpha((byte)Math.Clamp(MathF.Round(opacity * 255.0f), 0, 255));
 
     /// <summary>
-    /// The colour with its own alpha multiplied by <paramref name="multiplier"/>, held to opaque.
+    /// The color with its own alpha multiplied by <paramref name="multiplier"/>, held to opaque.
     /// </summary>
     public static SKColor WithMultipliedAlpha(this SKColor color, float multiplier) =>
         color.WithAlpha((byte)Math.Clamp(MathF.Round(multiplier * color.Alpha), 0, 255));
