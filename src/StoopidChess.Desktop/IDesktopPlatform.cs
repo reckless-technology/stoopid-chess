@@ -26,7 +26,7 @@ internal interface IDesktopWindow
 
 /// <summary>
 /// What the main view asks of the window system, and nothing more: the SDL host does it for real, and the tests fake
-/// it. File dialogs answer with a path, or null when cancelled; the main view reads and writes the files itself.
+/// it. File dialogs answer with a path, or null when canceled; the main view reads and writes the files itself.
 /// </summary>
 internal interface IDesktopPlatform
 {

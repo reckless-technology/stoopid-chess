@@ -2,17 +2,17 @@
 
 The source is Colin M.L. Burnett's black queen from the "cburnett" set (GPLv2 or later), the SVG Lichess ships at
 lichess-org/lila 7370914942f30f1a77321ff6e5bc0ad3e4dd5841, public/piece/cburnett/bQ.svg - the same artwork the 64 px
-piece images were rendered from. The icon sets it, unchanged, on a rounded square of the light square colour of the
+piece images were rendered from. The icon sets it, unchanged, on a rounded square of the light square color of the
 Lichess board the set comes from, laid out on Apple's macOS icon grid, so macOS 26 and later draw it as it is (not on
-their grey square) and the black piece reads on a dark background:
+their gray square) and the black piece reads on a dark background:
 
-- a 1024 px canvas, the square 824 px and centred, its corners rounded with a 185 px radius, filled #f0d9b5 with a
+- a 1024 px canvas, the square 824 px and centered, its corners rounded with a 185 px radius, filled #f0d9b5 with a
   slight vertical gradient, over a soft drop shadow (macOS clips it to its own continuous-corner mask);
-- the queen centred on it, its drawn height 70 % of the square's.
+- the queen centered on it, its drawn height 70 % of the square's.
 
 Every size is rendered from that vector, none scaled from another, and the same artwork serves Windows, Linux and
 macOS. Below 48 px (the .ico's 16, 24 and 32, the .icns's 16, 16@2x and 32) the shadow is left out, where it would
-only blur the square's edge into a grey halo, and the square is snapped to whole pixels, so its edges stay crisp:
+only blur the square's edge into a gray halo, and the square is snapped to whole pixels, so its edges stay crisp:
 
     python3 tools/make-icons.py
 
@@ -52,7 +52,7 @@ ICNS_POINT_SIZES = (16, 32, 128, 256, 512)
 # Apple's macOS icon grid, in pixels of a 1024 px canvas: the square's side and its corner radius. The corners are
 # circular: macOS 26 and later draw an icon as it is only when it covers their own continuous-corner mask, and then
 # clip it to that mask themselves; a superellipse of exponent 5 (the usual stand-in for Apple's curve) falls inside the
-# mask at the corners, and macOS put it on its grey square, while this rounded rectangle passes (checked on macOS 27).
+# mask at the corners, and macOS put it on its gray square, while this rounded rectangle passes (checked on macOS 27).
 CANVAS = 1024
 SQUARE = 824
 CORNER_RADIUS = 185
@@ -61,18 +61,18 @@ CORNER_RADIUS = 185
 FILL_TOP, FILL_BOTTOM = "#f3dfbf", "#ecd3aa"
 # A soft drop shadow beneath the square, as Apple's icons have: offset, blur (a standard deviation) and opacity.
 SHADOW_OFFSET, SHADOW_BLUR, SHADOW_OPACITY = 10, 10, 0.3
-# Below this many pixels the shadow is left out, where it would only blur the square's edge into a grey halo, and the
+# Below this many pixels the shadow is left out, where it would only blur the square's edge into a gray halo, and the
 # square is snapped to a whole, even number of pixels so its edges fall on pixel boundaries.
 SMALL_BELOW = 48
 # The queen's drawn height, as a fraction of the square's.
 QUEEN_HEIGHT = 0.70
 
 
-def rounded_square_path(centre: float, side: float) -> str:
-    """The SVG path of the square of the given side centred on the canvas, its corners rounded to the grid's radius
+def rounded_square_path(center: float, side: float) -> str:
+    """The SVG path of the square of the given side centered on the canvas, its corners rounded to the grid's radius
     (scaled with the side)."""
     radius = CORNER_RADIUS * side / SQUARE
-    left, right = centre - side / 2, centre + side / 2
+    left, right = center - side / 2, center + side / 2
     top, bottom = left, right
     return (f"M{left + radius:.3f},{top:.3f} H{right - radius:.3f} "
             f"A{radius:.3f},{radius:.3f} 0 0 1 {right:.3f},{top + radius:.3f} V{bottom - radius:.3f} "
@@ -99,13 +99,13 @@ def drawn_bounds(svg_path: Path, work: Path) -> tuple[float, float, float, float
 
 def icon_svg(source: str, bounds: tuple[float, float, float, float], size: int) -> str:
     """The icon on the 1024 px canvas, for rendering at size pixels: the rounded square, its shadow (not at small
-    sizes) and the queen centred on it."""
-    centre = CANVAS / 2
+    sizes) and the queen centered on it."""
+    center = CANVAS / 2
     is_small = size < SMALL_BELOW
     side = SQUARE
     if is_small:
         side = round(size * SQUARE / CANVAS / 2) * 2 * CANVAS / size
-    square = rounded_square_path(centre, side)
+    square = rounded_square_path(center, side)
     x, y, width, height = bounds
     queen_height = side * QUEEN_HEIGHT
     queen_width = queen_height * width / height
@@ -122,7 +122,7 @@ def icon_svg(source: str, bounds: tuple[float, float, float, float], size: int) 
             f'<stop offset="0" stop-color="{FILL_TOP}"/><stop offset="1" stop-color="{FILL_BOTTOM}"/>'
             f'</linearGradient></defs>'
             f'{shadow}<path d="{square}" fill="url(#fill)"/>'
-            f'<svg x="{centre - queen_width / 2:.3f}" y="{centre - queen_height / 2:.3f}" width="{queen_width:.3f}" '
+            f'<svg x="{center - queen_width / 2:.3f}" y="{center - queen_height / 2:.3f}" width="{queen_width:.3f}" '
             f'height="{queen_height:.3f}" viewBox="{x:.4f} {y:.4f} {width:.4f} {height:.4f}">{body}</svg>'
             f'</svg>')
 

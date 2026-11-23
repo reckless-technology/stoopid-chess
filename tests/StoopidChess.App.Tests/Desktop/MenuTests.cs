@@ -57,7 +57,7 @@ public class MenuTests
         Assert.Equal(0, bar.MenuBar.OpenMenu);
         Assert.Single(bar.Window.Root.Overlays);
         bar.Window.Render();
-        bar.Window.Click(bar.Popup.RowCentre(0, 3));
+        bar.Window.Click(bar.Popup.RowCenter(0, 3));
         Assert.Equal(["exit"], bar.Chosen);
         Assert.Equal(-1, bar.MenuBar.OpenMenu);
         Assert.Empty(bar.Window.Root.Overlays);
@@ -69,12 +69,12 @@ public class MenuTests
         var bar = new Bar();
         bar.Window.Click(bar.Title(0));
         MenuPopup popup = bar.Popup;
-        bar.Window.Click(popup.RowCentre(0, 2)); // Disabled
-        bar.Window.Click(popup.RowCentre(0, 1)); // The separator
+        bar.Window.Click(popup.RowCenter(0, 2)); // Disabled
+        bar.Window.Click(popup.RowCenter(0, 1)); // The separator
         SKRect box = popup.MenuBounds(0);
         bar.Window.Click(new SKPoint(box.Left + 0.5f, box.MidY)); // The border
-        bar.Window.Press(popup.RowCentre(0, 0));
-        bar.Window.Release(popup.RowCentre(0, 3)); // Released on another row
+        bar.Window.Press(popup.RowCenter(0, 0));
+        bar.Window.Release(popup.RowCenter(0, 3)); // Released on another row
         Assert.Empty(bar.Chosen);
         Assert.Equal(0, bar.MenuBar.OpenMenu);
     }
@@ -130,18 +130,18 @@ public class MenuTests
         var bar = new Bar();
         bar.Window.Click(bar.Title(1));
         MenuPopup popup = bar.Popup;
-        bar.Window.Move(popup.RowCentre(0, 0));
+        bar.Window.Move(popup.RowCenter(0, 0));
         Assert.Equal(2, popup.LevelCount);
         Assert.True(popup.MenuBounds(1).Left >= popup.MenuBounds(0).Right - 2);
         bar.Window.Render();
-        bar.Window.Move(popup.RowCentre(1, 1));
+        bar.Window.Move(popup.RowCenter(1, 1));
         Assert.Equal(1, popup.HoveredRow(1));
         bar.Window.Move(new SKPoint(550, 380)); // Off every menu: nothing changes
         Assert.Equal(2, popup.LevelCount);
-        bar.Window.Move(popup.RowCentre(0, 1)); // Another row of the first menu closes it
+        bar.Window.Move(popup.RowCenter(0, 1)); // Another row of the first menu closes it
         Assert.Equal(1, popup.LevelCount);
-        bar.Window.Move(popup.RowCentre(0, 0));
-        bar.Window.Click(popup.RowCentre(1, 1));
+        bar.Window.Move(popup.RowCenter(0, 0));
+        bar.Window.Click(popup.RowCenter(1, 1));
         Assert.Equal(["black"], bar.Chosen);
     }
 
@@ -150,8 +150,8 @@ public class MenuTests
     {
         var bar = new Bar();
         bar.Window.Click(bar.Title(1));
-        bar.Window.Press(bar.Popup.RowCentre(0, 0));
-        bar.Window.Release(bar.Popup.RowCentre(0, 0));
+        bar.Window.Press(bar.Popup.RowCenter(0, 0));
+        bar.Window.Release(bar.Popup.RowCenter(0, 0));
         Assert.Equal(2, bar.Popup.LevelCount);
         Assert.Equal(0, bar.Popup.HoveredRow(1));
         Assert.Empty(bar.Chosen);
@@ -216,7 +216,7 @@ public class MenuTests
         MenuPopup popup = MenuPopup.Open(window.Root, items, new SKPoint(280, 190));
         SKRect box = popup.MenuBounds(0);
         Assert.True(box.Right <= 300 && box.Bottom <= 200);
-        window.Move(popup.RowCentre(0, 0));
+        window.Move(popup.RowCenter(0, 0));
         Assert.True(popup.MenuBounds(1).Right <= box.Left + 2); // No room at the right: opens at the left
         Assert.Equal(-1, popup.HoveredRow(1));
         window.Render();

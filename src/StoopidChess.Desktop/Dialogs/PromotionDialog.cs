@@ -32,7 +32,7 @@ internal sealed class PromotionDialog : DialogView
         }
     }
 
-    /// <summary>The piece chosen, or <see cref="Piece.None"/> while none has been (the dialog was cancelled).</summary>
+    /// <summary>The piece chosen, or <see cref="Piece.None"/> while none has been (the dialog was canceled).</summary>
     public Piece Choice { get; private set; } = Piece.None;
 
     /// <summary>The plates, in <see cref="PieceExtensions.PromotionTypes"/> order.</summary>

@@ -42,7 +42,7 @@ public static class Attacks
     private static readonly (int File, int Rank)[] DiagonalDirections = [(1, 1), (1, -1), (-1, -1), (-1, 1)];
     private static readonly (int File, int Rank)[] OrthogonalDirections = [(0, 1), (1, 0), (0, -1), (-1, 0)];
 
-    // The tables. Field initialisers run in this order, and each depends only on the ones above it.
+    // The tables. Field initializers run in this order, and each depends only on the ones above it.
     private static readonly Bitboard[] KnightTable = BuildTable(square => Leaps(square, KnightSteps));
     private static readonly Bitboard[] KingTable = BuildTable(square => Leaps(square, KingSteps));
     private static readonly Bitboard[] WhitePawnTable = BuildTable(square =>

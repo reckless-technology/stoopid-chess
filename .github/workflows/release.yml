@@ -5,13 +5,13 @@
 # construction: MAJOR.MINOR from the nearest vMAJOR.MINOR tag, BUILD the commits since it. The workflow creates the
 # three-component tag itself; only two-component tags are version marks. A version already released is refused.
 #
-# A dry run (workflow_dispatch with dry_run, from any branch) builds, tests, signs and notarises the macOS files - which
+# A dry run (workflow_dispatch with dry_run, from any branch) builds, tests, signs and notarizes the macOS files - which
 # costs nothing - and publishes nothing; it leaves the Windows files unsigned, since every eSigner signing spends the
 # SSL.com account's allowance. With no vMAJOR.MINOR tag reachable a dry run carries on as 0.0.0 (the build's fallback);
 # a publishing run refuses.
 #
-# The organisation's other apps (vst-plugins, ir-capture) and the other chess engines are released the same way, with
-# the same organisation secrets for signing:
+# The organization's other apps (vst-plugins, ir-capture) and the other chess engines are released the same way, with
+# the same organization secrets for signing:
 #   - Windows: the engine and the GUI (the SkiaSharp app, as on macOS and Linux) are Authenticode-signed through
 #     SSL.com's eSigner (CodeSignTool pinned by version and hash, fetched into the runner's tool cache;
 #     tools/sign-windows.ps1),
@@ -20,7 +20,7 @@
 #   - macOS: the engine and "Stoopid Chess.app" (the GUI, libSkiaSharp.dylib and libSDL3.dylib beside its executable)
 #     are signed with the Developer ID Application identity, the hardened runtime, a secure timestamp and the one
 #     entitlement .NET's JIT needs (packaging/macos/entitlements.plist), on a keychain of the job's own
-#     (tools/sign-macos.sh), and notarised. The app's ticket is stapled to it, so it opens from Finder offline; a bare
+#     (tools/sign-macos.sh), and notarized. The app's ticket is stapled to it, so it opens from Finder offline; a bare
 #     engine binary can carry no ticket, so Gatekeeper finds the engine's online.
 #   A publishing run that would ship anything unsigned fails instead.
 #
@@ -143,7 +143,7 @@ jobs:
               echo "  \`stoopid-chess-gui-$version-windows-x86_64.exe\`, both Authenticode-signed (Jonathan Reckless)."
               echo "- **macOS (Apple silicon):** the engine in \`stoopid-chess-$version-macos-arm64.zip\` and the app,"
               echo "  \`Stoopid Chess.app\`, in \`stoopid-chess-gui-$version-macos-arm64.zip\`; both signed with a Developer ID and"
-              echo "  notarised by Apple."
+              echo "  notarized by Apple."
               echo "- **Linux (x86-64):** the engine \`stoopid-chess-$version-linux-x86_64\` and the GUI"
               echo "  \`stoopid-chess-gui-$version-linux-x86_64\`; \`chmod +x\` them."
               echo
@@ -427,7 +427,7 @@ jobs:
           path: out/*
           retention-days: 1
 
-  # macOS (Apple silicon): every gate, the engine and "Stoopid Chess.app" signed, notarised (the app stapled) and
+  # macOS (Apple silicon): every gate, the engine and "Stoopid Chess.app" signed, notarized (the app stapled) and
   # started before they ship.
   macos:
     name: build + test (macos arm64)
@@ -482,7 +482,7 @@ jobs:
           MACOS_SIGNING_P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
           MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
         run: tools/sign-macos.sh open
-      - name: Sign, notarise and staple
+      - name: Sign, notarize and staple
         env:
           MACOS_TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
           MACOS_NOTARY_KEY_P8: ${{ secrets.MACOS_NOTARY_KEY_P8 }}
@@ -496,16 +496,16 @@ jobs:
           mkdir -p out
           # ditto, as Finder makes a zip: the executable bits, the bundle and the signatures come out as they went in.
           ditto -c -k "$engine" "out/stoopid-chess-$VERSION-macos-arm64.zip"
-          ditto -c -k --keepParent "stage/$APP" "$RUNNER_TEMP/app-to-notarise.zip"
+          ditto -c -k --keepParent "stage/$APP" "$RUNNER_TEMP/app-to-notarize.zip"
           tools/sign-macos.sh notarize "out/stoopid-chess-$VERSION-macos-arm64.zip"
-          tools/sign-macos.sh notarize "$RUNNER_TEMP/app-to-notarise.zip"
+          tools/sign-macos.sh notarize "$RUNNER_TEMP/app-to-notarize.zip"
           # The app's ticket stapled to it, then zipped again: what ships opens from Finder with no network. Stapling,
-          # validating and check's online notarisation check and Gatekeeper assessment ask Apple's servers, so the
+          # validating and check's online notarization check and Gatekeeper assessment ask Apple's servers, so the
           # script tries each again, for about three minutes, when Apple's network drops or a ticket just issued is not
           # served yet - and fails at once on anything else.
           tools/sign-macos.sh staple "stage/$APP"
           ditto -c -k --keepParent "stage/$APP" "out/stoopid-chess-gui-$VERSION-macos-arm64.zip"
-          rm -f "$RUNNER_TEMP/app-to-notarise.zip"
+          rm -f "$RUNNER_TEMP/app-to-notarize.zip"
           tools/sign-macos.sh check "$engine" "stage/$APP"
           ls -l out
       # What ships is what is checked: the engine and the app as their zips hold them, the app also started as Finder

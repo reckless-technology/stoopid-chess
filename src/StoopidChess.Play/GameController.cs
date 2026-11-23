@@ -237,7 +237,7 @@ public sealed class GameController : IDisposable
             client = path is null ? UciEngineClient.StartInProcess() : StartExternalEngine(path);
             client.InfoReceived += OnEngineInfo;
             using var timeout = new CancellationTokenSource(EngineStartTimeout);
-            await client.InitialiseAsync(timeout.Token);
+            await client.InitializeAsync(timeout.Token);
             return (client, null);
         }
         catch (Exception ex)
@@ -250,7 +250,7 @@ public sealed class GameController : IDisposable
 
     private void OnEngineInfo(object? sender, string line)
     {
-        // Raised on the engine reader thread; a volatile string reference needs no marshalling
+        // Raised on the engine reader thread; a volatile string reference needs no marshaling
         if (line.Contains(" pv ", StringComparison.Ordinal))
         {
             _lastEngineInfo = line;

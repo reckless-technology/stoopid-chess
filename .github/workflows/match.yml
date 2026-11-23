@@ -12,7 +12,7 @@ name: Match
 #            committed openings and a manifest.json into one artifact, `match-inputs`
 #   match -> the shared workflow, pinned to a commit: it checks its own tools out at that commit
 #
-# The opening set is tools/openings-6ply.epd: 200 positions, one per colour-reversed pair, so a match is at most
+# The opening set is tools/openings-6ply.epd: 200 positions, one per color-reversed pair, so a match is at most
 # 400 games. Both engines are deterministic, so a position is never played twice.
 
 on:
@@ -36,7 +36,7 @@ on:
         description: 'Fixed search depth instead of a time control (empty = use the time control)'
         default: ''
       games:
-        description: 'Total games (rounded up to whole colour-reversed pairs; at most 400, two per opening)'
+        description: 'Total games (rounded up to whole color-reversed pairs; at most 400, two per opening)'
         default: '200'
       chunks:
         description: 'Number of chunk jobs'

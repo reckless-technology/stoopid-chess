@@ -48,13 +48,13 @@ CI (`.github/workflows/ci.yml`) runs on GitHub-hosted runners (free for a public
 version - `ubuntu-24.04`, `macos-15` (Apple silicon), `windows-2025` - with setup-dotnet's default install on each
 fresh machine; so does `release.yml`. CI runs the full test suite, perft 3 and bench on Linux, on
 macOS and (suite only) on Windows, the line-coverage gate on Linux, and publishes self-contained engine + GUI binaries
-for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organisation's artifact
+for all three platforms as artifacts, kept 24 hours (`retention-days: 1`; the organization's artifact
 storage is one shared quota); none is released. `release.yml` makes a release from a pushed `vMAJOR.MINOR` tag (or by
 hand on `main`): built and tested from nothing on all three platforms, the GUI the download on each (up to 3.0.0
 the Windows GUI was the since-removed Windows Forms one), its native libraries - libSkiaSharp and SDL3 - inside the
 single file on Linux and Windows and beside the executable in the macOS app, the Windows engine and GUI
 eSigner-signed (publishing runs only - each signing spends the allowance), the macOS engine and `Stoopid Chess.app` Developer
-ID-signed and notarised, every file checked to report the version and each GUI started, published as
+ID-signed and notarized, every file checked to report the version and each GUI started, published as
 `vMAJOR.MINOR.BUILD`. No source archive is published - the source is the repository, to clone or fork, as in the
 sibling engines (README, "Versions and releases"). `gh workflow run release.yml --ref
 <branch> -f dry_run=true` proves a change to it without publishing or spending a Windows signing.
@@ -111,7 +111,7 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    snapshot) or the Pawnstar release pinned in the workflow, plays the committed `tools/openings-6ply.epd` in
    parallel chunks, and pools the result (opening-corrected Elo with a 95 % bar) in the run's job summary. The play
    is done by the shared workflow in the Pawnstar repository (`docs/match-core.md` there), pinned to a commit. The
-   openings are 200 positions, one per colour-reversed pair, so a match is at most 400 games; there is no SPRT.
+   openings are 200 positions, one per color-reversed pair, so a match is at most 400 games; there is no SPRT.
    Runners are 2 cores with a CPU model that varies, so strength is comparable within a run, not with a local one.
    What has been tried and what it measured, kept or not, is in [docs/SEARCH.md](docs/SEARCH.md) (search) and
    [docs/EVALUATION.md](docs/EVALUATION.md) (evaluation): add a line there for every change you judge. A 100-game result
@@ -128,7 +128,7 @@ only the things a change must not break.
   to h8 = 63, with an implicit conversion to `int` for table lookups and only an explicit one back, so an `int` is never
   mistaken for a square (`Square.Unchecked` is the internal no-validation constructor for hot paths). `MoveList` holds
   256 moves inline: pass it by `ref`, keep one per ply (`Searcher`) or per depth (`Perft`). No `int` squares or raw
-  `ulong` sets appear in any public API, Play and the GUI included. There is no coloured-piece type; where a caller wants
+  `ulong` sets appear in any public API, Play and the GUI included. There is no colored-piece type; where a caller wants
   both, it is a `(Color Color, Piece Type)` tuple whose default is an empty square.
 - **`Position` comes only from FEN** and changes only by make/unmake; the GUI edits a Play `BoardSetup` and builds the
   position from its FEN. `Position` is one partial class in two files: `Position.cs` (the board, make/unmake) and
@@ -148,13 +148,13 @@ only the things a change must not break.
   obsolete) in SDL3 windows (ppy.SDL3-CS, natives for every desktop platform in the package), in the Reckless series' look
   as Amphitheater wears it: `Look/Theme` holds Amphitheater's `src/app/Theme.h` tokens, and `Look/Plates` is a C#
   translation of reckless-toolkit's `look/LookDrawing.cpp`. The fonts are embedded from `Assets/Fonts` with their OFL
-  licences. `KeyModifiers.Primary` is Cmd on macOS and Ctrl elsewhere. `Sdl/` is the host and holds no logic: it only
+  licenses. `KeyModifiers.Primary` is Cmd on macOS and Ctrl elsewhere. `Sdl/` is the host and holds no logic: it only
   calls SDL and the views (Skia draws into a raster bitmap at the window's physical pixels, shown through an SDL streaming
   texture, with no GL context of the app's own).
 - **The application icon** (the Windows .ico, the window's PNG, the macOS app's .icns) is drawn by `tools/make-icons.py`
-  from `packaging/icon/BlackQueen.svg`, on a rounded square of the board's light colour: run it again, and commit what it
+  from `packaging/icon/BlackQueen.svg`, on a rounded square of the board's light color: run it again, and commit what it
   writes, when either changes. Keep the square's corners circular: macOS 26+ put a superellipse-cornered icon on their
-  grey square.
+  gray square.
 
 ## Conventions
 
@@ -175,10 +175,10 @@ only the things a change must not break.
   `_closed` or `Infinite`. Not enforceable by `.editorconfig`, so review holds it. Exceptions: the standard `TryX`
   pattern, `Contains`/`Matches` and the other collection-style predicates, framework-shaped members such as
   `MoveNext`, and the view hierarchy's `OnPointerDown`/`OnKeyDown`/`OnWheel` handlers, whose `bool` is "handled", and `UciSession.HandleCommand`, whose `bool` is "keep running".
-- American spelling in identifiers and comments: `Color`, not `Colour`.
+- American spelling in identifiers and comments: `Color`, not `Color`.
 - **Formatting is two tools with separate jobs.** CSharpier (pinned in `.config/dotnet-tools.json`, configured by
   `.csharpierrc.json`: `printWidth` 120, the C++ repositories' ColumnLimit, 4-space indent, LF) owns the layout of
-  every `.cs` file: run `dotnet csharpier format .`. `dotnet format` keeps the style and analyser rules (usings,
+  every `.cs` file: run `dotnet csharpier format .`. `dotnet format` keeps the style and analyzer rules (usings,
   `var`, braces on every block, the naming rules above) and never the whitespace: run
   `dotnet format style StoopidChess.slnx`, and fix by hand what it cannot (it cannot rename). The pre-commit hook
   in `.githooks/pre-commit` and CI's `format` job run `dotnet csharpier check .` and
@@ -194,13 +194,13 @@ only the things a change must not break.
   either, and is the one place the C# differs from clang-format's.
 - **The reformat and rename commit is listed in `.git-blame-ignore-revs`**: `git config blame.ignoreRevsFile
   .git-blame-ignore-revs` makes `git blame` skip it (GitHub does so already).
-- American spelling in identifiers and comments: `Color`, not `Colour`.
+- American spelling in identifiers and comments: `Color`, not `Color`.
 - Everything must build, test and run on Linux, macOS and Windows (CI enforces it): no Windows-only
   APIs outside an `OperatingSystem.IsWindows()` guard.
 - **The evaluation stays hand-crafted.** No NNUE or other learned evaluation in this engine, ever; that is
   what pawnstar and trebuchet are for. Improve strength through hand-written terms, search and speed only.
 - Commit messages describe the change and, for search/eval changes, the new bench signature.
-- **Versioning** follows the organisation's rule (pawnstar, trebuchet, vst-plugins, ir-capture): the
+- **Versioning** follows the organization's rule (pawnstar, trebuchet, vst-plugins, ir-capture): the
   version is `MAJOR.MINOR.BUILD` from git alone - the nearest annotated `vMAJOR.MINOR` tag and the
   commits since it, stamped by Directory.Build.targets at build time; 0.0.0 with no such tag
   reachable. Nothing in the tree is edited to release: tag `main` `vMAJOR.MINOR` and push the tag,

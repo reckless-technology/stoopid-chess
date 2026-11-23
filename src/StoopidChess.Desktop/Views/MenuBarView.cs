@@ -5,7 +5,7 @@ namespace StoopidChess.Desktop.Views;
 
 /// <summary>
 /// The menu bar, drawn on every OS as the toolkit's <c>app/MenuBarView.h</c> draws it where the platform has none, in
-/// Amphitheater's colours (<c>theme::MenuBarLook</c>): the panel's colour under the interface's face, a rule beneath,
+/// Amphitheater's colors (<c>theme::MenuBarLook</c>): the panel's color under the interface's face, a rule beneath,
 /// the title whose menu is open lit as a selected row. A press on a title opens its menu under it (a title with no
 /// rows acts at once), a press on the open title closes it, and while one is open the pointer moving onto another
 /// title opens that one instead. Alt and a title's first letter open it from the keyboard.
@@ -124,7 +124,7 @@ internal sealed class MenuBarView : View
                 _titles[i],
                 Fonts.MenuBar,
                 Menus[i].IsEnabled ? Theme.Ink : Theme.Faint,
-                TextAlignment.Centre
+                TextAlignment.Center
             );
         }
     }

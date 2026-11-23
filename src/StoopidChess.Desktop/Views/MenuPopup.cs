@@ -5,7 +5,7 @@ namespace StoopidChess.Desktop.Views;
 
 /// <summary>
 /// An open menu, drawn over the window as the toolkit's <c>view/Menu.h</c> draws its popup in the series' style
-/// (<c>panel/PanelStyle.h</c>'s <c>MenuStyle</c>): the window's colour behind the ink, a rule round it, the row under
+/// (<c>panel/PanelStyle.h</c>'s <c>MenuStyle</c>): the window's color behind the ink, a rule round it, the row under
 /// the pointer lit in the accent, ticks at the left, shortcuts at the right, an arrow beside a row with a submenu,
 /// which opens beside it when the pointer rests on it. A press and release on a row chooses it; a press outside the
 /// menu closes it, except in <see cref="PassThrough"/> (the menu bar, which switches menus). Up, Down, Left, Right,
@@ -65,9 +65,9 @@ internal sealed class MenuPopup : View
     public SKRect MenuBounds(int level) => _levels[level].Box;
 
     /// <summary>
-    /// The centre of row <paramref name="row"/> of menu <paramref name="level"/>, in the window's coordinates.
+    /// The center of row <paramref name="row"/> of menu <paramref name="level"/>, in the window's coordinates.
     /// </summary>
-    public SKPoint RowCentre(int level, int row)
+    public SKPoint RowCenter(int level, int row)
     {
         SKRect box = RowBox(_levels[level], row);
         return new SKPoint(box.MidX, box.MidY);

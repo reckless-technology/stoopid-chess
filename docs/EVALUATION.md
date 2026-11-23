@@ -12,7 +12,7 @@ minus black's, then turned round for black to move.
 | Material | pawn 100, knight 324, bishop 328, rook 510, queen 1016 (the king has none) | `PawnValue`..`QueenValue`, folded into `PieceSquareValues` | the baseline; values SPSA-tuned |
 | Piece-square tables | the Simplified Evaluation Function's tables, the king's switched to its endgame table once no side has a queen together with a rook or more than one minor piece | `PawnTable`..`KingEndgameTable`, `IsEndgame` | the baseline |
 | Mobility | 5, 6, 7 and 3 cp per square a knight, bishop, rook or queen attacks, not counting own pieces or squares an enemy pawn attacks | `KnightMobility`..`QueenMobility`, `PieceAttacks` | +108 ± 63; safe squares +38 ± 55; rates raised twice, +67 ± 59 and +33 ± 31 |
-| King zone attacks (middlegame) | 4 cp per enemy knight, bishop or rook attack on the king's square, its neighbours and the three squares in front; 8 cp per queen attack | `KingZoneAttackPenalty`, `KingZoneQueenAttackPenalty`, `KingZone` | +30 ± 59; zone extended +53 ± 63; lowered to 4 and 8 +21 ± 33 |
+| King zone attacks (middlegame) | 4 cp per enemy knight, bishop or rook attack on the king's square, its neighbors and the three squares in front; 8 cp per queen attack | `KingZoneAttackPenalty`, `KingZoneQueenAttackPenalty`, `KingZone` | +30 ± 59; zone extended +53 ± 63; lowered to 4 and 8 +21 ± 33 |
 | Weak king squares (middlegame) | 16 cp per king zone square the enemy attacks and nothing but the king defends | `WeakKingSquarePenalty` | +49 ± 55 |
 | Pawn shelter and storm (middlegame) | on the king's file and the two beside it: the nearest own pawn ahead scores 15, 11 or 1 on its second, third or fourth rank, -16 for none; the nearest enemy pawn ahead costs 19, 11 or 9 at two, three or four ranks, half when blocked | `ShelterByRank`, `ShelterMissing`, `StormByDistance`, `ShelterAndStorm` | +30 ± 53; scaled by two thirds +31 ± 54 |
 | Passed pawns | 5, 6, 22, 42, 74, 124 by rank from the second to the seventh; half when the square in front is occupied; in the endgame more as the enemy king is further from the square in front and our own nearer | `PassedPawnBonus`, `PassedPawns` | +61 ± 62; blocked +53 ± 52; king distance +38 ± 36 |
@@ -53,7 +53,7 @@ The script and the archives the rows cite are in the git history, last present a
 | Reset to the Simplified Evaluation Function (baseline) | +13 ± 68 against the previous evaluation (pawn structure, bishop mobility, 330/370 minors): those terms were worth nothing | baseline |
 | Mobility: squares each knight, bishop, rook and queen can move to or capture on, at 4, 3, 2 and 1 cp per square | +108 ± 63 (41 W, 17 L, 22 D) | yes |
 | King safety: pawn shield, 10 cp per own pawn one rank ahead of the king on its three files and 5 cp two ranks ahead, middlegame only | -4 ± 52 (27 W, 28 L, 25 D) | no |
-| King safety: enemy piece attacks into the king zone (king square and neighbours), 5 cp per attacked square for knights, bishops and rooks, 10 for queens, middlegame only | +30 ± 59 (31 W, 24 L, 25 D) | yes |
+| King safety: enemy piece attacks into the king zone (king square and neighbors), 5 cp per attacked square for knights, bishops and rooks, 10 for queens, middlegame only | +30 ± 59 (31 W, 24 L, 25 D) | yes |
 | Passed pawns: no enemy pawn ahead on the pawn's file or the two beside it, bonus by rank 5/10/20/35/60/100 from the second to the seventh | +61 ± 62 (39 W, 25 L, 16 D) | yes |
 | Rooks on open files (15 cp) and semi-open files (8 cp, no own pawn) | -4 ± 59 (31 W, 32 L, 17 D) | no |
 | Bishop pair, 30 cp for a side with two bishops | +57 ± 58 (36 W, 23 L, 21 D) | yes |
@@ -73,7 +73,7 @@ The script and the archives the rows cite are in the git history, last present a
 | Safe checks: a penalty per square from which an enemy knight (25), bishop (20), rook (30) or queen (40) could give check with nothing but the king to take it | -7 ± 64 (36 W, 38 L, 26 D) | no |
 | Safe major-piece mobility: rooks skip squares attacked by enemy minors, queens also those attacked by enemy rooks (about 10% slower) | -53 ± 58 (31 W, 46 L, 23 D) | no |
 | Weak king zone square penalty raised from 15 to 25 cp | -14 ± 57 (33 W, 37 L, 30 D) | no |
-| King zone extended one rank forward: the three squares beyond the king's neighbours count for the attack and weak square penalties too | +53 ± 63 (44 W, 29 L, 27 D) | yes |
+| King zone extended one rank forward: the three squares beyond the king's neighbors count for the attack and weak square penalties too | +53 ± 63 (44 W, 29 L, 27 D) | yes |
 | Mobility area includes squares holding own pieces other than pawns and the king (defending a piece counts as a square) | -14 ± 50 (31 W, 35 L, 34 D) | no |
 | King attacker count: 4 cp times the square of the number of enemy pieces attacking the zone, on top of the linear count | -10 ± 52 (34 W, 37 L, 29 D) | no |
 | Connected pawns: a pawn defended by a pawn or beside one scores by rank 5/7/12/20/40 from the third to the seventh | +17 ± 47 then -17 ± 56, 0 ± 36 over 200 games (76 W, 76 L, 48 D) | no |
@@ -84,10 +84,10 @@ The script and the archives the rows cite are in the git history, last present a
 | Passed pawn races, Crafty's rule of the square: with no enemy pieces, a passer the king cannot catch counts 525 + 10 per rank for the side that queens first (the search already sees such races at this time control) | -17 ± 54 (30 W, 35 L, 35 D) | no |
 | Passed pawns in the endgame, after Crafty: the rank bonus times (twice the enemy king's distance from the square in front minus our king's) over 8 | +28 ± 49 then +49 ± 55, +38 ± 36 over 200 games (83 W, 61 L, 56 D) | yes |
 | Free-path passers, after Crafty: the rank bonus again when no square ahead of the passer is attacked, half when only the next square is safe | -28 ± 53 (28 W, 36 L, 36 D) | no |
-| Drawish endings after Crafty's winning chances: with no pawns a lone minor or a lead of at most a minor against a king off the edge scores one eighth, a pure opposite-coloured-bishop ending half | -28 ± 57 (34 W, 42 L, 24 D) | no |
+| Drawish endings after Crafty's winning chances: with no pawns a lone minor or a lead of at most a minor against a king off the edge scores one eighth, a pure opposite-colored-bishop ending half | -28 ± 57 (34 W, 42 L, 24 D) | no |
 | Candidate passers after Crafty: no enemy pawn ahead on the file and at least as many own pawns beside or behind as enemy pawns guarding the files ahead, half the passer bonus | -7 ± 61 (38 W, 40 L, 22 D) | no |
 | Passed pawn king distance divisor 6 instead of 8 | -21 ± 49 (31 W, 37 L, 32 D) | no |
-| Endgame king activity: 6 cp per square of the king's distance beyond one from the nearest pawn of either colour | -42 ± 51 (24 W, 36 L, 40 D) | no |
+| Endgame king activity: 6 cp per square of the king's distance beyond one from the nearest pawn of either color | -42 ± 51 (24 W, 36 L, 40 D) | no |
 | Tempo bonus 20 cp instead of 10 | -38 ± 54 (30 W, 41 L, 29 D) | no |
 | Mobility rates 5/4/3/1 cp per square instead of 4/3/2/1 | +67 ± 59 (48 W, 29 L, 23 D) | yes |
 | Mobility rates 6/5/4/2 | +14 ± 42 then +53 ± 47, +33 ± 31 over 200 games (74 W, 55 L, 71 D) | yes |
@@ -104,7 +104,7 @@ The script and the archives the rows cite are in the git history, last present a
 | King zone attack penalties 3 and 6 cp | -3 ± 51 (31 W, 32 L, 37 D) | no |
 | Evaluation cache: 65,536 entries of 48-bit key and 16-bit score, always replaced, cleared on a new game (exact, every score identical) | about 10% faster at bench depth 10 with JIT tiering off; 512 KB measured best of 128 KB to 8 MB | yes |
 | King tropism after Crafty: knight 6/6/6/4/2, bishop 4/4/4/2, rook 8/8/6/4/2/2/2, queen 12/12/10/8/6/4/4 cp by distance from the enemy king, middlegame only | -31 ± 51 (28 W, 37 L, 35 D) | no |
-| Bad bishop after Crafty: 4 cp per own pawn on the bishop's colour | -31 ± 55 (31 W, 40 L, 29 D) | no |
+| Bad bishop after Crafty: 4 cp per own pawn on the bishop's color | -31 ± 55 (31 W, 40 L, 29 D) | no |
 | Queen 950 instead of 900 | +49 ± 44 (38 W, 24 L, 38 D) | yes |
 | Queen 1000 | +45 ± 44 (39 W, 26 L, 35 D) | yes |
 | Queen 1050 | +10 ± 50 (34 W, 31 L, 35 D) | no |

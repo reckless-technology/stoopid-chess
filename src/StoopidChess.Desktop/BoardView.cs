@@ -7,9 +7,9 @@ using StoopidChess.Play;
 namespace StoopidChess.Desktop;
 
 /// <summary>
-/// The chess board: drawing and pointer input, in the series' colours (Amphitheater's board): the light and dark
+/// The chess board: drawing and pointer input, in the series' colors (Amphitheater's board): the light and dark
 /// squares in a near-black frame, the last move's squares lit in the accent, the checked king's square glowing red, the
-/// coordinates in the corners of the edge squares in the other square colour, and, while a piece is dragged, its legal
+/// coordinates in the corners of the edge squares in the other square color, and, while a piece is dragged, its legal
 /// destinations - a dot on an empty square, a ring round a capture. All game and engine logic lives in
 /// <see cref="GameController"/>; the main view owns the controller and acts on the board's events.
 /// </summary>
@@ -59,9 +59,9 @@ internal sealed class BoardView : View
     }
 
     /// <summary>
-    /// The centre of <paramref name="square"/>, in the board's coordinates.
+    /// The center of <paramref name="square"/>, in the board's coordinates.
     /// </summary>
-    public SKPoint SquareCentre(Square square)
+    public SKPoint SquareCenter(Square square)
     {
         SKPoint origin = SquareOrigin(square);
         return new SKPoint(origin.X + (SquareSize / 2), origin.Y + (SquareSize / 2));
@@ -122,19 +122,19 @@ internal sealed class BoardView : View
         // Where the dragged piece may go: a dot on an empty square, a ring round a capture
         foreach (Square target in _dragTargets)
         {
-            SKPoint centre = SquareCentre(target);
+            SKPoint center = SquareCenter(target);
             if (controller.PieceAt(target).Type == Piece.None)
             {
                 paint.Style = SKPaintStyle.Fill;
                 paint.Color = HintColor;
-                canvas.DrawCircle(centre, size / 7, paint);
+                canvas.DrawCircle(center, size / 7, paint);
             }
             else
             {
                 paint.Style = SKPaintStyle.Stroke;
                 paint.StrokeWidth = Math.Max(3, size / 16);
                 paint.Color = CaptureHintColor;
-                canvas.DrawCircle(centre, (size / 2) - (paint.StrokeWidth / 2) - 1, paint);
+                canvas.DrawCircle(center, (size / 2) - (paint.StrokeWidth / 2) - 1, paint);
             }
         }
         if (controller.PieceAt(_dragFrom) is (Color dragColor, Piece dragType) && dragType != Piece.None)
@@ -151,7 +151,7 @@ internal sealed class BoardView : View
     }
 
     /// <summary>
-    /// The checked king's square: a red glow, strongest at the centre, fading to the square's edge.
+    /// The checked king's square: a red glow, strongest at the center, fading to the square's edge.
     /// </summary>
     private static void DrawCheck(SKCanvas canvas, SKRect square)
     {
@@ -168,7 +168,7 @@ internal sealed class BoardView : View
 
     /// <summary>
     /// File letters along the bottom edge and rank digits along the left, in the corner of each edge square, each in
-    /// the other square colour, following the board's orientation.
+    /// the other square color, following the board's orientation.
     /// </summary>
     private void DrawCoordinates(SKCanvas canvas, float size)
     {
@@ -273,7 +273,7 @@ internal sealed class BoardView : View
             _dragFrom = Square.None;
             _dragTargets = Bitboard.Empty;
             Invalidate();
-            if (to != Square.None && to != from) // Dropped off the board: the move is cancelled
+            if (to != Square.None && to != from) // Dropped off the board: the move is canceled
             {
                 MoveDropped?.Invoke(from, to);
             }

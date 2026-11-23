@@ -5,7 +5,7 @@
 //       --opponent-option option.Threads=1 --opponent-option option.OwnBook=false --rounds 20 --tc 12+0.12
 //   dotnet run tools/match.cs -- --baseline          # after a search or evaluation change: 100 games against the baseline
 //
-// It builds the engine in Release, then runs paired games (each opening played with both colours) from an openings
+// It builds the engine in Release, then runs paired games (each opening played with both colors) from an openings
 // file; both engines are deterministic, so an openings file is essential. --baseline plays against the snapshot made with
 //   dotnet publish src/StoopidChess.Uci -c Release -o ~/tools/stoopid-baseline
 // (tools/setup-dev with --tuning/-Tuning publishes a first one when there is none). fastchess defaults to the build

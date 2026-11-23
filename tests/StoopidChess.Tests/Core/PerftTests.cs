@@ -39,10 +39,10 @@ public class PerftTests
     public void LeafNodeCountMatchesReference(string fen, int depth, long expected)
     {
         var position = Position.FromFen(fen);
-        string normalisedFen = position.ToFen();
+        string normalizedFen = position.ToFen();
         Assert.Equal(expected, Perft.Count(position, depth));
         // The board must be restored exactly by the make/unmake pairs
-        Assert.Equal(normalisedFen, position.ToFen());
+        Assert.Equal(normalizedFen, position.ToFen());
     }
 
     [Fact]

@@ -688,7 +688,7 @@ internal sealed class MainView : View, IDisposable
     // ---------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// A file dialog's answer: the file chosen, or null when it was cancelled or could not open (which is said).
+    /// A file dialog's answer: the file chosen, or null when it was canceled or could not open (which is said).
     /// </summary>
     private async Task<string?> ChooseFileAsync(Func<Task<string?>> ask)
     {

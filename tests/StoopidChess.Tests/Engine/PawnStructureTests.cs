@@ -28,7 +28,7 @@ public class PawnStructureTests
     [Fact]
     public void AnIsolatedPawnIsCounted()
     {
-        // White's a-pawn has no neighbours; black's pawns are all connected
+        // White's a-pawn has no neighbors; black's pawns are all connected
         (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/5ppp/8/8/8/8/P4PPP/4K3 w - - 0 1");
         Assert.Equal(Squares("a2"), white.Isolated);
         Assert.True(black.Isolated.IsEmpty);
@@ -48,7 +48,7 @@ public class PawnStructureTests
     public void ABackwardPawnIsCounted()
     {
         // White's e3 pawn: its stop square e4 is covered by the black d5 pawn, and the white d4
-        // pawn stands ahead of it, so no neighbour can ever step up beside it. Black's d5 is not
+        // pawn stands ahead of it, so no neighbor can ever step up beside it. Black's d5 is not
         // backward: d4 blocks its stop, but nothing controls it.
         (Evaluator.PawnPatterns white, Evaluator.PawnPatterns black) = Patterns("4k3/8/8/3p4/3P4/4P3/8/4K3 w - - 0 1");
         Assert.Equal(Squares("e3"), white.Backward);

@@ -47,7 +47,7 @@ public sealed class UciEngineClient : IDisposable
     }
 
     /// <summary>
-    /// The engine's name as reported by "id name", once <see cref="InitialiseAsync"/> has completed.
+    /// The engine's name as reported by "id name", once <see cref="InitializeAsync"/> has completed.
     /// </summary>
     public string? Name { get; private set; }
 
@@ -144,7 +144,7 @@ public sealed class UciEngineClient : IDisposable
     /// <summary>
     /// Send "uci" and wait for "uciok".
     /// </summary>
-    public Task InitialiseAsync(CancellationToken cancellationToken = default) =>
+    public Task InitializeAsync(CancellationToken cancellationToken = default) =>
         SendAndAwaitAsync("uci", ref _uciOk, cancellationToken);
 
     /// <summary>
@@ -170,7 +170,7 @@ public sealed class UciEngineClient : IDisposable
 
     /// <summary>
     /// Start a search and return the engine's best move in UCI notation ("0000" if it has none).
-    /// Cancelling the token sends "stop"; the engine then still answers with its best move so far.
+    /// Canceling the token sends "stop"; the engine then still answers with its best move so far.
     /// </summary>
     public Task<string> GoAsync(SearchLimits limits, CancellationToken cancellationToken = default)
     {

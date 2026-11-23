@@ -52,14 +52,14 @@ public class EvaluatorTests
     }
 
     [Fact]
-    public void KingHeadsForTheCentreInTheEndgame()
+    public void KingHeadsForTheCenterInTheEndgame()
     {
         var evaluator = new Evaluator();
         Assert.True(Evaluator.IsEndgame(Position.FromFen("4k3/8/8/8/8/8/8/4K3 w - - 0 1")));
         Assert.False(Evaluator.IsEndgame(Position.Start()));
-        int centre = evaluator.Evaluate(Position.FromFen("4k3/8/8/8/3K4/8/8/8 w - - 0 1"));
+        int center = evaluator.Evaluate(Position.FromFen("4k3/8/8/8/3K4/8/8/8 w - - 0 1"));
         int corner = evaluator.Evaluate(Position.FromFen("4k3/8/8/8/8/8/8/K7 w - - 0 1"));
-        Assert.True(centre > corner);
+        Assert.True(center > corner);
     }
 
     /// <summary>

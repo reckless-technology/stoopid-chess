@@ -230,7 +230,7 @@ public class SearchTests
     }
 
     [Fact]
-    public void HonoursDepthLimitAndReportsProgress()
+    public void HonorsDepthLimitAndReportsProgress()
     {
         var depths = new List<int>();
         SearchResult result = NewSearcher()
@@ -241,7 +241,7 @@ public class SearchTests
     }
 
     [Fact]
-    public void HonoursNodeLimit()
+    public void HonorsNodeLimit()
     {
         SearchResult result = NewSearcher().Search(Position.Start(), new SearchLimits { Nodes = 5000, Depth = 20 });
         Assert.InRange(result.Nodes, 1, 5000 + 1);
@@ -250,7 +250,7 @@ public class SearchTests
     }
 
     [Fact]
-    public void HonoursMoveTime()
+    public void HonorsMoveTime()
     {
         var started = System.Diagnostics.Stopwatch.StartNew();
         SearchResult result = NewSearcher()
@@ -261,7 +261,7 @@ public class SearchTests
     }
 
     [Fact]
-    public async Task CanBeCancelled()
+    public async Task CanBeCanceled()
     {
         using var cancellation = new CancellationTokenSource();
         Searcher searcher = NewSearcher();

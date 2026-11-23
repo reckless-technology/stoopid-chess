@@ -38,7 +38,7 @@ internal sealed class ViewHarness : IDisposable
         return Bitmap;
     }
 
-    /// <summary>The colour at a point, once the window is drawn.</summary>
+    /// <summary>The color at a point, once the window is drawn.</summary>
     public SKColor ColorAt(float x, float y) => Render().GetPixel((int)x, (int)y);
 
     public void Press(
@@ -61,8 +61,8 @@ internal sealed class ViewHarness : IDisposable
         Release(at, button);
     }
 
-    /// <summary>A click at the centre of <paramref name="view"/>.</summary>
-    public void Click(View view) => Click(Centre(view));
+    /// <summary>A click at the center of <paramref name="view"/>.</summary>
+    public void Click(View view) => Click(Center(view));
 
     /// <summary>A press at one point, a move to another and the release there, the window drawn mid-drag.</summary>
     public void Drag(SKPoint from, SKPoint to, PointerButton button = PointerButton.Left)
@@ -82,8 +82,8 @@ internal sealed class ViewHarness : IDisposable
     public void Wheel(SKPoint at, float down, float across = 0, KeyModifiers modifiers = KeyModifiers.None) =>
         Root.Wheel(new WheelEvent(at, across, down, modifiers));
 
-    /// <summary>The centre of <paramref name="view"/>, in the window's coordinates.</summary>
-    public static SKPoint Centre(View view) => view.ToRoot(new SKPoint(view.Width / 2, view.Height / 2));
+    /// <summary>The center of <paramref name="view"/>, in the window's coordinates.</summary>
+    public static SKPoint Center(View view) => view.ToRoot(new SKPoint(view.Width / 2, view.Height / 2));
 
     public void Dispose() => Bitmap.Dispose();
 }

@@ -13,10 +13,10 @@ public class UciEngineClientTests
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(20);
 
     [Fact]
-    public async Task InitialisesAndReportsName()
+    public async Task InitializesAndReportsName()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         Assert.StartsWith("Stoopid Chess", client.Name, StringComparison.Ordinal);
         Assert.Equal("Jonny Reckless", client.Author);
         await client.WaitUntilReadyAsync(new CancellationTokenSource(Timeout).Token);
@@ -26,7 +26,7 @@ public class UciEngineClientTests
     public async Task PlaysAMoveFromAPosition()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         var infos = new List<string>();
         client.InfoReceived += (_, line) =>
         {
@@ -53,7 +53,7 @@ public class UciEngineClientTests
     public async Task FindsMateFromAFenPosition()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         var game = Game.FromFen("6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1");
         client.SetPosition(game.StartFen, game.UciMoves);
         string best = await client.GoAsync(SearchLimits.ForDepth(3)).WaitAsync(Timeout);
@@ -61,10 +61,10 @@ public class UciEngineClientTests
     }
 
     [Fact]
-    public async Task CancellingAGoStopsTheSearch()
+    public async Task CancelingAGoStopsTheSearch()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         client.SetPosition(Position.StartFen, []);
         using var cancellation = new CancellationTokenSource();
         Task<string> search = client.GoAsync(new SearchLimits { IsInfinite = true }, cancellation.Token);
@@ -79,7 +79,7 @@ public class UciEngineClientTests
     public async Task RefusesOverlappingSearches()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         client.SetPosition(Position.StartFen, []);
         Task<string> search = client.GoAsync(new SearchLimits { IsInfinite = true });
         Assert.Throws<InvalidOperationException>(() =>
@@ -94,7 +94,7 @@ public class UciEngineClientTests
     public async Task DisposeShutsTheEngineDown()
     {
         var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         Assert.False(client.HasExited);
         client.Dispose();
         client.Dispose(); // Idempotent
@@ -106,7 +106,7 @@ public class UciEngineClientTests
     public async Task AFaultyInfoHandlerDoesNotBreakTheClient()
     {
         using var client = UciEngineClient.StartInProcess();
-        await client.InitialiseAsync(new CancellationTokenSource(Timeout).Token);
+        await client.InitializeAsync(new CancellationTokenSource(Timeout).Token);
         client.InfoReceived += (_, _) => throw new FormatException("handler bug");
         client.SetPosition(Position.StartFen, []);
         string best = await client.GoAsync(SearchLimits.ForDepth(2)).WaitAsync(Timeout);

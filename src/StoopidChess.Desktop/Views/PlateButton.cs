@@ -49,7 +49,7 @@ internal sealed class PlateButton(string text) : View
             return;
         }
         SKColor ink = IsEnabled ? Theme.Ink : Theme.Ink.WithOpacity(0.4f);
-        Drawing.Text(canvas, Text, SKRect.Create(4, 0, Width - 8, Height), Fonts.Plate, ink, TextAlignment.Centre);
+        Drawing.Text(canvas, Text, SKRect.Create(4, 0, Width - 8, Height), Fonts.Plate, ink, TextAlignment.Center);
     }
 
     public override bool OnPointerDown(PointerEvent e)
