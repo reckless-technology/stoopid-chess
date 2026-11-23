@@ -103,6 +103,16 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    `~/tools/stoopid-baseline` (`%USERPROFILE%\tools\stoopid-baseline`) (refresh it with
    `dotnet publish src/StoopidChess.Uci -c Release -o <that dir>` after each accepted change);
    its defaults are the standard test setting, 100 games at 12+0.12.
+   **Which to use:** `tools/match.cs` for a quick local check while working (a few dozen games, your own machine,
+   nothing to push). For a result worth judging, run the **Match** workflow (`.github/workflows/match.yml`) on
+   GitHub-hosted runners: `gh workflow run match.yml -f games=400 -f chunks=10` (it also takes `candidate_ref`,
+   `baseline_ref`, `time_control`, `depth` and `opponent=pawnstar`). It builds the candidate (default `main`) and
+   either a baseline git ref (default the newest `vMAJOR.MINOR.PATCH` tag, replacing the `~/tools/stoopid-baseline`
+   snapshot) or the Pawnstar release pinned in the workflow, plays the committed `tools/openings-6ply.epd` in
+   parallel chunks, and pools the result (opening-corrected Elo with a 95 % bar) in the run's job summary. The play
+   is done by the shared workflow in the Pawnstar repository (`docs/match-core.md` there), pinned to a commit. The
+   openings are 200 positions, one per colour-reversed pair, so a match is at most 400 games; there is no SPRT.
+   Runners are 2 cores with a CPU model that varies, so strength is comparable within a run, not with a local one.
    What has been tried and what it measured, kept or not, is in [docs/SEARCH.md](docs/SEARCH.md) (search) and
    [docs/EVALUATION.md](docs/EVALUATION.md) (evaluation): add a line there for every change you judge. A 100-game result
    between about +15 and +25 is neither kept nor rejected: a second 100 games are played and the change is judged on the 200.

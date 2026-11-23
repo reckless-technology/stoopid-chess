@@ -1,0 +1,166 @@
+name: Match
+
+# A strength match on GitHub-hosted runners: this build against a baseline git ref of itself, or against a pinned
+# release of Pawnstar. Manual only: nothing here runs on a push or a pull request. tools/match.cs stays for a quick
+# local run (see CLAUDE.md for which to use when).
+#
+# This file builds the two engines and hands them to the reusable workflow in the Pawnstar repository, which does
+# the rest (fastchess, the chunk matrix, the pooled result in the job summary). Its caller's guide is
+# docs/match-core.md there.
+#
+#   build -> resolves the two refs to commits, publishes each engine self-contained, and gathers the engines, the
+#            committed openings and a manifest.json into one artifact, `match-inputs`
+#   match -> the shared workflow, pinned to a commit: it checks its own tools out at that commit
+#
+# The opening set is tools/openings-6ply.epd: 200 positions, one per colour-reversed pair, so a match is at most
+# 400 games. Both engines are deterministic, so a position is never played twice.
+
+on:
+  workflow_dispatch:
+    inputs:
+      opponent:
+        description: 'Who the candidate plays: a baseline git ref of Stoopid Chess, or the pinned Pawnstar release'
+        type: choice
+        options: [baseline, pawnstar]
+        default: baseline
+      candidate_ref:
+        description: 'Candidate: branch, tag or commit'
+        default: 'main'
+      baseline_ref:
+        description: 'Baseline git ref (empty = the newest vMAJOR.MINOR.PATCH tag); used when the opponent is baseline'
+        default: ''
+      time_control:
+        description: 'Time control, e.g. 12+0.12 (ignored when a depth is given)'
+        default: '12+0.12'
+      depth:
+        description: 'Fixed search depth instead of a time control (empty = use the time control)'
+        default: ''
+      games:
+        description: 'Total games (rounded up to whole colour-reversed pairs; at most 400, two per opening)'
+        default: '200'
+      chunks:
+        description: 'Number of chunk jobs'
+        default: '10'
+      concurrency:
+        description: 'Games at once per chunk job (a hosted runner has 2 cores)'
+        default: '2'
+      hash_mb:
+        description: 'Transposition table per engine, MB'
+        default: '64'
+      first_opening:
+        description: 'First position of the opening set to play (1-based)'
+        default: '1'
+
+permissions:
+  contents: read
+
+env:
+  # The Pawnstar release the opponent match downloads, and the SHA-256 GitHub publishes for that Linux asset.
+  # (tools/tuning-tools.txt pins 0.13.593 for local runs; that release is no longer published.)
+  PAWNSTAR_VERSION: 2.3.1
+  PAWNSTAR_SHA256: 2a1b3718d7f926e121cd3ed0e0332183c9414608d2b934d2b82708298cdb1526
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      candidate_sha: ${{ steps.refs.outputs.candidate_sha }}
+      opponent_name: ${{ steps.refs.outputs.opponent_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Resolve the refs
+        id: refs
+        env:
+          OPPONENT: ${{ inputs.opponent || 'baseline' }}
+          CANDIDATE: ${{ inputs.candidate_ref || 'main' }}
+          BASELINE: ${{ inputs.baseline_ref }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin '+refs/heads/*:refs/remotes/origin/*'
+          resolve() { git rev-parse --verify "$1^{commit}" 2>/dev/null || git rev-parse --verify "origin/$1^{commit}"; }
+          candidate_sha=$(resolve "$CANDIDATE")
+          echo "candidate $CANDIDATE = $candidate_sha"
+          git worktree add --detach ../candidate "$candidate_sha"
+          if [ "$OPPONENT" = baseline ]; then
+            baseline_ref=${BASELINE:-$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)}
+            baseline_sha=$(resolve "$baseline_ref")
+            echo "baseline  $baseline_ref = $baseline_sha"
+            git worktree add --detach ../baseline "$baseline_sha"
+            opponent_name="Stoopid Chess $baseline_ref (${baseline_sha:0:8})"
+          else
+            opponent_name="Pawnstar $PAWNSTAR_VERSION"
+          fi
+          {
+            echo "candidate_sha=$candidate_sha"
+            echo "opponent_name=$opponent_name"
+          } >> "$GITHUB_OUTPUT"
+      - name: Publish the candidate
+        run: dotnet publish ../candidate/src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -o inputs/candidate
+      - name: Publish the baseline
+        if: ${{ (inputs.opponent || 'baseline') == 'baseline' }}
+        run: dotnet publish ../baseline/src/StoopidChess.Uci/StoopidChess.Uci.csproj -c Release -r linux-x64 --self-contained -o inputs/opponent
+      - name: Download Pawnstar and check it
+        if: ${{ inputs.opponent == 'pawnstar' }}
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/opponent
+          curl -fsSL --retry 3 -o inputs/opponent/pawnstar \
+            "https://github.com/reckless-technology/pawnstar/releases/download/v${PAWNSTAR_VERSION}/pawnstar-${PAWNSTAR_VERSION}-linux-x86_64"
+          echo "$PAWNSTAR_SHA256  inputs/opponent/pawnstar" | sha256sum -c -
+      - name: Gather the openings and write the manifest
+        env:
+          CANDIDATE_SHA: ${{ steps.refs.outputs.candidate_sha }}
+          OPPONENT: ${{ inputs.opponent || 'baseline' }}
+          OPPONENT_NAME: ${{ steps.refs.outputs.opponent_name }}
+        run: |
+          set -euo pipefail
+          cp tools/openings-6ply.epd inputs/openings.epd
+          python3 - <<'PY'
+          import hashlib, json, os
+          env = os.environ
+          is_pawnstar = env["OPPONENT"] == "pawnstar"
+          candidate = {"name": "Stoopid Chess " + env["CANDIDATE_SHA"][:8], "command": "{inputs}/candidate/stoopid-chess"}
+          if is_pawnstar:
+              # Pawnstar plays its own book unless told not to; its embedded net needs no file.
+              opponent = {"name": env["OPPONENT_NAME"], "command": "{inputs}/opponent/pawnstar",
+                          "options": {"OwnBook": "false"}}
+          else:
+              opponent = {"name": env["OPPONENT_NAME"], "command": "{inputs}/opponent/stoopid-chess"}
+          manifest = {
+              "format": 1,
+              "candidate": candidate,
+              "baseline": opponent,
+              "openings": {"path": "openings.epd",
+                           "sha256": hashlib.sha256(open("inputs/openings.epd", "rb").read()).hexdigest()},
+              "notes": ["candidate commit " + env["CANDIDATE_SHA"], "opponent " + env["OPPONENT_NAME"]],
+          }
+          json.dump(manifest, open("inputs/manifest.json", "w"), indent=2)
+          PY
+          cat inputs/manifest.json
+      - uses: actions/upload-artifact@v5
+        with:
+          name: match-inputs
+          path: inputs
+          retention-days: 7
+          if-no-files-found: error
+
+  match:
+    needs: build
+    # Pinned to a commit, never a branch: the shared workflow checks out its tools at the commit it was called at.
+    uses: reckless-technology/pawnstar/.github/workflows/match-core.yml@c0ffab8bd8ed60369a9e819b9475b4a63e6157d4
+    with:
+      artifact: match-inputs
+      title: 'Stoopid Chess ${{ needs.build.outputs.candidate_sha }} (candidate) vs ${{ needs.build.outputs.opponent_name }}'
+      time_control: ${{ inputs.time_control || '12+0.12' }}
+      depth: ${{ inputs.depth }}
+      games: ${{ inputs.games || '200' }}
+      chunks: ${{ inputs.chunks || '10' }}
+      concurrency: ${{ inputs.concurrency || '2' }}
+      hash_mb: ${{ inputs.hash_mb || '64' }}
+      first_opening: ${{ inputs.first_opening || '1' }}
