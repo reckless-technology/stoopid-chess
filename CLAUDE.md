@@ -61,7 +61,8 @@ sibling engines (README, "Versions and releases"). `gh workflow run release.yml 
 
 ## The testing discipline
 
-Same as the sibling engines pawnstar and trebuchet. Every change must keep the tests green, and:
+Same as the sibling engines pawnstar and trebuchet; the method that spans them (the gates in order, SPRT hypotheses,
+pinning options, the harness traps) is the `reckless-chess-engines` skill. Every change must keep the tests green, and:
 
 1. **Move generation is guarded by perft.** `tests/.../PerftTests.cs` runs every one of the 128
    standard positions (embedded as `src/StoopidChess.Core/Data/perft.epd`). Never weaken it. If a
@@ -74,9 +75,8 @@ Same as the sibling engines pawnstar and trebuchet. Every change must keep the t
    ordering, pruning, evaluation, table size or Zobrist keys changes it. When the change is
    intended, run `stoopid-chess bench 5`, update the constant in `tests/.../BenchTests.cs` and the
    numbers in README.md, and say so in the commit message. Nondeterminism (e.g. time-based
-   decisions inside a fixed-depth search) is a bug. Speed is compared at bench depth 9 or more with the environment
-   variable `DOTNET_TieredCompilation=0`: the sub-second default bench is dominated by JIT warm-up and can invert a
-   real speed difference. `EvaluatorRegressionTests` pins the static
+   decisions inside a fixed-depth search) is a bug. Speed is compared at bench depth 9 or more with
+   `DOTNET_TieredCompilation=0` (the reason is in the skill, "Harness and benchmark traps"). `EvaluatorRegressionTests` pins the static
    evaluation of eighteen positions, so a refactoring of the evaluator can prove it changed nothing.
 3. **Make/unmake must be exact.** `PositionTests.KeysAreMaintainedIncrementallyThroughRandomPlay`
    recomputes the keys after every random move. Anything that touches `Position`'s state must keep the
